@@ -1,29 +1,15 @@
 {
-    "doctrine/doctrine-bundle": {
-        "version": "2.13",
+    "doctrine/mongodb-odm-bundle": {
+        "version": "5.1",
         "recipe": {
-            "repo": "github.com/symfony/recipes",
+            "repo": "github.com/symfony/recipes-contrib",
             "branch": "main",
-            "version": "2.13",
-            "ref": "8d96c0b51591ffc26794d865ba3ee7d193438a83"
+            "version": "5.0",
+            "ref": "ed0a2da4b9351025c9e6e3837a0677d73f20e424"
         },
         "files": [
-            "config/packages/doctrine.yaml",
-            "src/Entity/.gitignore",
-            "src/Repository/.gitignore"
-        ]
-    },
-    "doctrine/doctrine-migrations-bundle": {
-        "version": "3.3",
-        "recipe": {
-            "repo": "github.com/symfony/recipes",
-            "branch": "main",
-            "version": "3.1",
-            "ref": "1d01ec03c6ecbd67c3375c5478c9a423ae5d6a33"
-        },
-        "files": [
-            "config/packages/doctrine_migrations.yaml",
-            "migrations/.gitignore"
+            "config/packages/doctrine_mongodb.yaml",
+            "src/Document/.gitignore"
         ]
     },
     "phpunit/phpunit": {
@@ -247,6 +233,15 @@
             "config/packages/twig.yaml",
             "templates/base.html.twig"
         ]
+    },
+    "symfony/uid": {
+        "version": "7.1",
+        "recipe": {
+            "repo": "github.com/symfony/recipes",
+            "branch": "main",
+            "version": "7.0",
+            "ref": "0df5844274d871b37fc3816c57a768ffc60a43a5"
+        }
     },
     "symfony/ux-turbo": {
         "version": "v2.21.0"

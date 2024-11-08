@@ -1,0 +1,186 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}Stations{% endblock %}
+
+{% block body %}
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ path('app_stations') }}">Stations</a></li>
+            <li class="breadcrumb-item active" aria-current="page">{{ station.name }}</li>
+        </ol>
+    </nav>
+
+    <div class="row row-cols-2 mb-4">
+        <div class="col">
+            <div class="card">
+                <p class="card-img-top text-center">TODO: Map</p>
+                <div class="card-body">
+                    <h5 class="text-truncate">{{ station.name }}</h5>
+                    <h6 class="card-subtitle text-muted">{{ station.brand }}</h6>
+                    <address class="card-text">
+                        {{ station.address.street }} {{ station.address.houseNumber }}<br />
+                        {{ station.address.postCode }} {{ station.address.city }}
+                    </address>
+                    <p class="card-text">
+                        ? changes per day
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <h5>TODO: Latest prices</h5>
+{#                    <% if @station.price_reports.latest_price -%>#}
+{#                    <h6 class="card-subtitle text-muted">Reported on <%= @station.price_reports.latest_price.report_time %></h6>#}
+{#                    <dl>#}
+{#                        <dt>Diesel</dt>#}
+{#                        <dd><%= render "price", price: @station.price_reports.latest_price.diesel.price %></dd>#}
+{#                        <dt>E5</dt>#}
+{#                        <dd><%= render "price", price: @station.price_reports.latest_price.e5.price %></dd>#}
+{#                        <dt>E10</dt>#}
+{#                        <dd><%= render "price", price: @station.price_reports.latest_price.e10.price %></dd>#}
+{#                    </dl>#}
+{#                    <% else %>#}
+{#                    <h6 class="card-subtitle text-muted">No prices reported</h6>#}
+{#                    <% end %>#}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row row-cols-2 mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <h5>TODO: Most popular expensive times</h5>
+{#                    <table class="table table-striped table-hover table-bordered">#}
+{#                        <thead>#}
+{#                        <tr>#}
+{#                            <th>Diesel</th>#}
+{#                            <th>E5</th>#}
+{#                            <th>E10</th>#}
+{#                        </tr>#}
+{#                        </thead>#}
+{#                        <tbody>#}
+{#                        <% @station.popular_expensive_times.each do |entry| %>#}
+{#                        <tr>#}
+{#                            <td><%= render "timeframe", timeframe: entry['diesel']['timeframe'] %> (<%= entry['diesel']['count'].to_i %> times)</td>#}
+{#                            <td><%= render "timeframe", timeframe: entry['e5']['timeframe'] %> (<%= entry['e5']['count'].to_i %> times)</td>#}
+{#                            <td><%= render "timeframe", timeframe: entry['e10']['timeframe'] %> (<%= entry['e10']['count'].to_i %> times)</td>#}
+{#                        </tr>#}
+{#                        <% end %>#}
+{#                        </tbody>#}
+{#                    </table>#}
+                </div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <h5>TODO: Most popular cheap times</h5>
+{#                    <table class="table table-striped table-hover table-bordered">#}
+{#                        <thead>#}
+{#                        <tr>#}
+{#                            <th>Diesel</th>#}
+{#                            <th>E5</th>#}
+{#                            <th>E10</th>#}
+{#                        </tr>#}
+{#                        </thead>#}
+{#                        <tbody>#}
+{#                        <% @station.popular_cheapest_times.each do |entry| %>#}
+{#                        <tr>#}
+{#                            <td><%= render "timeframe", timeframe: entry['diesel']['timeframe'] %> (<%= entry['diesel']['count'].to_i %> times)</td>#}
+{#                            <td><%= render "timeframe", timeframe: entry['e5']['timeframe'] %> (<%= entry['e5']['count'].to_i %> times)</td>#}
+{#                            <td><%= render "timeframe", timeframe: entry['e10']['timeframe'] %> (<%= entry['e10']['count'].to_i %> times)</td>#}
+{#                        </tr>#}
+{#                        <% end %>#}
+{#                        </tbody>#}
+{#                    </table>#}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row row-cols-2 mb-4">
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <h5>TODO: Most popular increase times</h5>
+{#                    <dl>#}
+{#                        <% @station.popular_increase_times.each do |aggregated_price| %>#}
+{#                        <dt><%= render "timeframe", timeframe: aggregated_price['timeframe'] %> (<%= aggregated_price['changes'] %> changes)</dt>#}
+{#                        <dd><%= render "price_change", change: aggregated_price['averageChange'] %></dd>#}
+{#                        <% end %>#}
+{#                    </dl>#}
+                </div>
+            </div>
+        </div>
+
+        <div class="col">
+            <div class="card">
+                <div class="card-body">
+                    <h5>TODO: Most popular decrease times</h5>
+{#                    <dl>#}
+{#                        <% @station.popular_decrease_times.each do |aggregated_price| %>#}
+{#                        <dt><%= render "timeframe", timeframe: aggregated_price['timeframe'] %> (<%= aggregated_price['changes'] %> changes)</dt>#}
+{#                        <dd><%= render "price_change", change: aggregated_price['averageChange'] %></dd>#}
+{#                        <% end %>#}
+{#                    </dl>#}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <h5>TODO: Average price difference</h5>
+
+{#    <table id="priceDifferences" class="table table-striped table-hover table-bordered mb-4">#}
+{#        <thead>#}
+{#        <tr>#}
+{#            <th>Time</th>#}
+{#            <th>Diesel (times)</th>#}
+{#            <th>E5 (times)</th>#}
+{#            <th>E10 (times)</th>#}
+{#        </tr>#}
+{#        </thead>#}
+{#        <tbody>#}
+{#        <% @station.price_differences.each do |price_difference| %>#}
+{#        <tr>#}
+{#            <td><%= render "timeframe", timeframe: price_difference['timeframe'] %></td>#}
+{#            <td><%= render "price_change", change: price_difference['diesel']['higherThanLowest'] %> (<%= price_difference['diesel']['times'].to_i %> times)</td>#}
+{#            <td><%= render "price_change", change: price_difference['e5']['higherThanLowest'] %> (<%= price_difference['e5']['times'].to_i %> times)</td>#}
+{#            <td><%= render "price_change", change: price_difference['e10']['higherThanLowest'] %> (<%= price_difference['e10']['times'].to_i %> times)</td>#}
+{#        </tr>#}
+{#        <% end %>#}
+{#        </tbody>#}
+{#        <caption>This table shows the average price difference at each time frame compared to the lowest price each day.</caption>#}
+{#    </table>#}
+
+    <h5>TODO: Price changes</h5>
+
+{#    <table class="table table-striped table-hover table-bordered mb-4">#}
+{#        <thead>#}
+{#        <tr>#}
+{#            <th>Time</th>#}
+{#            <th>Changes</th>#}
+{#            <th>Diesel</th>#}
+{#            <th>E5</th>#}
+{#            <th>E10</th>#}
+{#        </tr>#}
+{#        </thead>#}
+{#        <tbody>#}
+{#        <% @station.aggregated_prices.each do |aggregated_price| %>#}
+{#        <tr>#}
+{#            <td><%= render "timeframe", timeframe: aggregated_price['timeframe'] %></td>#}
+{#            <td><%= aggregated_price['changes'] %></td>#}
+{#            <td><%= render "price_change", change: aggregated_price['dieselChange'] %></td>#}
+{#            <td><%= render "price_change", change: aggregated_price['e5Change'] %></td>#}
+{#            <td><%= render "price_change", change: aggregated_price['e10Change'] %></td>#}
+{#        </tr>#}
+{#        <% end %>#}
+{#        </tbody>#}
+{#        <caption>This table shows the average price change for each time frame compared to the previous time.</caption>#}
+{#    </table>#}
+{% endblock %}
