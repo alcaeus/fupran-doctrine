@@ -2,13 +2,13 @@
 
 namespace App\Repository;
 
-use App\Document\Station;
+use App\Document\PriceReport;
 use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
 
-class StationsRepository extends AbstractRepository
+class PriceReportRepository extends AbstractRepository
 {
     public function __construct(ManagerRegistry $registry)
     {
-        parent::__construct($registry, Station::class);
+        parent::__construct($registry, PriceReport::class);
     }
 }

@@ -19,8 +19,12 @@ services:
         resource: '../src/'
         exclude:
             - '../src/DependencyInjection/'
-            - '../src/Entity/'
+            - '../src/Document/'
             - '../src/Kernel.php'
+
+    App\Type\BinaryUuidType:
+        factory: ['Doctrine\ODM\MongoDB\Types\Type', 'getType']
+        arguments: ['binaryUuid']
 
     Doctrine\Persistence\ManagerRegistry: '@doctrine_mongodb'
 

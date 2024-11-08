@@ -7,13 +7,14 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbedOne;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Field;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Id;
 use GeoJson\Geometry\Point;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Uid\UuidV4;
 
 #[Document]
 class Station
 {
     #[Id(type: 'binaryUuid', strategy: 'none')]
-    public readonly UuidV4 $id;
+    public readonly Uuid $id;
 
     #[Field]
     public string $name;
