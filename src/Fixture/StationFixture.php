@@ -12,11 +12,11 @@ class StationFixture extends Fixture
 {
     public function load(ObjectManager $manager): void
     {
-        $station = new Station();
-        $station->name = 'Acme München';
-        $station->brand = 'Acme Corp.';
-        $station->address = new Address('Superman Rd.', '15', '80639', 'München');
-        $station->location = new Point([0, 0]);
+        $station = new Station('278130b1-e062-4a0f-80cc-19e486b4c024');
+        $station->name = 'Aral Tankstelle';
+        $station->brand = 'ARAL';
+        $station->address = new Address('Holzmarktstraße', '12/14', '10179', 'Berlin');
+        $station->location = new Point([13.4214869, 52.5141525]);
 
         $manager->persist($station);
         $manager->flush();

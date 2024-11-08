@@ -13,7 +13,9 @@
     <div class="row row-cols-2 mb-4">
         <div class="col">
             <div class="card">
-                <p class="card-img-top text-center">TODO: Map</p>
+                <p class="card-img-top text-center">
+                    {{ ux_map(map, { style: 'height: 300px' }) }}
+                </p>
                 <div class="card-body">
                     <h5 class="text-truncate">{{ station.name }}</h5>
                     <h6 class="card-subtitle text-muted">{{ station.brand }}</h6>
