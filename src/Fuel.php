@@ -2,7 +2,7 @@
 
 namespace App;
 
-enum FuelType: string
+enum Fuel: string
 {
     case E5 = 'e5';
     case E10 = 'e10';

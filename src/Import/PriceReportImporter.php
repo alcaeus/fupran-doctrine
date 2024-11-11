@@ -42,9 +42,9 @@ final class PriceReportImporter extends Importer
         }
 
         return [
-            'reportDate' => new UTCDateTime(strtotime($rawData['date']) * 1000),
+            'date' => new UTCDateTime(strtotime($rawData['date']) * 1000),
             'station' => $this->binaryUuidType->convertToDatabaseValue($rawData['station_uuid']),
-            'fuelType' => $fuelType,
+            'fuel' => $fuelType,
             'price' => (float) $rawData[$fuelType],
         ];
     }

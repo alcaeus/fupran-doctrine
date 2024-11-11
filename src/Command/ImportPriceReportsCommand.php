@@ -3,10 +3,12 @@
 namespace App\Command;
 
 use App\Import\PriceReportImporter;
+use App\Repository\PriceReportRepository;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use function file_exists;
@@ -23,6 +25,7 @@ class ImportPriceReportsCommand extends Command
 {
     public function __construct(
         private readonly PriceReportImporter $importer,
+        private readonly PriceReportRepository $priceReports,
     ) {
         parent::__construct(null);
     }
@@ -31,6 +34,7 @@ class ImportPriceReportsCommand extends Command
     {
         $this
             ->addArgument('fileOrDirectory', InputArgument::REQUIRED, 'Path to the file to be imported')
+            ->addOption('clear', null, InputOption::VALUE_NONE, 'Clear all price reports before import')
         ;
     }
 
@@ -38,6 +42,15 @@ class ImportPriceReportsCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
         $fileOrDirectory = $input->getArgument('fileOrDirectory');
+
+        if ($input->getOption('clear')) {
+            $output->write('Clearing existing price reports...');
+            $this->priceReports->createQueryBuilder()
+                ->remove()
+                ->getQuery()
+                ->execute();
+            $output->writeln('Done');
+        }
 
         if (!file_exists($fileOrDirectory)) {
             $io->error(sprintf('File or directory "%s" does not exist', $fileOrDirectory));
