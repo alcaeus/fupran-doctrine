@@ -11,22 +11,22 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations\ReferenceOne;
 use Doctrine\ODM\MongoDB\Types\Type;
 
 #[Document]
-readonly class PriceReport
+class PriceReport
 {
     #[Id]
-    public string $id;
+    public readonly string $id;
 
     #[Field(type: Type::DATE_IMMUTABLE)]
-    public DateTimeImmutable $reportDate;
+    public readonly DateTimeImmutable $reportDate;
 
     #[ReferenceOne(storeAs: 'id', targetDocument: Station::class)]
-    public Station $station;
+    public readonly Station $station;
 
     #[Field(enumType: FuelType::class)]
-    public string $fuelType;
+    public readonly string $fuelType;
 
     #[Field]
-    public float $price;
+    public readonly float $price;
 
     private function __construct() {}
 }
