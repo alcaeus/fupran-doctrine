@@ -2,6 +2,7 @@
 
 namespace App\Document;
 
+use App\FuelType;
 use DateTimeImmutable;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Document;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Field;
@@ -21,8 +22,7 @@ readonly class PriceReport
     #[ReferenceOne(storeAs: 'id', targetDocument: Station::class)]
     public Station $station;
 
-    // TODO: Use enum
-    #[Field]
+    #[Field(enumType: FuelType::class)]
     public string $fuelType;
 
     #[Field]
