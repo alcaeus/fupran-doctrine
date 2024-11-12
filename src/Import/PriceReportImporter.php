@@ -2,21 +2,30 @@
 
 namespace App\Import;
 
-use App\Repository\PriceReportRepository;
+use App\Document\PriceReport;
 use App\Type\BinaryUuidType;
+use Doctrine\ODM\MongoDB\DocumentManager;
 use MongoDB\BSON\UTCDateTime;
 use MongoDB\Driver\BulkWrite;
 
 use function strtotime;
+use function uniqid;
 
 final class PriceReportImporter extends Importer
 {
     public function __construct(
-        PriceReportRepository $priceReports,
+        DocumentManager $documentManager,
         private readonly BinaryUuidType $binaryUuidType,
     )
     {
-        parent::__construct($priceReports->getDocumentCollection());
+        $tempName = uniqid('priceReportImport_');
+
+        // Select a temporary collection that we'll be deleting afterwards
+        $collection = $documentManager
+            ->getDocumentDatabase(PriceReport::class)
+            ->selectCollection($tempName);
+
+        parent::__construct($collection);
     }
 
     protected function storeDocument(BulkWrite $bulk, array $data): void

@@ -2,6 +2,7 @@
 
 namespace App\Command;
 
+use App\Import\ImportException;
 use App\Import\StationImporter;
 use App\Repository\StationsRepository;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -12,9 +13,6 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
-use function file_exists;
-use function is_dir;
-use function is_file;
 use function microtime;
 use function sprintf;
 
@@ -51,24 +49,17 @@ class ImportStationsCommand extends Command
                 ->execute();
         }
 
-        if (!file_exists($fileOrDirectory)) {
-            $io->error(sprintf('File or directory "%s" does not exist', $fileOrDirectory));
-            return Command::FAILURE;
-        }
+        try {
+            $start = microtime(true);
+            $result = $this->importer->import($fileOrDirectory, $io);
+            $end = microtime(true);
 
-        $start = microtime(true);
-        if (is_file($fileOrDirectory)) {
-            $result = $this->importer->importFile($fileOrDirectory, $output);
-        } elseif (is_dir($fileOrDirectory)) {
-            $result = $this->importer->importDirectory($fileOrDirectory, $output);
-        } else {
-            $io->error(sprintf('Cannot import file "%s"', $fileOrDirectory));
+            $io->success(sprintf('Done in %.5fs: %d inserted, %d updated.', $end - $start, $result->numInserted, $result->numUpdated));
+        } catch (ImportException $e) {
+            $io->error($e->getMessage());
 
             return Command::FAILURE;
         }
-        $end = microtime(true);
-
-        $io->success(sprintf('Done in %.5fs: %d inserted, %d updated.', $end - $start, $result->numInserted, $result->numUpdated));
 
         return Command::SUCCESS;
     }

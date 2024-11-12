@@ -7,20 +7,37 @@ use DirectoryIterator;
 use MongoDB\Collection;
 use MongoDB\Driver\BulkWrite;
 use MongoDB\Driver\WriteResult;
-use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\StyleInterface;
 
 use function count;
+use function file_exists;
+use function is_dir;
+use function is_file;
 use function microtime;
+use function sprintf;
 
 abstract class Importer
 {
     public function __construct(
-        private readonly Collection $collection,
+        public readonly Collection $collection,
     ) {}
 
     abstract protected function storeDocument(BulkWrite $bulk, array $data): void;
 
-    final public function importDirectory(string $directory, ?OutputInterface $output = null): ImportResult
+    final public function import(string $fileOrDirectory, ?StyleInterface $style = null): ImportResult
+    {
+        if (!file_exists($fileOrDirectory)) {
+            throw ImportException::fileNotFound($fileOrDirectory);
+        }
+
+        return match (true) {
+            is_file($fileOrDirectory) => $this->importFile($fileOrDirectory, $style),
+            is_dir($fileOrDirectory) => $this->importDirectory($fileOrDirectory, $style),
+            default => throw ImportException::cannotImportFile($fileOrDirectory),
+        };
+    }
+
+    final public function importDirectory(string $directory, ?StyleInterface $style = null): ImportResult
     {
         $result = new ImportResult();
 
@@ -31,7 +48,7 @@ abstract class Importer
             }
 
             if ($file->isDir()) {
-                $result = $result->withResult($this->importDirectory($file->getPathname(), $output));
+                $result = $result->withResult($this->importDirectory($file->getPathname(), $style));
 
                 continue;
             }
@@ -40,19 +57,19 @@ abstract class Importer
                 continue;
             }
 
-            $result = $result->withResult($this->importFile($file->getPathname(), $output));
+            $result = $result->withResult($this->importFile($file->getPathname(), $style));
         }
 
         return $result;
     }
 
-    final public function importFile(string $file, ?OutputInterface $output = null): ImportResult
+    final public function importFile(string $file, ?StyleInterface $style = null): ImportResult
     {
-        $output?->writeln(sprintf('Importing file "%s"', $file));
+        $style?->writeln(sprintf('Importing file "%s"', $file));
 
         $resource = fopen($file, 'r');
         if (!$resource) {
-            throw new \RuntimeException(sprintf('Could not read file "%s"', $file));
+            throw ImportException::fileNotReadable($file);
         }
 
         $bulk = new BulkWrite(['ordered' => false]);
@@ -68,7 +85,7 @@ abstract class Importer
                 },
             );
 
-            $output?->writeln(sprintf('Read %d records in %.5f s, importing now', $bulk->count(), $readTime));
+            $style?->writeln(sprintf('Read %d records in %.5f s, importing now', $bulk->count(), $readTime));
 
             $importResult = null;
             $importTime = $this->measureTime(
@@ -79,7 +96,7 @@ abstract class Importer
                 },
             );
 
-            $output?->writeln(sprintf(
+            $style?->writeln(sprintf(
                 'Done in %.5f s; %d records inserted, %d updated, %d skipped.',
                 $importTime,
                 $importResult->numInserted,
