@@ -4,7 +4,9 @@ doctrine_mongodb:
     connections:
         default:
             server: '%env(resolve:MONGODB_URL)%'
-            options: {}
+            options:
+                # Set socketTimeoutMS to 0 (= unlimited) to avoid disconnects when running complex aggregation pipelines
+                socketTimeoutMS: 0
     default_database: '%env(resolve:MONGODB_DB)%'
     document_managers:
         default:
