@@ -23,9 +23,6 @@
                         {{ station.address.street }} {{ station.address.houseNumber }}<br />
                         {{ station.address.postCode }} {{ station.address.city }}
                     </address>
-                    <p class="card-text">
-                        ? changes per day
-                    </p>
                 </div>
             </div>
         </div>
@@ -33,20 +30,23 @@
         <div class="col">
             <div class="card">
                 <div class="card-body">
-                    <h5>TODO: Latest prices</h5>
-{#                    <% if @station.price_reports.latest_price -%>#}
-{#                    <h6 class="card-subtitle text-muted">Reported on <%= @station.price_reports.latest_price.report_time %></h6>#}
-{#                    <dl>#}
-{#                        <dt>Diesel</dt>#}
+                    <h5>Latest prices</h5>
+                    {% if station.latestPriceReport %}
+                    <h6 class="card-subtitle text-muted">Reported on {{ station.latestPriceReport.date|date }}</h6>
+                    <dl>
+                        <dt>Diesel</dt>
+                        <dd>{{ station.latestPriceReport.diesel.price }}</dd>
 {#                        <dd><%= render "price", price: @station.price_reports.latest_price.diesel.price %></dd>#}
-{#                        <dt>E5</dt>#}
+                        <dt>E5</dt>
+                        <dd>{{ station.latestPriceReport.e5.price }}</dd>
 {#                        <dd><%= render "price", price: @station.price_reports.latest_price.e5.price %></dd>#}
-{#                        <dt>E10</dt>#}
+                        <dt>E10</dt>
+                        <dd>{{ station.latestPriceReport.e10.price }}</dd>
 {#                        <dd><%= render "price", price: @station.price_reports.latest_price.e10.price %></dd>#}
-{#                    </dl>#}
-{#                    <% else %>#}
-{#                    <h6 class="card-subtitle text-muted">No prices reported</h6>#}
-{#                    <% end %>#}
+                    </dl>
+                    {% else %}
+                    <h6 class="card-subtitle text-muted">No prices reported</h6>
+                    {% endif %}
                 </div>
             </div>
         </div>

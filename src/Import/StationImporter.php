@@ -2,14 +2,14 @@
 
 namespace App\Import;
 
-use App\Repository\StationsRepository;
+use App\Repository\StationRepository;
 use App\Type\BinaryUuidType;
 use MongoDB\Driver\BulkWrite;
 
 final class StationImporter extends Importer
 {
     public function __construct(
-        StationsRepository $stations,
+        StationRepository      $stations,
         private BinaryUuidType $binaryUuidType,
     ) {
         parent::__construct($stations->getDocumentCollection());
