@@ -65,14 +65,14 @@ class ImportPriceReportsCommand extends Command
             $io->writeln(sprintf('Done in %.5fs', $time));
         }
 
-        $io->write('Importing price reports...');
+        $io->writeln('Importing price reports...');
 
         try {
             [$time, $result] = measure(
-                fn () => $this->importer->import($fileOrDirectory),
+                fn () => $this->importer->import($fileOrDirectory, $io),
             );
 
-            $io->writeln(sprintf('Done in %.5fs: %d inserted, %d updated.', $time, $result->numInserted, $result->numUpdated));
+            $io->writeln(sprintf('Import took %.5fs: %d inserted, %d updated.', $time, $result->numInserted, $result->numUpdated));
         } catch (ImportException $e) {
             $io->error($e->getMessage());
 
