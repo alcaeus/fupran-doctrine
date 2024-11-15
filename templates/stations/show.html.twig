@@ -30,23 +30,15 @@
         <div class="col">
             <div class="card">
                 <div class="card-body">
-                    <h5>Latest prices</h5>
-                    {% if station.latestPriceReport %}
-                    <h6 class="card-subtitle text-muted">Reported on {{ station.latestPriceReport.date|date }}</h6>
+                    <h5>Latest price data</h5>
                     <dl>
-                        <dt>Diesel</dt>
-                        <dd>{{ station.latestPriceReport.diesel.price }}</dd>
-{#                        <dd><%= render "price", price: @station.price_reports.latest_price.diesel.price %></dd>#}
-                        <dt>E5</dt>
-                        <dd>{{ station.latestPriceReport.e5.price }}</dd>
-{#                        <dd><%= render "price", price: @station.price_reports.latest_price.e5.price %></dd>#}
-                        <dt>E10</dt>
-                        <dd>{{ station.latestPriceReport.e10.price }}</dd>
-{#                        <dd><%= render "price", price: @station.price_reports.latest_price.e10.price %></dd>#}
+                        <dt>Diesel <span class="text-muted">({{ station.latestPriceReport.diesel.latestPrice.date|date }})</span></dt>
+                        <dd>{{ station.latestPriceReport.diesel.latestPrice.price }} € (Average: {{ station.latestPriceReport.diesel.weightedAveragePrice }} €)</dd>
+                        <dt>E5 <span class="text-muted">({{ station.latestPriceReport.e5.latestPrice.date|date }})</span></dt>
+                        <dd>{{ station.latestPriceReport.e5.latestPrice.price }} € (Average: {{ station.latestPriceReport.e5.weightedAveragePrice }} €)</dd>
+                        <dt>E10 <span class="text-muted">({{ station.latestPriceReport.e10.latestPrice.date|date }})</span></dt>
+                        <dd>{{ station.latestPriceReport.e10.latestPrice.price }} € (Average: {{ station.latestPriceReport.e10.weightedAveragePrice }} €)</dd>
                     </dl>
-                    {% else %}
-                    <h6 class="card-subtitle text-muted">No prices reported</h6>
-                    {% endif %}
                 </div>
             </div>
         </div>

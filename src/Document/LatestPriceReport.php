@@ -14,45 +14,36 @@ class LatestPriceReport
 
     private array $latestPriceForFuel = [];
 
-    public ?DateTimeImmutable $date {
-        get {
-            $report = $this->latestPrices->first();
-            return $report ? $report->prices->last()->date : null;
-        }
-    }
-
-    public ?Price $e5 {
+    public ?DailyPrice $e5 {
         get {
             return $this->getLatestPrice(Fuel::E5);
         }
     }
 
-    public ?Price $e10 {
+    public ?DailyPrice $e10 {
         get {
             return $this->getLatestPrice(Fuel::E10);
         }
     }
 
-    public ?Price $diesel {
+    public ?DailyPrice $diesel {
         get {
             return $this->getLatestPrice(Fuel::Diesel);
         }
     }
 
-    private function getLatestPrice(Fuel $fuel): ?Price
+    private function getLatestPrice(Fuel $fuel): ?DailyPrice
     {
         return $this->latestPriceForFuel[$fuel->value] ??= $this->extractPriceForFuel($fuel);
     }
 
-    private function extractPriceForFuel(Fuel $fuel): ?Price
+    private function extractPriceForFuel(Fuel $fuel): ?DailyPrice
     {
         /** @var DailyPrice $dailyPrice */
         foreach ($this->latestPrices as $dailyPrice) {
-            if ($dailyPrice->fuel !== $fuel) {
-                continue;
+            if ($dailyPrice->fuel === $fuel) {
+                return $dailyPrice;
             }
-
-            return $dailyPrice->prices->last();
         }
 
         return null;

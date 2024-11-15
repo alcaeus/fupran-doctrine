@@ -15,10 +15,12 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
-use function microtime;
+use function App\measure;
+use function iterator_to_array;
 use function sprintf;
 use function uniqid;
 
@@ -45,7 +47,8 @@ class ImportPriceReportsCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addArgument('fileOrDirectory', InputArgument::REQUIRED, 'Path to the file to be imported')
+            ->addArgument(name: 'fileOrDirectory', mode: InputArgument::REQUIRED, description: 'Path to the file to be imported')
+            ->addOption(name: 'clear', mode: InputOption::VALUE_NONE, description: 'Clear all existing prices')
         ;
     }
 
@@ -54,14 +57,25 @@ class ImportPriceReportsCommand extends Command
         $io = new SymfonyStyle($input, $output);
         $fileOrDirectory = $input->getArgument('fileOrDirectory');
 
+        if ($input->getOption('clear')) {
+            $io->write('Clearing existing price data...');
+            [$time] = measure(
+                fn () => $this->dailyPriceRepository->createQueryBuilder()
+                    ->remove()
+                    ->getQuery()
+                    ->execute()
+            );
+            $io->writeln(sprintf('Done in %.5fs', $time));
+        }
+
         $io->write('Importing price reports...');
 
         try {
-            $start = microtime(true);
-            $result = $this->importer->import($fileOrDirectory);
-            $end = microtime(true);
+            [$time, $result] = measure(
+                fn () => $this->importer->import($fileOrDirectory),
+            );
 
-            $io->writeln(sprintf('Done in %.5fs: %d inserted, %d updated.', $end - $start, $result->numInserted, $result->numUpdated));
+            $io->writeln(sprintf('Done in %.5fs: %d inserted, %d updated.', $time, $result->numInserted, $result->numUpdated));
         } catch (ImportException $e) {
             $io->error($e->getMessage());
 
@@ -93,12 +107,12 @@ class ImportPriceReportsCommand extends Command
             Stage::merge($this->collection->getCollectionName()),
         );
 
-        $start = microtime(true);
-        // TODO: iterator_to_array becomes obsolete in mongodb/mongodb 2.0
-        $this->importer->collection->aggregate(iterator_to_array($pipeline));
-        $end = microtime(true);
+        [$time] = measure(
+            // TODO: iterator_to_array becomes obsolete in mongodb/mongodb 2.0
+            fn () => $this->importer->collection->aggregate(iterator_to_array($pipeline)),
+        );
 
-        $io->writeln(sprintf('Done in %.5fs.', $end - $start));
+        $io->writeln(sprintf('Done in %.5fs.', $time));
     }
 
     private function addOpeningPriceAndMergeIntoPrices(SymfonyStyle $io): void
@@ -106,19 +120,19 @@ class ImportPriceReportsCommand extends Command
         $io->write('Adding opening price for each day and merge into prices collection...');
 
         $pipeline = new Pipeline(
-            PriceReport::addOpeningPrice(),
+            PriceReport::aggregatePriceData(),
             Stage::merge(
                 into: $this->dailyPriceRepository->getDocumentCollection()->getCollectionName(),
                 whenMatched: 'keepExisting',
             ),
         );
 
-        $start = microtime(true);
-        // TODO: iterator_to_array becomes obsolete in mongodb/mongodb 2.0
-        $this->collection->aggregate(iterator_to_array($pipeline));
-        $end = microtime(true);
+        [$time] = measure(
+            // TODO: iterator_to_array becomes obsolete in mongodb/mongodb 2.0
+            fn () => $this->collection->aggregate(iterator_to_array($pipeline)),
+        );
 
-        $io->writeln(sprintf('Done in %.5fs.', $end - $start));
+        $io->writeln(sprintf('Done in %.5fs.', $time));
     }
 
     private function addMissingOpeningPrices(SymfonyStyle $io): void
@@ -131,14 +145,14 @@ class ImportPriceReportsCommand extends Command
             Stage::merge($this->dailyPriceRepository->getDocumentCollection()->getCollectionName()),
         );
 
-        $start = microtime(true);
-        // TODO: iterator_to_array becomes obsolete in mongodb/mongodb 2.0
-        $this
-            ->dailyPriceRepository
-            ->getDocumentCollection()
-            ->aggregate(iterator_to_array($pipeline));
-        $end = microtime(true);
+        [$time] = measure(
+            // TODO: iterator_to_array becomes obsolete in mongodb/mongodb 2.0
+            fn () => $this
+                ->dailyPriceRepository
+                ->getDocumentCollection()
+                ->aggregate(iterator_to_array($pipeline)),
+        );
 
-        $io->writeln(sprintf('Done in %.5fs.', $end - $start));
+        $io->writeln(sprintf('Done in %.5fs.', $time));
     }
 }

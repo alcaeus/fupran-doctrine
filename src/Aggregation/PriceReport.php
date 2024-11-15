@@ -2,16 +2,23 @@
 
 namespace App\Aggregation;
 
+use MongoDB\BSON\PackedArray;
 use MongoDB\Builder\Accumulator;
 use MongoDB\Builder\Expression;
+use MongoDB\Builder\Expression\ResolvesToArray;
 use MongoDB\Builder\Pipeline;
 use MongoDB\Builder\Query;
 use MongoDB\Builder\Stage;
+use MongoDB\Builder\Type\ExpressionInterface;
+use MongoDB\Builder\Type\Optional;
+use MongoDB\Model\BSONArray;
 
 use function MongoDB\object;
 
 class PriceReport
 {
+    const int SECONDS_IN_DAY = 86400;
+
     public static function aggregatePriceReportsByDay(): Pipeline
     {
         return new Pipeline(
@@ -24,12 +31,98 @@ class PriceReport
         );
     }
 
-    public static function addOpeningPrice(): Pipeline
+    public static function aggregatePriceData(): Pipeline
     {
         return new Pipeline(
             self::addPreviousClosingPrice(),
             self::addMissingOpeningPriceToList(),
             self::computeChangeInPriceList(),
+            self::computeWeightedAverage(),
+        );
+    }
+
+    public static function computeWeightedAverage(): Pipeline
+    {
+        return new Pipeline(
+            // Set up a list of prices for the calculation. This list includes
+            // an entry for the first price of the day (i.e. openingPrice) starting
+            // at the beginning of the day. This is merged with a shifted list that
+            // brings in the time of the next report so we know how long the price was valid for.
+            Stage::set(
+                weightedAveragePrices: self::mergeObjectsInLists(
+                    inputs: [
+                        Expression::concatArrays(
+                            [object(
+                                date: Expression::dateFieldPath('day'),
+                                price: Expression::ifNull(
+                                    Expression::fieldPath('openingPrice'),
+                                    Expression::getField(
+                                        field: 'price',
+                                        input: Expression::arrayElemAt(
+                                            Expression::arrayFieldPath('prices'),
+                                            0,
+                                        ),
+                                    ),
+                                ),
+                            )],
+                            Expression::arrayFieldPath('prices'),
+                        ),
+                        Expression::concatArrays(
+                            Expression::map(
+                                input: Expression::arrayFieldPath('prices'),
+                                in: object(
+                                    validUntil: Expression::variable('this.date'),
+                                ),
+                            ),
+                            [object(
+                                validUntil: Expression::dateAdd(
+                                    startDate: Expression::dateFieldPath('day'),
+                                    unit: 'day',
+                                    amount: 1,
+                                ),
+                            )],
+                        ),
+                    ],
+                    useLongestLength: true,
+                ),
+            ),
+            // Compute how long each price was valid for and only keep this time and the price
+            Stage::set(
+                weightedAveragePrices: Expression::map(
+                    input: Expression::arrayFieldPath('weightedAveragePrices'),
+                    in: object(
+                        seconds: Expression::dateDiff(
+                            startDate: Expression::variable('this.date'),
+                            endDate: Expression::variable('this.validUntil'),
+                            unit: 'second',
+                        ),
+                        price: Expression::variable('this.price'),
+                    ),
+                ),
+            ),
+            Stage::set(
+                // The weighted average is calculated by multiplying each price with how long it was valid for, and then
+                // adding all values together. This is then divided by the number of seconds in a day and rounded to
+                // three decimal places.
+                weightedAveragePrice: Expression::round(
+                    Expression::divide(
+                        Expression::reduce(
+                            input: Expression::arrayFieldPath('weightedAveragePrices'),
+                            initialValue: 0,
+                            in: Expression::add(
+                                Expression::variable('value'),
+                                Expression::multiply(
+                                    Expression::variable('this.seconds'),
+                                    Expression::variable('this.price'),
+                                ),
+                            ),
+                        ),
+                        self::SECONDS_IN_DAY,
+                    ),
+                    3,
+                ),
+                weightedAveragePrices: Expression::variable('REMOVE'),
+            ),
         );
     }
 
@@ -42,7 +135,7 @@ class PriceReport
         );
     }
 
-    private static function groupPriceReportsByStationDayFuel(): Stage\GroupStage
+    public static function groupPriceReportsByStationDayFuel(): Stage\GroupStage
     {
         return Stage::group(
             _id: object(
@@ -58,7 +151,7 @@ class PriceReport
         );
     }
 
-    private static function reshapeGroupedPriceReports(): Stage\ReplaceWithStage
+    public static function reshapeGroupedPriceReports(): Stage\ReplaceWithStage
     {
         return Stage::replaceWith(object(
             day: Expression::fieldPath('_id.day'),
@@ -75,7 +168,7 @@ class PriceReport
         ));
     }
 
-    private static function addExtremeValues(): Stage\SetStage
+    public static function addExtremeValues(): Stage\SetStage
     {
         return Stage::set(
             closingPrice: Expression::getField(
@@ -88,7 +181,7 @@ class PriceReport
         );
     }
 
-    private static function lookupStation(): Pipeline
+    public static function lookupStation(): Pipeline
     {
         return new Pipeline(
             Stage::lookup(
@@ -115,23 +208,20 @@ class PriceReport
         );
     }
 
-    private static function addPreviousPriceToList(): Stage\SetStage
+    public static function addPreviousPriceToList(): Stage\SetStage
     {
         return Stage::set(
-            prices: Expression::map(
-                input: Expression::zip(
-                    inputs: [
-                        Expression::arrayFieldPath('prices'),
-                        self::getShiftedPriceList(Expression::arrayFieldPath('prices')),
-                    ],
-                    useLongestLength: true,
-                ),
-                in: Expression::mergeObjects(Expression::variable('this')),
+            prices: self::mergeObjectsInLists(
+                inputs: [
+                    Expression::arrayFieldPath('prices'),
+                    self::getShiftedPriceList(Expression::arrayFieldPath('prices')),
+                ],
+                useLongestLength: true,
             ),
         );
     }
 
-    private static function excludeLastElementFromArray(Expression\ResolvesToArray $expression): Expression\ResolvesToArray
+    public static function excludeLastElementFromArray(Expression\ResolvesToArray $expression): Expression\ResolvesToArray
     {
         return Expression::slice(
             $expression,
@@ -139,12 +229,12 @@ class PriceReport
         );
     }
 
-    private static function createPreviousPriceObject(?Expression\ResolvesToAny $previousPriceExpression): \stdClass
+    public static function createPreviousPriceObject(?ExpressionInterface $previousPriceExpression): \stdClass
     {
         return object(previousPrice: $previousPriceExpression);
     }
 
-    private static function getShiftedPriceList(Expression\ArrayFieldPath $expression): Expression\ConcatArraysOperator
+    public static function getShiftedPriceList(Expression\ArrayFieldPath $expression): Expression\ConcatArraysOperator
     {
         return Expression::concatArrays(
             [self::createPreviousPriceObject(null)],
@@ -155,7 +245,7 @@ class PriceReport
         );
     }
 
-    private static function addPreviousClosingPrice(): Stage\SetWindowFieldsStage
+    public static function addPreviousClosingPrice(): Stage\SetWindowFieldsStage
     {
         return Stage::setWindowFields(
             sortBy: object(day: 1),
@@ -173,7 +263,7 @@ class PriceReport
         );
     }
 
-    private static function addMissingOpeningPriceToList(): Stage\SetStage
+    public static function addMissingOpeningPriceToList(): Stage\SetStage
     {
         return Stage::set(
             prices: Expression::map(
@@ -189,7 +279,7 @@ class PriceReport
         );
     }
 
-    private static function computeChangeInPriceList(): Stage\SetStage
+    public static function computeChangeInPriceList(): Stage\SetStage
     {
         return Stage::set(
             prices: Expression::map(
@@ -207,14 +297,14 @@ class PriceReport
         );
     }
 
-    private static function matchOnlyDaysWithMissingPrices(): Stage\MatchStage
+    public static function matchOnlyDaysWithMissingPrices(): Stage\MatchStage
     {
         return Stage::match(
             openingPrice: Query::exists(false),
         );
     }
 
-    private static function lookupPreviousDay(): Stage\LookupStage
+    public static function lookupPreviousDay(): Stage\LookupStage
     {
         return Stage::lookup(
             as: 'previousDay',
@@ -242,7 +332,7 @@ class PriceReport
         );
     }
 
-    private static function extractOpeningPrice(): Stage\SetStage
+    public static function extractOpeningPrice(): Stage\SetStage
     {
         $previousDayFound = Expression::gt(Expression::size(Expression::arrayFieldPath('previousDay')), 0);
         $previousDay = Expression::first(Expression::arrayFieldPath('previousDay'));
@@ -253,6 +343,21 @@ class PriceReport
                 then: Expression::getField('closingPrice', $previousDay),
                 else: null,
             ),
+        );
+    }
+
+    public static function mergeObjectsInLists(
+        PackedArray|ResolvesToArray|BSONArray|array $inputs,
+        Optional|bool $useLongestLength = Optional::Undefined,
+        Optional|PackedArray|BSONArray|array $defaults = Optional::Undefined,
+    ): Expression\ResolvesToArray {
+        return Expression::map(
+            input: Expression::zip(
+                inputs: $inputs,
+                useLongestLength: $useLongestLength,
+                defaults: $defaults,
+            ),
+            in: Expression::mergeObjects(Expression::variable('this')),
         );
     }
 }

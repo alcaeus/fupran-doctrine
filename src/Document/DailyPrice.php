@@ -46,4 +46,13 @@ class DailyPrice
 
     #[EmbedMany(targetDocument: Price::class)]
     public readonly Collection $prices;
+
+    #[Field]
+    public readonly float $weightedAveragePrice;
+
+    public ?Price $latestPrice {
+        get {
+            return $this->prices->last() ?: null;
+        }
+    }
 }

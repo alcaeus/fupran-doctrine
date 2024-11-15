@@ -17,7 +17,7 @@ class DailyPriceRepository extends AbstractRepository
         parent::__construct($registry, DailyPrice::class);
     }
 
-    public function getLatestPriceForStation(Station $station)
+    public function getLatestPricesForStation(Station $station)
     {
         return $this->createQueryBuilder()
             ->field('station._id')
