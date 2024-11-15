@@ -1,0 +1,22 @@
+<table class="table table-striped">
+    <thead>
+    <tr>
+        <th scope="col">Date</th>
+        <th scope="col">Opening price</th>
+        <th scope="col">Closing price</th>
+        <th scope="col">Lowest price</th>
+        <th scope="col">Highest price</th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for dailyPrice in this.prices %}
+        <tr>
+            <th scope="row">{{ dailyPrice.day|date('d.m.Y') }}</th>
+            <td>{{ dailyPrice.closingPrice }} €</td>
+            <td>{{ dailyPrice.closingPrice }} €</td>
+            <td>{{ dailyPrice.lowestPrice.price }} € ({{ dailyPrice.lowestPrice.date|date('h:i:s') }})</td>
+            <td>{{ dailyPrice.highestPrice.price }} € ({{ dailyPrice.highestPrice.date|date('h:i:s') }})</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>

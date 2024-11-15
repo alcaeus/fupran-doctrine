@@ -33,7 +33,7 @@ class DailyPrice
     #[EmbedOne(targetDocument: PartialStation::class)]
     public readonly PartialStation $station;
 
-    #[Field]
+    #[Field(nullable: true)]
     public readonly ?float $openingPrice;
 
     #[Field]

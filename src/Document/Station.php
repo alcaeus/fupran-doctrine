@@ -32,6 +32,18 @@ class Station extends AbstractStation
     /** @var Collection<int, DailyPrice::class> $latestPrices */
     private Collection $latestPrices;
 
+    #[ReferenceMany(targetDocument: DailyPrice::class, repositoryMethod: 'getLast30DaysDieselForStation')]
+    /** @var Collection<int, DailyPrice::class> $last30DaysDiesel */
+    public Collection $last30DaysDiesel;
+
+    #[ReferenceMany(targetDocument: DailyPrice::class, repositoryMethod: 'getLast30DaysE5ForStation')]
+    /** @var Collection<int, DailyPrice::class> $last30DaysE5 */
+    public Collection $last30DaysE5;
+
+    #[ReferenceMany(targetDocument: DailyPrice::class, repositoryMethod: 'getLast30DaysE10ForStation')]
+    /** @var Collection<int, DailyPrice::class> $last30DaysE10 */
+    public Collection $last30DaysE10;
+
     public function __construct(string|UuidV4|null $id = null)
     {
         $this->id = $id instanceof UuidV4 ? $id : new UuidV4($id);

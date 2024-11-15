@@ -42,6 +42,7 @@
         "symfony/ux-leaflet-map": "^2.21",
         "symfony/ux-map": "^2.21",
         "symfony/ux-turbo": "^2.21",
+        "symfony/ux-twig-component": "*",
         "symfony/validator": "7.1.*",
         "symfony/web-link": "7.1.*",
         "symfony/yaml": "7.1.*",

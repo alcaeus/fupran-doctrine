@@ -27,4 +27,32 @@ class DailyPriceRepository extends AbstractRepository
             ->getQuery()
             ->execute();
     }
+
+    public function getLast30DaysDieselForStation(Station $station)
+    {
+        return $this->getLast30DaysForStationAndFuel($station, Fuel::Diesel);
+    }
+
+    public function getLast30DaysE5ForStation(Station $station)
+    {
+        return $this->getLast30DaysForStationAndFuel($station, Fuel::E5);
+    }
+
+    public function getLast30DaysE10ForStation(Station $station)
+    {
+        return $this->getLast30DaysForStationAndFuel($station, Fuel::E10);
+    }
+
+    private function getLast30DaysForStationAndFuel(Station $station, Fuel $fuel)
+    {
+        return $this->createQueryBuilder()
+            ->field('station._id')
+            ->equals(Type::getType('binaryUuid')->convertToDatabaseValue($station->id))
+            ->field('fuel')
+            ->equals($fuel)
+            ->sort('day', -1)
+            ->limit(30)
+            ->getQuery()
+            ->execute();
+    }
 }
