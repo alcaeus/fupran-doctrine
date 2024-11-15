@@ -33,11 +33,23 @@
                     <h5>Latest price data</h5>
                     <dl>
                         <dt>Diesel <span class="text-muted">({{ station.latestPriceReport.diesel.latestPrice.date|date }})</span></dt>
-                        <dd>{{ station.latestPriceReport.diesel.latestPrice.price }} € (Average: {{ station.latestPriceReport.diesel.weightedAveragePrice }} €)</dd>
+                        <dd>
+                            {{ station.latestPriceReport.diesel.latestPrice.price }} €
+                            (Average: {{ station.latestPriceReport.diesel.weightedAveragePrice }} €,
+                            {{ station.latestPriceReport.diesel.aggregate.getPercentile(station.latestPriceReport.diesel.latestPrice.price) }})
+                        </dd>
                         <dt>E5 <span class="text-muted">({{ station.latestPriceReport.e5.latestPrice.date|date }})</span></dt>
-                        <dd>{{ station.latestPriceReport.e5.latestPrice.price }} € (Average: {{ station.latestPriceReport.e5.weightedAveragePrice }} €)</dd>
+                        <dd>
+                            {{ station.latestPriceReport.e5.latestPrice.price }} €
+                            (Average: {{ station.latestPriceReport.e5.weightedAveragePrice }} €,
+                            {{ station.latestPriceReport.e5.aggregate.getPercentile(station.latestPriceReport.e5.latestPrice.price) }})
+                        </dd>
                         <dt>E10 <span class="text-muted">({{ station.latestPriceReport.e10.latestPrice.date|date }})</span></dt>
-                        <dd>{{ station.latestPriceReport.e10.latestPrice.price }} € (Average: {{ station.latestPriceReport.e10.weightedAveragePrice }} €)</dd>
+                        <dd>
+                            {{ station.latestPriceReport.e10.latestPrice.price }} €
+                            (Average: {{ station.latestPriceReport.e10.weightedAveragePrice }} €,
+                            {{ station.latestPriceReport.e10.aggregate.getPercentile(station.latestPriceReport.e10.latestPrice.price) }})
+                        </dd>
                     </dl>
                 </div>
             </div>

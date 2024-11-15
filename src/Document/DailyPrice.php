@@ -13,6 +13,7 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbedOne;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Field;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Id;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Index;
+use Doctrine\ODM\MongoDB\Mapping\Annotations\ReferenceOne;
 use Doctrine\ODM\MongoDB\Types\Type;
 
 #[Document(repositoryClass: DailyPriceRepository::class)]
@@ -49,6 +50,9 @@ class DailyPrice
 
     #[Field]
     public readonly float $weightedAveragePrice;
+
+    #[ReferenceOne(targetDocument: DailyAggregate::class, repositoryMethod: 'getAggregateForDailyPrice')]
+    public readonly DailyAggregate $aggregate;
 
     public ?Price $latestPrice {
         get {

@@ -13,6 +13,9 @@ use MongoDB\Builder\Type\ExpressionInterface;
 use MongoDB\Builder\Type\Optional;
 use MongoDB\Model\BSONArray;
 
+use stdClass;
+use function array_keys;
+use function array_values;
 use function MongoDB\object;
 
 class PriceReport
@@ -123,6 +126,60 @@ class PriceReport
                 ),
                 weightedAveragePrices: Expression::variable('REMOVE'),
             ),
+        );
+    }
+
+    public static function computeDailyAggregates(): Pipeline
+    {
+        return self::computeAggregates(object(
+            day: Expression::fieldPath('day'),
+            fuel: Expression::fieldPath('fuel'),
+        ));
+    }
+
+    public static function computeDailyAggregatesPerPostCode(): Pipeline
+    {
+        return self::computeAggregates(object(
+            day: Expression::fieldPath('day'),
+            fuel: Expression::fieldPath('fuel'),
+            postCode: Expression::fieldPath('station.address.postCode'),
+        ));
+    }
+
+    public static function computeAggregates(stdClass $group): Pipeline
+    {
+        $percentiles = [
+            'p50' => 0.5,
+            'p90' => 0.9,
+            'p95' => 0.95,
+            'p99' => 0.99,
+        ];
+
+        return new Pipeline(
+            Stage::group(
+                _id: $group,
+                lowestPrice: Accumulator::min(Expression::doubleFieldPath('lowestPrice.price')),
+                highestPrice: Accumulator::min(Expression::doubleFieldPath('highestPrice.price')),
+                weightedAveragePrice: Accumulator::min(Expression::doubleFieldPath('weightedAveragePrice')),
+                percentiles: Accumulator::percentile(
+                    input: Expression::doubleFieldPath('weightedAveragePrice'),
+                    p: array_values($percentiles),
+                    method: 'approximate',
+                ),
+            ),
+            Stage::set(
+                percentiles: Expression::arrayToObject(
+                    Expression::zip([
+                        array_keys($percentiles),
+                        Expression::arrayFieldPath('percentiles'),
+                    ]),
+                ),
+            ),
+            Stage::replaceWith(Expression::mergeObjects(
+                Expression::fieldPath('_id'),
+                Expression::variable('ROOT'),
+            )),
+            Stage::unset('_id'),
         );
     }
 

@@ -6,6 +6,7 @@ use App\Aggregation\PriceReport;
 use App\Document\Station;
 use App\Import\ImportException;
 use App\Import\PriceReportImporter;
+use App\Repository\DailyAggregateRepository;
 use App\Repository\DailyPriceRepository;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use MongoDB\Builder\Pipeline;
@@ -35,6 +36,7 @@ class ImportPriceReportsCommand extends Command
     public function __construct(
         private readonly PriceReportImporter $importer,
         private readonly DailyPriceRepository $dailyPriceRepository,
+        private readonly DailyAggregateRepository $dailyAggregateRepository,
         DocumentManager $documentManager,
     ) {
         parent::__construct(null);
@@ -59,12 +61,7 @@ class ImportPriceReportsCommand extends Command
 
         if ($input->getOption('clear')) {
             $io->write('Clearing existing price data...');
-            [$time] = measure(
-                fn () => $this->dailyPriceRepository->createQueryBuilder()
-                    ->remove()
-                    ->getQuery()
-                    ->execute()
-            );
+            [$time] = measure($this->clearExistingPriceReports(...));
             $io->writeln(sprintf('Done in %.5fs', $time));
         }
 
@@ -88,6 +85,10 @@ class ImportPriceReportsCommand extends Command
         $this->importer->collection->drop();
 
         $this->addOpeningPriceAndMergeIntoPrices($io);
+
+        // TODO: Get days that were updated to only recompute changed data
+
+        $this->computeDailyAggregates($io);
 
         $this->collection->drop();
 
@@ -135,6 +136,26 @@ class ImportPriceReportsCommand extends Command
         $io->writeln(sprintf('Done in %.5fs.', $time));
     }
 
+    private function computeDailyAggregates(SymfonyStyle $io): void
+    {
+        $io->write('Recomputing daily aggregates...');
+
+        $pipeline = new Pipeline(
+            PriceReport::computeDailyAggregates(),
+            Stage::merge($this->dailyAggregateRepository->getDocumentCollection()->getCollectionName()),
+        );
+
+        [$time] = measure(
+            // TODO: iterator_to_array becomes obsolete in mongodb/mongodb 2.0
+            fn () => $this
+                ->dailyPriceRepository
+                ->getDocumentCollection()
+                ->aggregate(iterator_to_array($pipeline)),
+        );
+
+        $io->writeln(sprintf('Done in %.5fs.', $time));
+    }
+
     private function addMissingOpeningPrices(SymfonyStyle $io): void
     {
         $io->write('Adding opening price for records previously imported...');
@@ -154,5 +175,17 @@ class ImportPriceReportsCommand extends Command
         );
 
         $io->writeln(sprintf('Done in %.5fs.', $time));
+    }
+
+    private function clearExistingPriceReports(): void
+    {
+        $this->dailyPriceRepository->createQueryBuilder()
+            ->remove()
+            ->getQuery()
+            ->execute();
+        $this->dailyAggregateRepository->createQueryBuilder()
+            ->remove()
+            ->getQuery()
+            ->execute();
     }
 }
