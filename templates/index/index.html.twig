@@ -4,13 +4,14 @@
 
 {% block body %}
     <div id="stats" class="row row-cols-3 gy-4">
-        <dl>
-            <dt>Stations</dt>
-            <dd>{{ stationCount }}</dd>
-        </dl>
-        <dl>
-            <dt>Price Entries</dt>
-            <dd>{{ priceReportsCount }}</dd>
-        </dl>
+        <div class="col">
+            <twig:DailyAggregateCard aggregate="{{ latestDailyAggregate.diesel }}" />
+        </div>
+        <div class="col">
+            <twig:DailyAggregateCard aggregate="{{ latestDailyAggregate.e5 }}" />
+        </div>
+        <div class="col">
+            <twig:DailyAggregateCard aggregate="{{ latestDailyAggregate.e10 }}" />
+        </div>
     </div>
 {% endblock %}

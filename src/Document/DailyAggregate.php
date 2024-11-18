@@ -9,9 +9,12 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations\Document;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbedOne;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Field;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Id;
+use Doctrine\ODM\MongoDB\Mapping\Annotations\Index;
 use Doctrine\ODM\MongoDB\Types\Type;
 
 #[Document(repositoryClass: DailyAggregateRepository::class)]
+#[Index(keys: ['fuel' => 1, 'day' => -1])]
+#[Index(keys: ['day' => -1])]
 class DailyAggregate
 {
     #[Id]

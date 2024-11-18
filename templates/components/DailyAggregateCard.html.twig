@@ -1,0 +1,13 @@
+<div class="card">
+    <h5 class="card-header">{{ this.aggregate.fuel.displayValue }} on {{ this.aggregate.day|date('d.m.Y') }}</h5>
+    <div class="card-body">
+        <dl>
+            <dt>Average Price</dt>
+            <dd>{{ this.aggregate.weightedAveragePrice }} €</dd>
+            <dt>Lowest Price</dt>
+            <dd>{{ this.aggregate.lowestPrice }} €</dd>
+            <dt>Highest Price</dt>
+            <dd>{{ this.aggregate.highestPrice }} €</dd>
+        </dl>
+    </div>
+</div>
