@@ -8,9 +8,6 @@ use App\Repository\StationRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Annotation\Route;
-use Symfony\UX\Map\Map;
-use Symfony\UX\Map\Marker;
-use Symfony\UX\Map\Point;
 
 class StationsController extends AbstractController
 {
@@ -21,31 +18,16 @@ class StationsController extends AbstractController
 
         return $this->render(
             'stations/index.html.twig',
-            [
-                'stations' => $paginator,
-            ],
+            ['stations' => $paginator],
         );
     }
 
     #[Route('/stations/{id}', name: 'app_stations_show', requirements: ['id' => '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'], methods: ['GET'])]
     public function show(Station $station): Response
     {
-        [$longitude, $latitude] = $station->location->getCoordinates();
-        $location = new Point($latitude, $longitude);
-
-        $map = new Map();
-        $map
-            ->center($location)
-            ->zoom(13)
-            ->addMarker(new Marker($location))
-        ;
-
         return $this->render(
             'stations/show.html.twig',
-            [
-                'station' => $station,
-                'map' => $map,
-            ],
+            ['station' => $station],
         );
     }
 }
