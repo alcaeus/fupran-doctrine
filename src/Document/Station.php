@@ -12,11 +12,29 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations\HasLifecycleCallbacks;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Id;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\PostLoad;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\ReferenceMany;
+use Doctrine\ODM\MongoDB\Mapping\Annotations\SearchIndex;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Uid\UuidV4;
 
 #[Document(repositoryClass: StationRepository::class)]
 #[HasLifecycleCallbacks]
+#[SearchIndex(
+    name: 'station',
+    fields: [
+        'name' => [
+            ['type' => 'autocomplete'],
+        ],
+        'address.street' => [
+            ['type' => 'autocomplete'],
+        ],
+        'address.city' => [
+            ['type' => 'autocomplete'],
+        ],
+        'address.postCode' => [
+            ['type' => 'autocomplete'],
+        ],
+    ],
+)]
 class Station extends AbstractStation
 {
     #[Id(type: 'binaryUuid', strategy: 'none')]

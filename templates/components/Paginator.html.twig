@@ -1,14 +1,15 @@
+{% if this.totalPages > 1 %}
 <nav aria-label="Page navigation example">
     <ul class="pagination">
         <li class="page-item">
-            <a class="page-link" href="{{ path(this.routeName, {page: this.currentPage - 1 }) }}" aria-label="Previous">
+            <a class="page-link" href="{{ path(this.routeName, this.routeParams|merge({page: this.currentPage - 1 })) }}" aria-label="Previous">
                 <span aria-hidden="true">&laquo;</span>
             </a>
         </li>
 
         {% if this.currentPage != 1 %}
         <li class="page-item">
-            <a class="page-link" href="{{ path(this.routeName, {page: 1 }) }}" aria-label="1">
+            <a class="page-link" href="{{ path(this.routeName, this.routeParams|merge({page: 1 })) }}" aria-label="1">
                 <span aria-hidden="true">1</span>
             </a>
         </li>
@@ -26,17 +27,19 @@
         {% endif %}
         {% if this.currentPage != this.totalPages %}
         <li class="page-item">
-            <a class="page-link" href="{{ path(this.routeName, {page: this.totalPages }) }}" aria-label="{{ this.totalPages }}">
+            <a class="page-link" href="{{ path(this.routeName, this.routeParams|merge({page: this.totalPages })) }}" aria-label="{{ this.totalPages }}">
                 <span aria-hidden="true">{{ this.totalPages }}</span>
             </a>
         </li>
         {% endif %}
 
         <li class="page-item">
-            <a class="page-link" href="{{ path(this.routeName, {page: this.currentPage + 1 }) }}" aria-label="Next">
+            <a class="page-link" href="{{ path(this.routeName, this.routeParams|merge({page: this.currentPage + 1 })) }}" aria-label="Next">
                 <span aria-hidden="true">&raquo;</span>
             </a>
         </li>
     </ul>
 </nav>
+{% endif %}
+
 <p class="text-muted">Page {{ this.currentPage }} of {{ this.totalPages }}</p>

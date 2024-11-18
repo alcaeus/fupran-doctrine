@@ -28,8 +28,8 @@
                             <a href="{{ path('app_stations') }}" class="nav-link">Stations</a>
                         </li>
                     </ul>
-                    <form class="d-flex" role="search" action="/stations" method="get">
-                        <input class="form-control me-2" name="post_code" type="search" placeholder="Search" aria-label="Search">
+                    <form class="d-flex" role="search" action="{{ path('app_stations_search') }}" method="get">
+                        <input class="form-control me-2" name="query" type="search" placeholder="Search" aria-label="Search">
                         <button class="btn btn-outline-light" type="submit">Search</button>
                     </form>
                 </div>
@@ -37,6 +37,7 @@
         </nav>
 
         <div class="container pt-4">
+            {% block breadcrumbs %}{% endblock %}
             {% block body %}{% endblock %}
         </div>
     </body>

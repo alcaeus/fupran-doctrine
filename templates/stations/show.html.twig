@@ -2,14 +2,21 @@
 
 {% block title %}Stations{% endblock %}
 
-{% block body %}
+{% block breadcrumbs %}
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{{ path('app_stations') }}">Stations</a></li>
-            <li class="breadcrumb-item active" aria-current="page">{{ station.name }}</li>
+            <li class="breadcrumb-item active" aria-current="page">
+                {{ station.name }}
+                {% if station.brand %}
+                ({{ station.brand }})
+                {% endif %}
+            </li>
         </ol>
     </nav>
+{% endblock %}
 
+{% block body %}
     <div class="row row-cols-2 mb-4">
         <div class="col">
             <div class="card">

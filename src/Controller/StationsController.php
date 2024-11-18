@@ -2,11 +2,13 @@
 
 namespace App\Controller;
 
+use App\Doctrine\AggregationPaginator;
 use App\Doctrine\QueryPaginator;
 use App\Document\Station;
 use App\Repository\StationRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
 use Symfony\Component\Routing\Annotation\Route;
 
 class StationsController extends AbstractController
@@ -28,6 +30,23 @@ class StationsController extends AbstractController
         return $this->render(
             'stations/show.html.twig',
             ['station' => $station],
+        );
+    }
+
+    #[Route('/stations/search', name: 'app_stations_search', methods: ['GET'])]
+    public function search(
+        StationRepository $stations,
+        #[MapQueryParameter] string $query,
+        #[MapQueryParameter] int $page = 1,
+    ): Response {
+        $paginator = new AggregationPaginator($stations->createSearchPipeline($query), $page);
+
+        return $this->render(
+            'stations/search.html.twig',
+            [
+                'stations' => $paginator,
+                'query' => $query,
+            ],
         );
     }
 }
