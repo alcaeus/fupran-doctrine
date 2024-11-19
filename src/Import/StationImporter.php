@@ -5,11 +5,13 @@ namespace App\Import;
 use App\Repository\StationRepository;
 use App\Type\BinaryUuidType;
 use MongoDB\Driver\BulkWrite;
+use function mb_strtolower;
+use function ucwords;
 
 final class StationImporter extends Importer
 {
     public function __construct(
-        StationRepository      $stations,
+        StationRepository $stations,
         private BinaryUuidType $binaryUuidType,
     ) {
         parent::__construct($stations->getDocumentCollection());
@@ -27,13 +29,13 @@ final class StationImporter extends Importer
     private function buildDocument(array $rawData): array
     {
         return [
-            'name' => $rawData['name'],
+            'name' => $this->normalizeCapitalization($rawData['name']),
             'brand' => $rawData['brand'],
             'address' => [
-                'street' => $rawData['street'],
+                'street' => $this->normalizeCapitalization($rawData['street']),
                 'houseNumber' => $rawData['house_number'],
                 'postCode' => $rawData['post_code'],
-                'city' => $rawData['city'],
+                'city' => $this->normalizeCapitalization($rawData['city']),
             ],
             'location' => [
                 'type' => 'Point',
@@ -50,5 +52,10 @@ final class StationImporter extends Importer
         return [
             '_id' => $this->binaryUuidType->convertToDatabaseValue($rawData['uuid']),
         ];
+    }
+
+    private function normalizeCapitalization(string $text): string
+    {
+        return ucwords(mb_strtolower($text));
     }
 }
