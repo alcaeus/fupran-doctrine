@@ -86,15 +86,15 @@ class ImportPriceReportsCommand extends Command
 
         $this->addOpeningPriceAndMergeIntoPrices($io);
 
-        // TODO: Get days that were updated to only recompute changed data
-
-        $this->computeDailyAggregates($io);
-
         $this->collection->drop();
 
         // TODO: Add openingPrice field where it does not exist (happens when multiple imports are done)
         // This is currently slooooow
         // $this->addMissingOpeningPrices($io);
+
+        // TODO: Get days that were updated to only recompute changed data
+
+        $this->computeDailyAggregates($io);
 
         return Command::SUCCESS;
     }
