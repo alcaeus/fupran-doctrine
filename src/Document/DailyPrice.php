@@ -17,7 +17,7 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations\ReferenceOne;
 use Doctrine\ODM\MongoDB\Types\Type;
 
 #[Document(repositoryClass: DailyPriceRepository::class)]
-#[Index(keys: ['fuel' => 1, 'day' => -1, 'station._id' => 1])]
+#[Index(keys: ['fuel' => 1, 'day' => -1, 'station._id' => 1], unique: true)]
 #[Index(keys: ['station._id' => 1, 'day' => -1])]
 class DailyPrice
 {
