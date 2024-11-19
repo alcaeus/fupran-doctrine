@@ -66,28 +66,28 @@
         <div class="col">
             <div class="card">
                 <div class="card-header">
-                    <ul class="nav nav-tabs card-header-tabs" id="last30DaysNav" role="tablist">
+                    <ul class="nav nav-tabs card-header-tabs" id="chartNav" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="last30DaysNavDiesel" data-bs-toggle="tab" data-bs-target="#last30DaysContentDiesel" type="button" role="tab" aria-controls="last30DaysContentDiesel" aria-selected="true">Diesel</button>
+                            <button class="nav-link active" id="chartNavDiesel" data-bs-toggle="tab" data-bs-target="#chartContentDiesel" type="button" role="tab" aria-controls="chartContentDiesel" aria-selected="true">Diesel</button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="last30DaysNavE5" data-bs-toggle="tab" data-bs-target="#last30DaysContentE5" type="button" role="tab" aria-controls="last30DaysContentE5" aria-selected="false">E5</button>
+                            <button class="nav-link" id="chartNavE5" data-bs-toggle="tab" data-bs-target="#chartContentE5" type="button" role="tab" aria-controls="chartContentE5" aria-selected="false">E5</button>
                         </li>
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="last30DaysNavE10" data-bs-toggle="tab" data-bs-target="#last30DaysContentE10" type="button" role="tab" aria-controls="last30DaysContentE10" aria-selected="false">E10</button>
+                            <button class="nav-link" id="chartNavE10" data-bs-toggle="tab" data-bs-target="#chartContentE10" type="button" role="tab" aria-controls="chartContentE10" aria-selected="false">E10</button>
                         </li>
                     </ul>
                 </div>
                 <div class="acard-body">
-                    <div class="tab-content" id="last30DaysContent">
-                        <div class="tab-pane fade show active" id="last30DaysContentDiesel" role="tabpanel" aria-labelledby="last30DaysNavDiesel" tabindex="0">
-                            <twig:PriceList prices="{{ station.last30DaysDiesel }}" />
+                    <div class="tab-content" id="chartContent">
+                        <div class="tab-pane fade show active" id="chartContentDiesel" role="tabpanel" aria-labelledby="chartNavDiesel" tabindex="0">
+                            <twig:Chart:PriceHistory station="{{ station }}" fuel="diesel" />
                         </div>
-                        <div class="tab-pane fade" id="last30DaysContentE5" role="tabpanel" aria-labelledby="last30DaysNavE5" tabindex="0">
-                            <twig:PriceList prices="{{ station.last30DaysE5 }}" />
+                        <div class="tab-pane fade" id="chartContentE5" role="tabpanel" aria-labelledby="chartNavE5" tabindex="0">
+                            <twig:Chart:PriceHistory station="{{ station }}" fuel="e5" />
                         </div>
-                        <div class="tab-pane fade" id="last30DaysContentE10" role="tabpanel" aria-labelledby="last30DaysNavE10" tabindex="0">
-                            <twig:PriceList prices="{{ station.last30DaysE10 }}" />
+                        <div class="tab-pane fade" id="chartContentE10" role="tabpanel" aria-labelledby="chartNavE10" tabindex="0">
+                            <twig:Chart:PriceHistory station="{{ station }}" fuel="e10" />
                         </div>
                     </div>
                 </div>
