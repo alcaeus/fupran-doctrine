@@ -3,95 +3,23 @@
 {% block title %}Stations{% endblock %}
 
 {% block breadcrumbs %}
-    <nav aria-label="breadcrumb">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ path('app_stations') }}">Stations</a></li>
-            <li class="breadcrumb-item active" aria-current="page">
-                {{ station.name }}
-                {% if station.brand %}
-                ({{ station.brand }})
-                {% endif %}
-            </li>
-        </ol>
-    </nav>
+    <twig:Station:BreadCrumbs station="{{ station }}" />
 {% endblock %}
 
 {% block body %}
     <div class="row row-cols-2 mb-4">
         <div class="col">
-            <div class="card">
-                <twig:StationMap station="{{ station }}" />
-
-                <div class="card-body">
-                    <h5 class="text-truncate">{{ station.name }}</h5>
-                    <h6 class="card-subtitle text-muted">{{ station.brand }}</h6>
-                    <address class="card-text">
-                        {{ station.address.street }} {{ station.address.houseNumber }}<br />
-                        {{ station.address.postCode }} {{ station.address.city }}
-                    </address>
-                </div>
-            </div>
+            <twig:Station:Info station="{{ station }}" />
         </div>
 
         <div class="col">
-            <div class="card">
-                <div class="card-body">
-                    <h5>Latest price data</h5>
-                    <dl>
-                        <dt>Diesel <span class="text-muted">({{ station.latestPriceReport.diesel.latestPrice.date|date }})</span></dt>
-                        <dd>
-                            {{ station.latestPriceReport.diesel.latestPrice.price }} €
-                            (Average: {{ station.latestPriceReport.diesel.weightedAveragePrice }} €,
-                            {{ station.latestPriceReport.diesel.aggregate.getPercentile(station.latestPriceReport.diesel.latestPrice.price) }})
-                        </dd>
-                        <dt>E5 <span class="text-muted">({{ station.latestPriceReport.e5.latestPrice.date|date }})</span></dt>
-                        <dd>
-                            {{ station.latestPriceReport.e5.latestPrice.price }} €
-                            (Average: {{ station.latestPriceReport.e5.weightedAveragePrice }} €,
-                            {{ station.latestPriceReport.e5.aggregate.getPercentile(station.latestPriceReport.e5.latestPrice.price) }})
-                        </dd>
-                        <dt>E10 <span class="text-muted">({{ station.latestPriceReport.e10.latestPrice.date|date }})</span></dt>
-                        <dd>
-                            {{ station.latestPriceReport.e10.latestPrice.price }} €
-                            (Average: {{ station.latestPriceReport.e10.weightedAveragePrice }} €,
-                            {{ station.latestPriceReport.e10.aggregate.getPercentile(station.latestPriceReport.e10.latestPrice.price) }})
-                        </dd>
-                    </dl>
-                </div>
-            </div>
+            <twig:Station:LatestPriceData station="{{ station }}" />
         </div>
     </div>
 
     <div class="row row-cols-1 mb-4">
         <div class="col">
-            <div class="card">
-                <div class="card-header">
-                    <ul class="nav nav-tabs card-header-tabs" id="chartNav" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="chartNavDiesel" data-bs-toggle="tab" data-bs-target="#chartContentDiesel" type="button" role="tab" aria-controls="chartContentDiesel" aria-selected="true">Diesel</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="chartNavE5" data-bs-toggle="tab" data-bs-target="#chartContentE5" type="button" role="tab" aria-controls="chartContentE5" aria-selected="false">E5</button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="chartNavE10" data-bs-toggle="tab" data-bs-target="#chartContentE10" type="button" role="tab" aria-controls="chartContentE10" aria-selected="false">E10</button>
-                        </li>
-                    </ul>
-                </div>
-                <div class="acard-body">
-                    <div class="tab-content" id="chartContent">
-                        <div class="tab-pane fade show active" id="chartContentDiesel" role="tabpanel" aria-labelledby="chartNavDiesel" tabindex="0">
-                            <twig:Chart:PriceHistory station="{{ station }}" fuel="diesel" />
-                        </div>
-                        <div class="tab-pane fade" id="chartContentE5" role="tabpanel" aria-labelledby="chartNavE5" tabindex="0">
-                            <twig:Chart:PriceHistory station="{{ station }}" fuel="e5" />
-                        </div>
-                        <div class="tab-pane fade" id="chartContentE10" role="tabpanel" aria-labelledby="chartNavE10" tabindex="0">
-                            <twig:Chart:PriceHistory station="{{ station }}" fuel="e10" />
-                        </div>
-                    </div>
-                </div>
-            </div>
+            <twig:Station:ChartTabs station="{{ station }}" />
         </div>
     </div>
 {% endblock %}

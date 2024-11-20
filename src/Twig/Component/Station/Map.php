@@ -1,27 +1,27 @@
 <?php
 
-namespace App\Twig\Component;
+namespace App\Twig\Component\Station;
 
 use App\Document\Partial\AbstractStation;
 use Symfony\UX\Map\InfoWindow;
-use Symfony\UX\Map\Map;
+use Symfony\UX\Map\Map as UxMap;
 use Symfony\UX\Map\Marker;
 use Symfony\UX\Map\Point;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 use function nl2br;
 
-#[AsTwigComponent('StationMap')]
-class StationMap
+#[AsTwigComponent('Station:Map')]
+class Map
 {
     public AbstractStation $station;
 
-    public function getMap(): Map
+    public function getMap(): UxMap
     {
         [$longitude, $latitude] = $this->station->location->getCoordinates();
         $location = new Point($latitude, $longitude);
 
-        $map = new Map();
+        $map = new UxMap();
         $map
             ->center($location)
             ->zoom(13)

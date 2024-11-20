@@ -1,0 +1,24 @@
+<div class="card">
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs" id="chartNav" role="tablist">
+            {% for fuel in this.fuels %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {{ loop.index0 == 0 ? 'active' : '' }}" id="chartNav_{{ fuel.value }}" data-bs-toggle="tab" data-bs-target="#chartContent_{{ fuel.value }}" type="button" role="tab" aria-controls="chartContent_{{ fuel.value }}" aria-selected="true">{{ fuel.displayValue }}</button>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+    <div class="card-body">
+        <div class="tab-content" id="chartContent">
+            {% for fuel in this.fuels %}
+                <div class="tab-pane fade {{ loop.index0 == 0 ? 'show active' : '' }}" id="chartContent_{{ fuel.value }}" role="tabpanel" aria-labelledby="chartNav_{{ fuel.value }}" tabindex="0">
+                    <h5 class="card-title">Price History</h5>
+                    <twig:Chart:PriceHistory station="{{ this.station }}" fuel="{{ fuel.value }}" />
+
+                    <h5 class="card-title">Cheapest and Most Expensive Times</h5>
+                    <twig:Chart:ExtremeTimes station="{{ this.station }}" fuel="{{ fuel.value }}" />
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
