@@ -55,7 +55,7 @@ return [
         'version' => '5.5.1',
     ],
     'lodash' => [
-        'version' => '4.17.21',
+        'path' => './vendor/lodash-es/lodash-es.index.js',
     ],
     'debug' => [
         'version' => '2.6.9',
