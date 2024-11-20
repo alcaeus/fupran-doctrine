@@ -6,11 +6,11 @@
     <nav aria-label="breadcrumb">
         <ol class="breadcrumb">
             <li class="breadcrumb-item"><a href="{{ path('app_stations') }}">Stations</a></li>
-            <li class="breadcrumb-item active" aria-current="page">Search</li>
+            <li class="breadcrumb-item active" aria-current="page">{{ postCode }}</li>
         </ol>
     </nav>
 {% endblock %}
 
 {% block paginator %}
-    <twig:Paginator currentPage="{{ stations.page }}" totalPages="{{ stations|length }}" routeName="app_stations_search" routeParams="{{ { query: query } }}" />
+    <twig:Paginator currentPage="{{ stations.page }}" totalPages="{{ stations|length }}" routeName="app_stations_postCode" routeParams="{{ { postCode: postCode } }}" />
 {% endblock %}

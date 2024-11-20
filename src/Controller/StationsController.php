@@ -33,7 +33,7 @@ class StationsController extends AbstractController
         );
     }
 
-    #[Route('/stations/search', name: 'app_stations_search', methods: ['GET'])]
+    #[Route('/stations/search', name: 'app_stations_search', requirements: ['page' => '\d+'], methods: ['GET'])]
     public function search(
         StationRepository $stations,
         #[MapQueryParameter] string $query,
@@ -46,6 +46,23 @@ class StationsController extends AbstractController
             [
                 'stations' => $paginator,
                 'query' => $query,
+            ],
+        );
+    }
+
+    #[Route('/stations/postCode/{postCode}/{page}', name: 'app_stations_postCode', requirements: ['postCode' => '\d{5}', 'page' => '\d+'], methods: ['GET'])]
+    public function postCode(
+        StationRepository $stations,
+        string $postCode,
+        int $page = 1,
+    ): Response {
+        $paginator = new QueryPaginator($stations->listByPostCode($postCode), $page);
+
+        return $this->render(
+            'stations/postCode.html.twig',
+            [
+                'stations' => $paginator,
+                'postCode' => $postCode,
             ],
         );
     }
