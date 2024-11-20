@@ -9,6 +9,7 @@ readonly class ChartHelper
         public string $priceHistory,
         public string $priceHistoryWithChanges,
         public string $extremeTimes,
-
+        public string $cheapestTimesHeatmap,
+        public string $mostExpensiveTimesHeatmap,
     ) {}
 }

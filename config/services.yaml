@@ -29,6 +29,8 @@ services:
             $priceHistory: '%env(MONGODB_CHARTS_PRICE_HISTORY)%'
             $priceHistoryWithChanges: '%env(MONGODB_CHARTS_PRICE_HISTORY_WITH_CHANGES)%'
             $extremeTimes: '%env(MONGODB_CHARTS_EXTREME_TIMES)%'
+            $cheapestTimesHeatmap: '%env(MONGODB_CHARTS_CHEAPEST_TIMES_HEATMAP)%'
+            $mostExpensiveTimesHeatmap: '%env(MONGODB_CHARTS_MOST_EXPENSIVE_TIMES_HEATMAP)%'
 
     App\Type\BinaryUuidType:
         factory: ['Doctrine\ODM\MongoDB\Types\Type', 'getType']
