@@ -8,6 +8,7 @@ export default class extends Controller {
         chart: String,
         station: String,
         fuel: String,
+        day: Number,
     }
 
     connect() {
@@ -15,11 +16,22 @@ export default class extends Controller {
             .createChart({
                 baseUrl: this.urlValue,
                 chartId: this.chartValue,
-                preFilter: {
-                    'station._id': UUID.createFromHexString(this.stationValue),
-                    fuel: this.fuelValue,
-                }
+                preFilter: this.#getFilter()
             })
             .render(this.element)
+    }
+
+    #getFilter() {
+        let filter = {'station._id': UUID.createFromHexString(this.stationValue)}
+
+        if (this.fuelValue) {
+            filter.fuel = this.fuelValue
+        }
+
+        if (this.dayValue) {
+            filter.day = new Date(this.dayValue * 1000)
+        }
+
+        return filter
     }
 }

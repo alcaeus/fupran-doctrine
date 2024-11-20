@@ -8,7 +8,7 @@ use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 #[AsTwigComponent('Chart:Heatmap:CheapestTimes', template: Chart::TEMPLATE)]
 class CheapestTimes extends Chart
 {
-    function getChartId(): string
+    public function getChartId(): string
     {
         return $this->chartHelper->cheapestTimesHeatmap;
     }

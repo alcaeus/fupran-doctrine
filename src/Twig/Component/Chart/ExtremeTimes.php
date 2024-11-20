@@ -8,7 +8,7 @@ use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 #[AsTwigComponent('Chart:ExtremeTimes', template: Chart::TEMPLATE)]
 class ExtremeTimes extends Chart
 {
-    function getChartId(): string
+    public function getChartId(): string
     {
         return $this->chartHelper->extremeTimes;
     }

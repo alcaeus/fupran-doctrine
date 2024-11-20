@@ -11,5 +11,7 @@ readonly class ChartHelper
         public string $extremeTimes,
         public string $cheapestTimesHeatmap,
         public string $mostExpensiveTimesHeatmap,
+        public string $differenceToCheapest,
+        public string $dayPriceOverview,
     ) {}
 }

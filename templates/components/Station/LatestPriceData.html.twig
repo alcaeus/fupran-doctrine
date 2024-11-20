@@ -23,5 +23,7 @@
                 {{ station.latestPriceReport.e10.aggregate.getPercentile(station.latestPriceReport.e10.latestPrice.price) }})
             </dd>
         </dl>
+
+        <twig:Chart:DayPriceOverview station="{{ station }}" date="{{ station.latestPriceReport.diesel.latestPrice.date }}" />
     </div>
 </div>
