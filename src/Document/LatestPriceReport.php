@@ -8,12 +8,12 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbedOne;
 #[EmbeddedDocument]
 class LatestPriceReport
 {
-    #[EmbedOne(targetDocument: DailyPrice::class)]
-    public readonly DailyPrice $diesel;
+    #[EmbedOne(targetDocument: EmbeddedDailyPrice::class)]
+    public readonly EmbeddedDailyPrice $diesel;
 
-    #[EmbedOne(targetDocument: DailyPrice::class)]
-    public readonly DailyPrice $e5;
+    #[EmbedOne(targetDocument: EmbeddedDailyPrice::class)]
+    public readonly EmbeddedDailyPrice $e5;
 
-    #[EmbedOne(targetDocument: DailyPrice::class)]
-    public readonly DailyPrice $e10;
+    #[EmbedOne(targetDocument: EmbeddedDailyPrice::class)]
+    public readonly EmbeddedDailyPrice $e10;
 }
