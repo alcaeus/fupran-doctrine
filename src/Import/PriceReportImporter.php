@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Import;
 
-use App\Document\PriceReport;
+use App\Document\DailyPrice;
 use App\Type\BinaryUuidType;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use MongoDB\BSON\UTCDateTime;
@@ -24,7 +24,7 @@ final class PriceReportImporter extends Importer
 
         // Select a temporary collection that we'll be deleting afterwards
         $collection = $documentManager
-            ->getDocumentDatabase(PriceReport::class)
+            ->getDocumentDatabase(DailyPrice::class)
             ->selectCollection($tempName);
 
         parent::__construct($collection);
