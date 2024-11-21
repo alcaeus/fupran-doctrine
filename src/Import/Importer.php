@@ -43,10 +43,15 @@ abstract class Importer
             ->files()
             ->name('*.csv');
 
+        $style?->progressStart($finder->count());
+
         $result = new ImportResult();
         foreach ($finder as $file) {
-            $result = $result->withResult($this->import($file->getRealPath(), $style));
+            $result = $result->withResult($this->importFile($file->getRealPath()));
+            $style?->progressAdvance();
         }
+
+        $style?->progressFinish();
 
         return $result;
     }
