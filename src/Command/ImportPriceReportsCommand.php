@@ -142,7 +142,10 @@ class ImportPriceReportsCommand extends Command
 
         $pipeline = new Pipeline(
             PriceReport::computeDailyAggregates(),
-            Stage::merge($this->dailyAggregateRepository->getDocumentCollection()->getCollectionName()),
+            Stage::merge(
+                $this->dailyAggregateRepository->getDocumentCollection()->getCollectionName(),
+                whenMatched: 'replace',
+            ),
         );
 
         [$time] = measure(
