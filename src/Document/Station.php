@@ -47,7 +47,7 @@ class Station extends AbstractStation
 
     // Use a repository method as we can't load based on an embedded document
     /** @var Collection<int, DailyPrice::class> $latestPrices */
-    #[ReferenceMany(targetDocument: DailyPrice::class, repositoryMethod: 'getLatestPricesForStation')]
+    #[ReferenceMany(targetDocument: DailyPrice::class, /*mappedBy: 'station._id',*/ repositoryMethod: 'getLatestPricesForStation')]
     private Collection $latestPrices;
 
     /** @var Collection<int, DailyPrice::class> $last30DaysDiesel */
