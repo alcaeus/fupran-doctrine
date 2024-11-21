@@ -28,7 +28,10 @@ final class StationImporter extends Importer
 
     private function buildDocument(array $rawData): array
     {
-        return [
+        $longitude = (float) $rawData['longitude'];
+        $latitude = (float) $rawData['latitude'];
+
+        $data = [
             'name' => $this->normalizeCapitalization($rawData['name']),
             'brand' => $rawData['brand'],
             'address' => [
@@ -37,14 +40,19 @@ final class StationImporter extends Importer
                 'postCode' => $rawData['post_code'],
                 'city' => $this->normalizeCapitalization($rawData['city']),
             ],
-            'location' => [
+        ];
+
+        if ($this->isValidGeoCoordinate($longitude, $latitude)) {
+            $data['location'] = [
                 'type' => 'Point',
                 'coordinates' => [
-                    (float) $rawData['longitude'],
-                    (float) $rawData['latitude'],
+                    $longitude,
+                    $latitude,
                 ],
-            ],
-        ];
+            ];
+        }
+
+        return $data;
     }
 
     private function buildQuery(array $rawData): array
@@ -57,5 +65,11 @@ final class StationImporter extends Importer
     private function normalizeCapitalization(string $text): string
     {
         return ucwords(mb_strtolower($text));
+    }
+
+    private function isValidGeoCoordinate(float $longitude, float $latitude): bool
+    {
+        return ($longitude >= -180 && $longitude <= 180)
+            && ($latitude >= -90 && $latitude <= 90);
     }
 }
