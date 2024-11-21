@@ -10,6 +10,7 @@ doctrine_mongodb:
     default_database: '%env(resolve:MONGODB_DB)%'
     document_managers:
         default:
+            logging: false
             auto_mapping: true
             mappings:
                 App:
