@@ -5,8 +5,8 @@ doctrine_mongodb:
         default:
             server: '%env(resolve:MONGODB_URL)%'
             options:
-                # Set socketTimeoutMS to 1 hour to avoid disconnects when running complex aggregation pipelines
-                socketTimeoutMS: 3600000
+                # Set socketTimeoutMS to 6 hours to avoid disconnects when running complex aggregation pipelines
+                socketTimeoutMS: 21600000
     default_database: '%env(resolve:MONGODB_DB)%'
     document_managers:
         default:
