@@ -53,7 +53,7 @@ class ImportPriceReportsCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addArgument(name: 'fileOrDirectory', mode: InputArgument::IS_ARRAY | InputArgument::REQUIRED, description: 'Path to the file to be imported')
+            ->addArgument(name: 'fileOrDirectory', mode: InputArgument::IS_ARRAY, description: 'Path to the file to be imported')
             ->addOption(name: 'clear', mode: InputOption::VALUE_NONE, description: 'Clear all existing prices');
     }
 
@@ -66,19 +66,36 @@ class ImportPriceReportsCommand extends Command
             $io->writeln(sprintf('Done in %.5fs', $time));
         }
 
-        $io->writeln('Importing price reports...');
-
         try {
-            [$time, $result] = measure(
-                fn () => $this->importer->import($input->getArgument('fileOrDirectory'), $io),
-            );
-
-            $io->writeln(sprintf('Import took %.5fs: %d inserted, %d updated.', $time, $result->numInserted, $result->numUpdated));
+            $this->importDataAndPreAggregate($input->getArgument('fileOrDirectory'), $io);
         } catch (ImportException $e) {
             $io->error($e->getMessage());
 
             return Command::FAILURE;
         }
+
+        // TODO: Get days that were updated to only recompute changed data
+        $this->computeDailyAggregates($io);
+
+        $this->updateLatestStationPrices($io);
+
+        return Command::SUCCESS;
+    }
+
+    private function importDataAndPreAggregate(string|array $fileOrDirectory, SymfonyStyle $io): void
+    {
+        if (!$fileOrDirectory) {
+            $io->writeln('No files specified for import, only recomputing aggregates for existing data.');
+
+            return;
+        }
+
+        $io->writeln('Importing price reports...');
+        [$time, $result] = measure(
+            fn() => $this->importer->import($fileOrDirectory, $io),
+        );
+
+        $io->writeln(sprintf('Import took %.5fs: %d inserted, %d updated.', $time, $result->numInserted, $result->numUpdated));
 
         $this->aggregatePriceReportsByDay($io);
 
@@ -92,14 +109,6 @@ class ImportPriceReportsCommand extends Command
         // TODO: Add openingPrice field where it does not exist (happens when multiple imports are done)
         // This is currently slooooow
         // $this->addMissingOpeningPrices($io);
-
-        // TODO: Get days that were updated to only recompute changed data
-
-        $this->computeDailyAggregates($io);
-
-        $this->updateLatestStationPrices($io);
-
-        return Command::SUCCESS;
     }
 
     private function aggregatePriceReportsByDay(SymfonyStyle $io): void
