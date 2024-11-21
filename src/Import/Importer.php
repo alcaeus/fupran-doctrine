@@ -9,8 +9,8 @@ use MongoDB\Collection;
 use MongoDB\Driver\BulkWrite;
 use MongoDB\Driver\WriteResult;
 use Symfony\Component\Console\Style\StyleInterface;
-
 use Symfony\Component\Finder\Finder;
+
 use function array_combine;
 use function count;
 use function fclose;
