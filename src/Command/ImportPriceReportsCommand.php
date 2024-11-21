@@ -53,15 +53,13 @@ class ImportPriceReportsCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addArgument(name: 'fileOrDirectory', mode: InputArgument::REQUIRED, description: 'Path to the file to be imported')
+            ->addArgument(name: 'fileOrDirectory', mode: InputArgument::IS_ARRAY | InputArgument::REQUIRED, description: 'Path to the file to be imported')
             ->addOption(name: 'clear', mode: InputOption::VALUE_NONE, description: 'Clear all existing prices');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $fileOrDirectory = $input->getArgument('fileOrDirectory');
-
         if ($input->getOption('clear')) {
             $io->write('Clearing existing price data...');
             [$time] = measure($this->clearExistingPriceReports(...));
@@ -72,7 +70,7 @@ class ImportPriceReportsCommand extends Command
 
         try {
             [$time, $result] = measure(
-                fn () => $this->importer->import($fileOrDirectory, $io),
+                fn () => $this->importer->import($input->getArgument('fileOrDirectory'), $io),
             );
 
             $io->writeln(sprintf('Import took %.5fs: %d inserted, %d updated.', $time, $result->numInserted, $result->numUpdated));

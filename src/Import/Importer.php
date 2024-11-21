@@ -5,20 +5,19 @@ declare(strict_types=1);
 namespace App\Import;
 
 use Closure;
-use DirectoryIterator;
 use MongoDB\Collection;
 use MongoDB\Driver\BulkWrite;
 use MongoDB\Driver\WriteResult;
 use Symfony\Component\Console\Style\StyleInterface;
 
+use Symfony\Component\Finder\Finder;
 use function array_combine;
 use function count;
 use function fclose;
 use function fgetcsv;
-use function file_exists;
 use function fopen;
-use function is_dir;
 use function is_file;
+use function is_string;
 use function microtime;
 use function sprintf;
 
@@ -31,46 +30,28 @@ abstract class Importer
 
     abstract protected function storeDocument(BulkWrite $bulk, array $data): void;
 
-    final public function import(string $fileOrDirectory, ?StyleInterface $style = null): ImportResult
+    /** @param string|list<string> $fileOrDirectory */
+    final public function import(string|array $fileOrDirectory, ?StyleInterface $style = null): ImportResult
     {
-        if (! file_exists($fileOrDirectory)) {
-            throw ImportException::fileNotFound($fileOrDirectory);
+        if (is_string($fileOrDirectory) && is_file($fileOrDirectory)) {
+            return $this->importFile($fileOrDirectory, $style);
         }
 
-        return match (true) {
-            is_file($fileOrDirectory) => $this->importFile($fileOrDirectory, $style),
-            is_dir($fileOrDirectory) => $this->importDirectory($fileOrDirectory, $style),
-            default => throw ImportException::cannotImportFile($fileOrDirectory),
-        };
-    }
+        $finder = new Finder();
+        $finder
+            ->in($fileOrDirectory)
+            ->files()
+            ->name('*.csv');
 
-    final public function importDirectory(string $directory, ?StyleInterface $style = null): ImportResult
-    {
         $result = new ImportResult();
-
-        $iterator = new DirectoryIterator($directory);
-        foreach ($iterator as $file) {
-            if ($file->isDot()) {
-                continue;
-            }
-
-            if ($file->isDir()) {
-                $result = $result->withResult($this->importDirectory($file->getPathname(), $style));
-
-                continue;
-            }
-
-            if ($file->getExtension() !== 'csv') {
-                continue;
-            }
-
-            $result = $result->withResult($this->importFile($file->getPathname(), $style));
+        foreach ($finder as $file) {
+            $result = $result->withResult($this->import($file->getRealPath(), $style));
         }
 
         return $result;
     }
 
-    final public function importFile(string $file, ?StyleInterface $style = null): ImportResult
+    private function importFile(string $file, ?StyleInterface $style = null): ImportResult
     {
         $style?->writeln(sprintf('Importing file "%s"', $file));
 

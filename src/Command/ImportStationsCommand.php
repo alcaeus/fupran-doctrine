@@ -34,15 +34,13 @@ class ImportStationsCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addArgument('fileOrDirectory', InputArgument::REQUIRED, 'Path to the file to be imported')
+            ->addArgument('fileOrDirectory', InputArgument::IS_ARRAY | InputArgument::REQUIRED, 'Path to the files or directories to be imported')
             ->addOption('clear', null, InputOption::VALUE_NONE, 'Clear all stations before import');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $fileOrDirectory = $input->getArgument('fileOrDirectory');
-
         if ($input->getOption('clear')) {
             $this->stations->createQueryBuilder()
                 ->remove()
@@ -52,7 +50,7 @@ class ImportStationsCommand extends Command
 
         try {
             $start = microtime(true);
-            $result = $this->importer->import($fileOrDirectory, $io);
+            $result = $this->importer->import($input->getArgument('fileOrDirectory'), $io);
             $end = microtime(true);
 
             $io->success(sprintf('Done in %.5fs: %d inserted, %d updated.', $end - $start, $result->numInserted, $result->numUpdated));
