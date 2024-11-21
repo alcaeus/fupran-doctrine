@@ -8,16 +8,13 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Document;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbedOne;
-use Doctrine\ODM\MongoDB\Mapping\Annotations\HasLifecycleCallbacks;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Id;
-use Doctrine\ODM\MongoDB\Mapping\Annotations\PostLoad;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\ReferenceMany;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\SearchIndex;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Uid\UuidV4;
 
 #[Document(repositoryClass: StationRepository::class)]
-#[HasLifecycleCallbacks]
 #[SearchIndex(
     name: 'station',
     fields: [
@@ -43,7 +40,8 @@ class Station extends AbstractStation
     #[EmbedOne(targetDocument: Address::class)]
     public Address $address;
 
-    public LatestPriceReport $latestPriceReport;
+    #[EmbedOne(targetDocument: LatestPriceReport::class)]
+    public ?LatestPriceReport $latestPrice = null;
 
     // Use a repository method as we can't load based on an embedded document
     #[ReferenceMany(targetDocument: DailyPrice::class, repositoryMethod: 'getLatestPricesForStation')]
@@ -66,11 +64,5 @@ class Station extends AbstractStation
     {
         $this->id = $id instanceof UuidV4 ? $id : new UuidV4($id);
         $this->latestPrices = new ArrayCollection();
-    }
-
-    #[PostLoad]
-    public function postLoad(): void
-    {
-        $this->latestPriceReport = new LatestPriceReport($this->latestPrices);
     }
 }

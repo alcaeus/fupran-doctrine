@@ -2,50 +2,18 @@
 
 namespace App\Document;
 
-use App\Fuel;
-use DateTimeImmutable;
-use Doctrine\Common\Collections\Collection;
+use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbeddedDocument;
+use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbedOne;
 
+#[EmbeddedDocument]
 class LatestPriceReport
 {
-    public function __construct(
-        private Collection $latestPrices,
-    ) {}
+    #[EmbedOne(targetDocument: DailyPrice::class)]
+    public readonly DailyPrice $diesel;
 
-    private array $latestPriceForFuel = [];
+    #[EmbedOne(targetDocument: DailyPrice::class)]
+    public readonly DailyPrice $e5;
 
-    public ?DailyPrice $e5 {
-        get {
-            return $this->getLatestPrice(Fuel::E5);
-        }
-    }
-
-    public ?DailyPrice $e10 {
-        get {
-            return $this->getLatestPrice(Fuel::E10);
-        }
-    }
-
-    public ?DailyPrice $diesel {
-        get {
-            return $this->getLatestPrice(Fuel::Diesel);
-        }
-    }
-
-    private function getLatestPrice(Fuel $fuel): ?DailyPrice
-    {
-        return $this->latestPriceForFuel[$fuel->value] ??= $this->extractPriceForFuel($fuel);
-    }
-
-    private function extractPriceForFuel(Fuel $fuel): ?DailyPrice
-    {
-        /** @var DailyPrice $dailyPrice */
-        foreach ($this->latestPrices as $dailyPrice) {
-            if ($dailyPrice->fuel === $fuel) {
-                return $dailyPrice;
-            }
-        }
-
-        return null;
-    }
+    #[EmbedOne(targetDocument: DailyPrice::class)]
+    public readonly DailyPrice $e10;
 }

@@ -8,6 +8,7 @@ use App\Import\ImportException;
 use App\Import\PriceReportImporter;
 use App\Repository\DailyAggregateRepository;
 use App\Repository\DailyPriceRepository;
+use App\Repository\StationRepository;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use MongoDB\Builder\Pipeline;
 use MongoDB\Builder\Stage;
@@ -37,6 +38,7 @@ class ImportPriceReportsCommand extends Command
         private readonly PriceReportImporter $importer,
         private readonly DailyPriceRepository $dailyPriceRepository,
         private readonly DailyAggregateRepository $dailyAggregateRepository,
+        private readonly StationRepository $stationRepository,
         DocumentManager $documentManager,
     ) {
         parent::__construct(null);
@@ -95,6 +97,8 @@ class ImportPriceReportsCommand extends Command
         // TODO: Get days that were updated to only recompute changed data
 
         $this->computeDailyAggregates($io);
+
+        $this->updateLatestStationPrices($io);
 
         return Command::SUCCESS;
     }
@@ -190,5 +194,28 @@ class ImportPriceReportsCommand extends Command
             ->remove()
             ->getQuery()
             ->execute();
+    }
+
+    private function updateLatestStationPrices(SymfonyStyle $io): void
+    {
+        $io->write('Setting last price report for stations...');
+
+        $pipeline = new Pipeline(
+            PriceReport::getLatestPriceReportsPerStation(),
+            Stage::merge(
+                into: $this->stationRepository->getDocumentCollection()->getCollectionName(),
+                on: '_id',
+            ),
+        );
+
+        [$time] = measure(
+            // TODO: iterator_to_array becomes obsolete in mongodb/mongodb 2.0
+            fn () => $this
+                ->dailyPriceRepository
+                ->getDocumentCollection()
+                ->aggregate(iterator_to_array($pipeline)),
+        );
+
+        $io->writeln(sprintf('Done in %.5fs.', $time));
     }
 }

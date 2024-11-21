@@ -418,4 +418,38 @@ class PriceReport
             in: Expression::mergeObjects(Expression::variable('this')),
         );
     }
+
+    public static function getLatestPriceReportsPerStation(): Pipeline
+    {
+        return new Pipeline(
+            Stage::sort(fuel: 1, day: -1),
+            Stage::group(
+                _id: object(
+                    station: Expression::fieldPath('station._id'),
+                    fuel: Expression::fieldPath('fuel'),
+                ),
+                latestPrice: Accumulator::first(Expression::variable('ROOT')),
+                latestPrices: Accumulator::firstN(Expression::variable('ROOT'), 30),
+            ),
+            Stage::group(
+                _id: expression::fieldPath('_id.station'),
+                latestPrice: Accumulator::push(
+                    object(
+                        k: Expression::fieldPath('_id.fuel'),
+                        v: Expression::fieldPath('latestPrice'),
+                    ),
+                ),
+                latestPrices: Accumulator::push(
+                    object(
+                        k: Expression::fieldPath('_id.fuel'),
+                        v: Expression::fieldPath('latestPrices'),
+                    ),
+                ),
+            ),
+            Stage::set(
+                latestPrice: Expression::arrayToObject(Expression::fieldPath('latestPrice')),
+                latestPrices: Expression::arrayToObject(Expression::fieldPath('latestPrices')),
+            ),
+        );
+    }
 }

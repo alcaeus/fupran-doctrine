@@ -1,0 +1,20 @@
+{% props station = null %}
+
+{% if station.latestPrice is not null %}
+    <div class="card">
+        <div class="card-body">
+            <h5>Latest price data</h5>
+            <dl>
+                <twig:Station:LatestPriceData dailyPrice="{{ station.latestPrice.diesel }}" />
+                <twig:Station:LatestPriceData dailyPrice="{{ station.latestPrice.e5 }}" />
+                <twig:Station:LatestPriceData dailyPrice="{{ station.latestPrice.e10 }}" />
+            </dl>
+
+            <twig:Chart:DayPriceOverview station="{{ station }}" date="{{ station.latestPrice.diesel.latestPrice.date }}" />
+        </div>
+    </div>
+{% else %}
+    <div class="alert alert-info" role="alert">
+        No latest prices available for this station.
+    </div>
+{% endif %}
