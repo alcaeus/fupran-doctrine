@@ -11,7 +11,7 @@ use Symfony\Component\Uid\Uuid;
 
 class BinaryUuidType extends Type
 {
-    public function convertToDatabaseValue($value): ?Binary
+    public function convertToDatabaseValue(mixed $value): ?Binary
     {
         if ($value === null) {
             return null;
@@ -24,7 +24,7 @@ class BinaryUuidType extends Type
         return new Binary($value->toBinary(), Binary::TYPE_UUID);
     }
 
-    public function convertToPHPValue($value): Uuid
+    public function convertToPHPValue(mixed $value): Uuid
     {
         if (! $value instanceof Binary || $value->getType() !== Binary::TYPE_UUID) {
             throw new Exception('Invalid data received for Uuid');

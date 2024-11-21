@@ -26,7 +26,7 @@ final class ImportResult
     ) {
     }
 
-    public function withResult(self $result)
+    public function withResult(self $result): self
     {
         return new self(
             $this->numInserted + $result->numInserted,

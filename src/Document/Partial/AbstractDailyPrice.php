@@ -50,9 +50,11 @@ class AbstractDailyPrice
     #[ReferenceOne(targetDocument: DailyAggregate::class, repositoryMethod: 'getAggregateForDailyPrice')]
     public readonly DailyAggregate $aggregate;
 
+    /** phpcs:disable **/
     public ?Price $latestPrice {
         get {
             return $this->prices->last() ?: null;
         }
     }
+    /** phpcs:enable **/
 }

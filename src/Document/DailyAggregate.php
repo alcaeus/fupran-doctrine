@@ -20,7 +20,7 @@ use Doctrine\ODM\MongoDB\Types\Type;
 class DailyAggregate
 {
     #[Id]
-    public $id;
+    public string $id;
 
     #[Field(type: Type::DATE_IMMUTABLE)]
     public readonly DateTimeImmutable $day;

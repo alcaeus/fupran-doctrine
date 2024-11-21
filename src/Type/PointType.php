@@ -15,7 +15,7 @@ use function is_array;
 
 class PointType extends Type
 {
-    public function convertToDatabaseValue($value): ?stdClass
+    public function convertToDatabaseValue(mixed $value): ?stdClass
     {
         return $value
             ? (object) [
@@ -25,7 +25,7 @@ class PointType extends Type
             : null;
     }
 
-    public function convertToPHPValue($value): Point
+    public function convertToPHPValue(mixed $value): Point
     {
         if (! $this->isValidPointData($value)) {
             throw new Exception('Invalid data received for Point');

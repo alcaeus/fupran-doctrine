@@ -23,5 +23,5 @@ abstract class Chart
         $this->uniqueId = uniqid('chart_');
     }
 
-    abstract function getChartId(): string;
+    abstract public function getChartId(): string;
 }

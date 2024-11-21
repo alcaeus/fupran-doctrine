@@ -8,6 +8,7 @@ use App\Document\DailyPrice;
 use App\Document\Station;
 use App\Fuel;
 use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
+use Doctrine\ODM\MongoDB\Iterator\Iterator;
 use Doctrine\ODM\MongoDB\Types\Type;
 
 use function count;
@@ -19,7 +20,7 @@ class DailyPriceRepository extends AbstractRepository
         parent::__construct($registry, DailyPrice::class);
     }
 
-    public function getLatestPricesForStation(Station $station)
+    public function getLatestPricesForStation(Station $station): Iterator
     {
         return $this->createQueryBuilder()
             ->field('station._id')
@@ -30,22 +31,22 @@ class DailyPriceRepository extends AbstractRepository
             ->execute();
     }
 
-    public function getLast30DaysDieselForStation(Station $station)
+    public function getLast30DaysDieselForStation(Station $station): Iterator
     {
         return $this->getLast30DaysForStationAndFuel($station, Fuel::Diesel);
     }
 
-    public function getLast30DaysE5ForStation(Station $station)
+    public function getLast30DaysE5ForStation(Station $station): Iterator
     {
         return $this->getLast30DaysForStationAndFuel($station, Fuel::E5);
     }
 
-    public function getLast30DaysE10ForStation(Station $station)
+    public function getLast30DaysE10ForStation(Station $station): Iterator
     {
         return $this->getLast30DaysForStationAndFuel($station, Fuel::E10);
     }
 
-    private function getLast30DaysForStationAndFuel(Station $station, Fuel $fuel)
+    private function getLast30DaysForStationAndFuel(Station $station, Fuel $fuel): Iterator
     {
         return $this->createQueryBuilder()
             ->field('station._id')
