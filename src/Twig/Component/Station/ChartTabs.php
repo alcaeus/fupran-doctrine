@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Twig\Component\Station;
 
 use App\Document\Partial\AbstractStation;
 use App\Fuel;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
+
 use function array_filter;
 
 #[AsTwigComponent('Station:ChartTabs')]

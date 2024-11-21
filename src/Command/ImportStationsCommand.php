@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Command;
 
 use App\Import\ImportException;
@@ -23,7 +25,7 @@ use function sprintf;
 class ImportStationsCommand extends Command
 {
     public function __construct(
-        private readonly StationImporter   $importer,
+        private readonly StationImporter $importer,
         private readonly StationRepository $stations,
     ) {
         parent::__construct(null);
@@ -33,8 +35,7 @@ class ImportStationsCommand extends Command
     {
         $this
             ->addArgument('fileOrDirectory', InputArgument::REQUIRED, 'Path to the file to be imported')
-            ->addOption('clear', null, InputOption::VALUE_NONE, 'Clear all stations before import')
-        ;
+            ->addOption('clear', null, InputOption::VALUE_NONE, 'Clear all stations before import');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

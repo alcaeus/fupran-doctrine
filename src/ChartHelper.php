@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App;
 
 readonly class ChartHelper
@@ -13,5 +15,6 @@ readonly class ChartHelper
         public string $mostExpensiveTimesHeatmap,
         public string $differenceToCheapest,
         public string $dayPriceOverview,
-    ) {}
+    ) {
+    }
 }

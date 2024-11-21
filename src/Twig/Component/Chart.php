@@ -1,9 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Twig\Component;
 
 use App\ChartHelper;
 use App\Document\Partial\AbstractStation;
+
 use function uniqid;
 
 abstract class Chart

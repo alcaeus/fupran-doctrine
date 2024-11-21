@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Type;
 
 use Doctrine\ODM\MongoDB\Types\Type;
+use Exception;
 use MongoDB\BSON\Binary;
 use Symfony\Component\Uid\Uuid;
 
@@ -24,7 +27,7 @@ class BinaryUuidType extends Type
     public function convertToPHPValue($value): Uuid
     {
         if (! $value instanceof Binary || $value->getType() !== Binary::TYPE_UUID) {
-            throw new \Exception('Invalid data received for Uuid');
+            throw new Exception('Invalid data received for Uuid');
         }
 
         return Uuid::fromString($value->getData());

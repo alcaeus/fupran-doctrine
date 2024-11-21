@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Import;
 
 use Closure;
@@ -9,8 +11,12 @@ use MongoDB\Driver\BulkWrite;
 use MongoDB\Driver\WriteResult;
 use Symfony\Component\Console\Style\StyleInterface;
 
+use function array_combine;
 use function count;
+use function fclose;
+use function fgetcsv;
 use function file_exists;
+use function fopen;
 use function is_dir;
 use function is_file;
 use function microtime;
@@ -20,13 +26,14 @@ abstract class Importer
 {
     public function __construct(
         public readonly Collection $collection,
-    ) {}
+    ) {
+    }
 
     abstract protected function storeDocument(BulkWrite $bulk, array $data): void;
 
     final public function import(string $fileOrDirectory, ?StyleInterface $style = null): ImportResult
     {
-        if (!file_exists($fileOrDirectory)) {
+        if (! file_exists($fileOrDirectory)) {
             throw ImportException::fileNotFound($fileOrDirectory);
         }
 
@@ -68,7 +75,7 @@ abstract class Importer
         $style?->writeln(sprintf('Importing file "%s"', $file));
 
         $resource = fopen($file, 'r');
-        if (!$resource) {
+        if (! $resource) {
             throw ImportException::fileNotReadable($file);
         }
 

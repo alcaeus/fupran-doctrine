@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Aggregation;
 
 use MongoDB\BSON\PackedArray;
@@ -12,15 +14,15 @@ use MongoDB\Builder\Stage;
 use MongoDB\Builder\Type\ExpressionInterface;
 use MongoDB\Builder\Type\Optional;
 use MongoDB\Model\BSONArray;
-
 use stdClass;
+
 use function array_keys;
 use function array_values;
 use function MongoDB\object;
 
 class PriceReport
 {
-    const int SECONDS_IN_DAY = 86400;
+    public const int SECONDS_IN_DAY = 86400;
 
     public static function aggregatePriceReportsByDay(): Pipeline
     {
@@ -55,19 +57,21 @@ class PriceReport
                 weightedAveragePrices: self::mergeObjectsInLists(
                     inputs: [
                         Expression::concatArrays(
-                            [object(
-                                date: Expression::dateFieldPath('day'),
-                                price: Expression::ifNull(
-                                    Expression::fieldPath('openingPrice'),
-                                    Expression::getField(
-                                        field: 'price',
-                                        input: Expression::arrayElemAt(
-                                            Expression::arrayFieldPath('prices'),
-                                            0,
+                            [
+                                object(
+                                    date: Expression::dateFieldPath('day'),
+                                    price: Expression::ifNull(
+                                        Expression::fieldPath('openingPrice'),
+                                        Expression::getField(
+                                            field: 'price',
+                                            input: Expression::arrayElemAt(
+                                                Expression::arrayFieldPath('prices'),
+                                                0,
+                                            ),
                                         ),
                                     ),
                                 ),
-                            )],
+                            ],
                             Expression::arrayFieldPath('prices'),
                         ),
                         Expression::concatArrays(
@@ -77,13 +81,15 @@ class PriceReport
                                     validUntil: Expression::variable('this.date'),
                                 ),
                             ),
-                            [object(
-                                validUntil: Expression::dateAdd(
-                                    startDate: Expression::dateFieldPath('day'),
-                                    unit: 'day',
-                                    amount: 1,
+                            [
+                                object(
+                                    validUntil: Expression::dateAdd(
+                                        startDate: Expression::dateFieldPath('day'),
+                                        unit: 'day',
+                                        amount: 1,
+                                    ),
                                 ),
-                            )],
+                            ],
                         ),
                     ],
                     useLongestLength: true,
@@ -287,7 +293,7 @@ class PriceReport
         );
     }
 
-    public static function createPreviousPriceObject(?ExpressionInterface $previousPriceExpression): \stdClass
+    public static function createPreviousPriceObject(?ExpressionInterface $previousPriceExpression): stdClass
     {
         return object(previousPrice: $previousPriceExpression);
     }
@@ -377,10 +383,10 @@ class PriceReport
                 Stage::match(
                     Query::and(
                         Query::expr(
-                            Expression::eq(Expression::fieldPath('fuel'), Expression::variable('fuel'))
+                            Expression::eq(Expression::fieldPath('fuel'), Expression::variable('fuel')),
                         ),
                         Query::expr(
-                            Expression::lt(Expression::fieldPath('day'), Expression::variable('day'))
+                            Expression::lt(Expression::fieldPath('day'), Expression::variable('day')),
                         ),
                     ),
                 ),

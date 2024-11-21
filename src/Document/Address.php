@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Document;
 
 use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbeddedDocument;
@@ -18,7 +20,8 @@ class Address implements Stringable
         public string $postCode,
         #[Field]
         public string $city,
-    ) {}
+    ) {
+    }
 
     public function __toString(): string
     {

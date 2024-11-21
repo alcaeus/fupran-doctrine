@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Import;
 
 use App\Repository\StationRepository;
 use App\Type\BinaryUuidType;
 use MongoDB\Driver\BulkWrite;
+
 use function mb_strtolower;
 use function ucwords;
 

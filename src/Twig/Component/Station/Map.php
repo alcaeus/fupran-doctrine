@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Twig\Component\Station;
 
 use App\Document\Partial\AbstractStation;
@@ -32,8 +34,7 @@ class Map
                     headerContent: $this->station->name,
                     content: nl2br((string) $this->station->address),
                 ),
-            ))
-        ;
+            ));
 
         return $map;
     }

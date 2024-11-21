@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Doctrine;
 
 use Countable;
@@ -7,6 +9,7 @@ use Doctrine\ODM\MongoDB\Iterator\Iterator;
 use Doctrine\ODM\MongoDB\Query\Builder;
 use IteratorAggregate;
 use Traversable;
+
 use function ceil;
 
 final class QueryPaginator implements IteratorAggregate, Countable

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Twig\Component\Chart\Heatmap;
 
 use App\Twig\Component\Chart;

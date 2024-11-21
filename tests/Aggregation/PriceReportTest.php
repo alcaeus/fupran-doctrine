@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\Aggregation;
 
 use App\Aggregation\PriceReport;
@@ -15,6 +17,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use stdClass;
 
+use function getenv;
 use function iterator_to_array;
 use function MongoDB\object;
 
@@ -41,13 +44,13 @@ class PriceReportTest extends TestCase
             ]),
             Stage::set(
                 elements: PriceReport::excludeLastElementFromArray(Expression::arrayFieldPath('elements')),
-            )
+            ),
         );
 
         $result = iterator_to_array(
             $this
                 ->getTestDatabase()
-                ->aggregate(iterator_to_array($pipeline), ['typeMap' => self::TYPEMAP])
+                ->aggregate(iterator_to_array($pipeline), ['typeMap' => self::TYPEMAP]),
         );
 
         self::assertEquals(
@@ -140,7 +143,7 @@ class PriceReportTest extends TestCase
         $result = iterator_to_array(
             $this
                 ->getTestDatabase()
-                ->aggregate(iterator_to_array($pipeline), ['typeMap' => self::TYPEMAP])
+                ->aggregate(iterator_to_array($pipeline), ['typeMap' => self::TYPEMAP]),
         );
 
         self::assertCount(1, $result);

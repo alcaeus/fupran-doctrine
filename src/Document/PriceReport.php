@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Document;
 
 use App\Fuel;
@@ -28,5 +30,7 @@ class PriceReport
     #[Field]
     public readonly float $price;
 
-    private function __construct() {}
+    private function __construct()
+    {
+    }
 }

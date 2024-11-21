@@ -1,10 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Doctrine;
 
 use Countable;
-use Doctrine\ODM\MongoDB\Iterator\Iterator;
 use Doctrine\ODM\MongoDB\Aggregation\Builder;
+use Doctrine\ODM\MongoDB\Iterator\Iterator;
 use IteratorAggregate;
 use Traversable;
 

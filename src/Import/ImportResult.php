@@ -1,8 +1,12 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Import;
 
 use MongoDB\Driver\WriteResult;
+
+use function count;
 
 final class ImportResult
 {
@@ -19,7 +23,8 @@ final class ImportResult
         public readonly int $numInserted = 0,
         public readonly int $numSkipped = 0,
         public readonly int $numUpdated = 0,
-    ) {}
+    ) {
+    }
 
     public function withResult(self $result)
     {

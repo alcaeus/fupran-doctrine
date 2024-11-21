@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Twig\Component\Chart;
 
 use App\Twig\Component\Chart;
@@ -20,7 +22,6 @@ class DayPriceOverview extends Chart
     {
         return $this->date
             ->setTime(0, 0)
-            ->getTimestamp()
-        ;
+            ->getTimestamp();
     }
 }

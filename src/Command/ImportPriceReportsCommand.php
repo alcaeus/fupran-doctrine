@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Command;
 
 use App\Aggregation\PriceReport;
@@ -52,8 +54,7 @@ class ImportPriceReportsCommand extends Command
     {
         $this
             ->addArgument(name: 'fileOrDirectory', mode: InputArgument::REQUIRED, description: 'Path to the file to be imported')
-            ->addOption(name: 'clear', mode: InputOption::VALUE_NONE, description: 'Clear all existing prices')
-        ;
+            ->addOption(name: 'clear', mode: InputOption::VALUE_NONE, description: 'Clear all existing prices');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

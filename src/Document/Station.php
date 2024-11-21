@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Document;
 
 use App\Document\Partial\AbstractStation;
@@ -44,20 +46,20 @@ class Station extends AbstractStation
     public ?LatestPriceReport $latestPrice = null;
 
     // Use a repository method as we can't load based on an embedded document
-    #[ReferenceMany(targetDocument: DailyPrice::class, repositoryMethod: 'getLatestPricesForStation')]
     /** @var Collection<int, DailyPrice::class> $latestPrices */
+    #[ReferenceMany(targetDocument: DailyPrice::class, repositoryMethod: 'getLatestPricesForStation')]
     private Collection $latestPrices;
 
-    #[ReferenceMany(targetDocument: DailyPrice::class, repositoryMethod: 'getLast30DaysDieselForStation')]
     /** @var Collection<int, DailyPrice::class> $last30DaysDiesel */
+    #[ReferenceMany(targetDocument: DailyPrice::class, repositoryMethod: 'getLast30DaysDieselForStation')]
     public Collection $last30DaysDiesel;
 
-    #[ReferenceMany(targetDocument: DailyPrice::class, repositoryMethod: 'getLast30DaysE5ForStation')]
     /** @var Collection<int, DailyPrice::class> $last30DaysE5 */
+    #[ReferenceMany(targetDocument: DailyPrice::class, repositoryMethod: 'getLast30DaysE5ForStation')]
     public Collection $last30DaysE5;
 
-    #[ReferenceMany(targetDocument: DailyPrice::class, repositoryMethod: 'getLast30DaysE10ForStation')]
     /** @var Collection<int, DailyPrice::class> $last30DaysE10 */
+    #[ReferenceMany(targetDocument: DailyPrice::class, repositoryMethod: 'getLast30DaysE10ForStation')]
     public Collection $last30DaysE10;
 
     public function __construct(string|UuidV4|null $id = null)

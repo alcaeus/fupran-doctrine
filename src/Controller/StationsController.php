@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Controller;
 
 use App\Doctrine\AggregationPaginator;
@@ -36,8 +38,10 @@ class StationsController extends AbstractController
     #[Route('/stations/search', name: 'app_stations_search', requirements: ['page' => '\d+'], methods: ['GET'])]
     public function search(
         StationRepository $stations,
-        #[MapQueryParameter] string $query,
-        #[MapQueryParameter] int $page = 1,
+        #[MapQueryParameter]
+        string $query,
+        #[MapQueryParameter]
+        int $page = 1,
     ): Response {
         $paginator = new AggregationPaginator($stations->createSearchPipeline($query), $page);
 

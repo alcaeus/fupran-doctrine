@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repository;
 
 use App\Document\CompoundDailyAggregate;
@@ -43,7 +45,7 @@ class DailyAggregateRepository extends AbstractRepository
                 $builder->expr()->mergeObjects(
                     ['day' => '$_id'],
                     $builder->expr()->arrayToObject('$fuels'),
-                )
+                ),
             )
             ->getAggregation()
             ->getIterator();

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Import;
 
 use App\Document\PriceReport;
@@ -8,6 +10,7 @@ use Doctrine\ODM\MongoDB\DocumentManager;
 use MongoDB\BSON\UTCDateTime;
 use MongoDB\Driver\BulkWrite;
 
+use function array_filter;
 use function strtotime;
 use function uniqid;
 
@@ -16,8 +19,7 @@ final class PriceReportImporter extends Importer
     public function __construct(
         DocumentManager $documentManager,
         private readonly BinaryUuidType $binaryUuidType,
-    )
-    {
+    ) {
         $tempName = uniqid('priceReportImport_');
 
         // Select a temporary collection that we'll be deleting afterwards
