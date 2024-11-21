@@ -50,11 +50,20 @@ final class PriceReportImporter extends Importer
             return null;
         }
 
+        /* Check price for sanity - some price reports may include negative prices.
+         * 50 cents seems like a sensible hardcoded choice, as prices in Germany are
+         * unlikely to ever get to this level.
+         */
+        $price = (float) $rawData[$fuelType];
+        if ($price < 0.5) {
+            return null;
+        }
+
         return [
             'date' => new UTCDateTime(strtotime($rawData['date']) * 1000),
             'station' => $this->binaryUuidType->convertToDatabaseValue($rawData['station_uuid']),
             'fuel' => $fuelType,
-            'price' => (float) $rawData[$fuelType],
+            'price' => $price,
         ];
     }
 }
