@@ -29,6 +29,9 @@ class DailyAggregate
     public readonly Fuel $fuel;
 
     #[Field]
+    public float $numChanges;
+
+    #[Field]
     public float $lowestPrice;
 
     #[Field]

@@ -164,6 +164,7 @@ class PriceReport
         return new Pipeline(
             Stage::group(
                 _id: $group,
+                numChanges: Accumulator::avg(Expression::size(Expression::arrayFieldPath('prices'))),
                 lowestPrice: Accumulator::min(Expression::doubleFieldPath('lowestPrice.price')),
                 highestPrice: Accumulator::min(Expression::doubleFieldPath('highestPrice.price')),
                 weightedAveragePrice: Accumulator::min(Expression::doubleFieldPath('weightedAveragePrice')),
