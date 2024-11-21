@@ -262,6 +262,7 @@ class PriceReport
             Stage::set(
                 station: Expression::first(Expression::arrayFieldPath('station')),
             ),
+            Stage::match(station: Query::ne(null)),
         );
     }
 
