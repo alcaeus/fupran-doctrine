@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace App\Twig\Component\Chart;
+namespace App\Twig\Component\Chart\Station;
 
 use App\Twig\Component\Chart;
 use DateTimeImmutable;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
-#[AsTwigComponent('Chart:DayPriceOverview')]
+#[AsTwigComponent('Chart:Station:DayPriceOverview')]
 class DayPriceOverview extends Chart
 {
     public DateTimeImmutable $date;

@@ -2,12 +2,12 @@
 
 declare(strict_types=1);
 
-namespace App\Twig\Component\Chart\Heatmap;
+namespace App\Twig\Component\Chart\Station\Heatmap;
 
 use App\Twig\Component\Chart;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
-#[AsTwigComponent('Chart:Heatmap:CheapestTimes', template: Chart::TEMPLATE)]
+#[AsTwigComponent('Chart:Station:Heatmap:CheapestTimes', template: Chart::TEMPLATE)]
 class CheapestTimes extends Chart
 {
     public function getChartId(): string
