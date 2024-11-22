@@ -15,6 +15,9 @@ readonly class ChartHelper
         public string $stationMostExpensiveTimesHeatmap,
         public string $stationDifferenceToCheapest,
         public string $stationDayPriceOverview,
+        public string $aggregatedPriceOverview,
+        public string $aggregatedPriceHistory,
+        public string $aggregatedPriceHistoryWithChanges,
     ) {
     }
 }

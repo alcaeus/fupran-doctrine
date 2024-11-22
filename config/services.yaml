@@ -33,6 +33,9 @@ services:
             $stationMostExpensiveTimesHeatmap: '%env(MONGODB_CHARTS_MOST_EXPENSIVE_TIMES_HEATMAP)%'
             $stationDifferenceToCheapest: '%env(MONGODB_CHARTS_DIFFERENCE_TO_CHEAPEST)%'
             $stationDayPriceOverview: '%env(MONGODB_CHARTS_DAY_PRICE_OVERVIEW)%'
+            $aggregatedPriceOverview: '%env(MONGODB_CHARTS_AGGREGATED_PRICE_OVERVIEW)%'
+            $aggregatedPriceHistory: '%env(MONGODB_CHARTS_AGGREGATED_PRICE_HISTORY)%'
+            $aggregatedPriceHistoryWithChanges: '%env(MONGODB_CHARTS_AGGREGATED_PRICE_HISTORY_WITH_CHANGES)%'
 
     App\Type\BinaryUuidType:
         factory: ['Doctrine\ODM\MongoDB\Types\Type', 'getType']

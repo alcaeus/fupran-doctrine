@@ -1,0 +1,28 @@
+{% props fuels = [enum('App\\Fuel').Diesel, enum('App\\Fuel').E5, enum('App\\Fuel').E10] %}
+
+<div class="card">
+    <div class="card-header">
+        <ul class="nav nav-tabs card-header-tabs" id="chartNav" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="chartNav_overview" data-bs-toggle="tab" data-bs-target="#chartContent_overview" type="button" role="tab" aria-controls="chartContent_overview" aria-selected="true">Overview</button>
+            </li>
+            {% for fuel in fuels %}
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="chartNav_{{ fuel.value }}" data-bs-toggle="tab" data-bs-target="#chartContent_{{ fuel.value }}" type="button" role="tab" aria-controls="chartContent_{{ fuel.value }}" aria-selected="true">{{ fuel.displayValue }}</button>
+                </li>
+            {% endfor %}
+        </ul>
+    </div>
+    <div class="card-body">
+        <div class="tab-content" id="chartContent">
+            <div class="tab-pane fade show active" id="chartContent_overview" role="tabpanel" aria-labelledby="chartNav_overview" tabindex="0">
+                <twig:Chart:Aggregated:PriceOverview />
+            </div>
+            {% for fuel in fuels %}
+                <div class="tab-pane fade" id="chartContent_{{ fuel.value }}" role="tabpanel" aria-labelledby="chartNav_{{ fuel.value }}" tabindex="{{ loop.index }}">
+                    <twig:Chart:Aggregated:PriceHistory fuel="{{ fuel.value }}" />
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
