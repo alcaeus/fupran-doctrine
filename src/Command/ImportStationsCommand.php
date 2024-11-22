@@ -19,7 +19,7 @@ use function microtime;
 use function sprintf;
 
 #[AsCommand(
-    name: 'app:import-stations',
+    name: 'app:import:stations',
     description: 'Imports stations from a file or directory',
 )]
 class ImportStationsCommand extends Command

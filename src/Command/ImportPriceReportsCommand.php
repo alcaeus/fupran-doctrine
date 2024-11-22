@@ -32,7 +32,7 @@ use function sprintf;
 use function uniqid;
 
 #[AsCommand(
-    name: 'app:import-price-reports',
+    name: 'app:import:price-reports',
     description: 'Import price reports from a file or directory',
 )]
 class ImportPriceReportsCommand extends Command
