@@ -183,20 +183,8 @@ class ImportPriceReportsCommand extends Command
     {
         $io->write('Recomputing daily aggregates...');
 
-        $pipeline = new Pipeline(
-            PriceReport::computeDailyAggregates(),
-            Stage::merge(
-                $this->dailyAggregateRepository->getDocumentCollection()->getCollectionName(),
-                whenMatched: 'replace',
-            ),
-        );
-
         [$time] = measure(
-            // TODO: iterator_to_array becomes obsolete in mongodb/mongodb 2.0
-            fn () => $this
-                ->dailyPriceRepository
-                ->getDocumentCollection()
-                ->aggregate(iterator_to_array($pipeline)),
+            $this->dailyAggregateRepository->recomputeDailyAggregates(...),
         );
 
         $io->writeln(sprintf('Done in %.5fs.', $time));

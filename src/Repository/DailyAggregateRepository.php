@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Aggregation\PriceReport;
 use App\Document\CompoundDailyAggregate;
 use App\Document\DailyAggregate;
 use App\Document\DailyPrice;
 use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
+use MongoDB\Builder\Pipeline;
+use MongoDB\Builder\Stage;
 
 use function iterator_to_array;
 
@@ -51,5 +54,23 @@ class DailyAggregateRepository extends AbstractRepository
             ->getIterator();
 
         return iterator_to_array($results)[0];
+    }
+
+    public function recomputeDailyAggregates(): void
+    {
+        $pipeline = new Pipeline(
+            PriceReport::computeDailyAggregates(),
+            Stage::merge(
+                $this->getDocumentCollection()->getCollectionName(),
+                whenMatched: 'replace',
+            ),
+        );
+
+        // TODO: iterator_to_array becomes obsolete in mongodb/mongodb 2.0
+        $this
+            ->getDocumentManager()
+            ->getRepository(DailyPrice::class)
+            ->getDocumentCollection()
+            ->aggregate(iterator_to_array($pipeline));
     }
 }
