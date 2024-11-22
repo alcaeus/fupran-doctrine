@@ -17,6 +17,10 @@ class BinaryUuidType extends Type
             return null;
         }
 
+        if ($value instanceof Binary) {
+            return $value;
+        }
+
         if (! $value instanceof Uuid) {
             $value = Uuid::fromString($value);
         }
@@ -35,7 +39,15 @@ class BinaryUuidType extends Type
 
     public function closureToMongo(): string
     {
-        return '$return = new \MongoDB\BSON\Binary($value->toBinary(), \MongoDB\BSON\Binary::TYPE_UUID);';
+        return <<<'PHP'
+$return = match (true) {
+    $value === null => null,
+    $value instanceof Binary => $value,
+    $value instanceof Uuid => new \MongoDB\BSON\Binary($value->toBinary(), \MongoDB\BSON\Binary::TYPE_UUID),
+    is_string($value) => new \MongoDB\BSON\Binary(Uuid::fromString($value), \MongoDB\BSON\Binary::TYPE_UUID),
+    default => throw new InvalidArgumentException(sprintf('Invalid data type %s received for UUID', get_debug_type($value))),
+};
+PHP;
     }
 
     public function closureToPHP(): string
