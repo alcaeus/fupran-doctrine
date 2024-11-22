@@ -2,17 +2,21 @@
 
 <nav aria-label="breadcrumb">
     <ol class="breadcrumb">
-        <li class="breadcrumb-item"><a href="{{ path('app_stations') }}">Stations</a></li>
-        <li class="breadcrumb-item">
-            <a href="{{ path('app_stations_postCode', { postCode: station.address.postCode }) }}">
-                {{ station.address.postCode }} {{ station.address.city }}
-            </a>
-        </li>
-        <li class="breadcrumb-item active" aria-current="page">
-            {{ station.name }}
-            {% if station.brand %}
-                ({{ station.brand }})
-            {% endif %}
-        </li>
+        {% if station is null %}
+            <li class="breadcrumb-item active" aria-current="page">Stations</li>
+        {% else %}
+            <li class="breadcrumb-item"><a href="{{ path('app_stations') }}">Stations</a></li>
+            <li class="breadcrumb-item">
+                <a href="{{ path('app_stations_postCode', { postCode: station.address.postCode }) }}">
+                    {{ station.address.postCode }} {{ station.address.city }}
+                </a>
+            </li>
+            <li class="breadcrumb-item active" aria-current="page">
+                {{ station.name }}
+                {% if station.brand %}
+                    ({{ station.brand }})
+                {% endif %}
+            </li>
+        {% endif %}
     </ol>
 </nav>
