@@ -8,6 +8,7 @@ use App\Aggregation\PriceReport;
 use App\Document\CompoundDailyAggregate;
 use App\Document\DailyAggregate;
 use App\Document\DailyPrice;
+use App\Document\Partial\AbstractDailyPrice;
 use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
 use MongoDB\Builder\Pipeline;
 use MongoDB\Builder\Stage;
@@ -21,7 +22,7 @@ class DailyAggregateRepository extends AbstractRepository
         parent::__construct($registry, DailyAggregate::class);
     }
 
-    public function getAggregateForDailyPrice(DailyPrice $dailyPrice): DailyAggregate
+    public function getAggregateForDailyPrice(AbstractDailyPrice $dailyPrice): DailyAggregate
     {
         return $this->createQueryBuilder()
             ->field('day')->equals($dailyPrice->day)
