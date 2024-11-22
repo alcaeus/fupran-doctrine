@@ -12,6 +12,6 @@ class ExtremeTimes extends Chart
 {
     public function getChartId(): string
     {
-        return $this->chartHelper->extremeTimes;
+        return $this->chartHelper->stationExtremeTimes;
     }
 }

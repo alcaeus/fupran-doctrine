@@ -15,7 +15,7 @@ class DayPriceOverview extends Chart
 
     public function getChartId(): string
     {
-        return $this->chartHelper->dayPriceOverview;
+        return $this->chartHelper->stationDayPriceOverview;
     }
 
     public function getTimestamp(): int

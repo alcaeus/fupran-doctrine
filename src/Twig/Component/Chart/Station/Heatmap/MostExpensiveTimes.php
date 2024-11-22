@@ -12,6 +12,6 @@ class MostExpensiveTimes extends Chart
 {
     public function getChartId(): string
     {
-        return $this->chartHelper->mostExpensiveTimesHeatmap;
+        return $this->chartHelper->stationMostExpensiveTimesHeatmap;
     }
 }

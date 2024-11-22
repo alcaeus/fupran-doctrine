@@ -12,6 +12,6 @@ class PriceHistory extends Chart
 {
     public function getChartId(): string
     {
-        return $this->chartHelper->priceHistoryWithChanges;
+        return $this->chartHelper->stationPriceHistoryWithChanges;
     }
 }

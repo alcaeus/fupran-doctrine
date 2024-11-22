@@ -8,13 +8,13 @@ readonly class ChartHelper
 {
     public function __construct(
         public string $baseUrl,
-        public string $priceHistory,
-        public string $priceHistoryWithChanges,
-        public string $extremeTimes,
-        public string $cheapestTimesHeatmap,
-        public string $mostExpensiveTimesHeatmap,
-        public string $differenceToCheapest,
-        public string $dayPriceOverview,
+        public string $stationPriceHistory,
+        public string $stationPriceHistoryWithChanges,
+        public string $stationExtremeTimes,
+        public string $stationCheapestTimesHeatmap,
+        public string $stationMostExpensiveTimesHeatmap,
+        public string $stationDifferenceToCheapest,
+        public string $stationDayPriceOverview,
     ) {
     }
 }

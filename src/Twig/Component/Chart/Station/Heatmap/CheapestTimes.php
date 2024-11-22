@@ -12,6 +12,6 @@ class CheapestTimes extends Chart
 {
     public function getChartId(): string
     {
-        return $this->chartHelper->cheapestTimesHeatmap;
+        return $this->chartHelper->stationCheapestTimesHeatmap;
     }
 }
