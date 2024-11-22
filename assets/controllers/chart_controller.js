@@ -16,7 +16,15 @@ export default class extends Controller {
             .createChart({
                 baseUrl: this.urlValue,
                 chartId: this.chartValue,
-                preFilter: this.#getFilter()
+                preFilter: this.#getFilter(),
+                maxDataAge: 86400 * 7, // 1 week
+                autoRefresh: false,
+                showAttribution: false,
+                renderingSpec: {
+                    version: 1,
+                    title: '',
+                    description: '',
+                },
             })
             .render(this.element)
     }
