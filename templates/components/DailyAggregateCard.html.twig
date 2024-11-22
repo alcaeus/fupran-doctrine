@@ -3,11 +3,11 @@
     <div class="card-body">
         <dl>
             <dt>Average Price</dt>
-            <dd>{{ this.aggregate.weightedAveragePrice }} €</dd>
+            <dd><twig:Price price="{{ this.aggregate.weightedAveragePrice }}" /></dd>
             <dt>Lowest Price</dt>
-            <dd>{{ this.aggregate.lowestPrice }} €</dd>
+            <dd><twig:Price price="{{ this.aggregate.lowestPrice }}" /></dd>
             <dt>Highest Price</dt>
-            <dd>{{ this.aggregate.highestPrice }} €</dd>
+            <dd><twig:Price price="{{ this.aggregate.highestPrice }}" /></dd>
         </dl>
     </div>
 </div>

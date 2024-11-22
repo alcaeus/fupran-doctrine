@@ -12,10 +12,10 @@
     {% for dailyPrice in this.prices %}
         <tr>
             <th scope="row">{{ dailyPrice.day|date('d.m.Y') }}</th>
-            <td>{{ dailyPrice.closingPrice }} €</td>
-            <td>{{ dailyPrice.closingPrice }} €</td>
-            <td>{{ dailyPrice.lowestPrice.price }} € ({{ dailyPrice.lowestPrice.date|date('h:i:s') }})</td>
-            <td>{{ dailyPrice.highestPrice.price }} € ({{ dailyPrice.highestPrice.date|date('h:i:s') }})</td>
+            <td><twig:Price price="{{ dailyPrice.openingPrice }}" /></td>
+            <td><twig:Price price="{{ dailyPrice.closingPrice }}" /></td>
+            <td><twig:Price price="{{ dailyPrice.lowestPrice.price }}" time="{{ dailyPrice.lowestPrice.date }}" /></td>
+            <td><twig:Price price="{{ dailyPrice.highestPrice.price }}" time="{{ dailyPrice.highestPrice.date }}" /></td>
         </tr>
     {% endfor %}
     </tbody>

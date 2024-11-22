@@ -3,8 +3,8 @@
 {% if dailyPrice is not null %}
 <dt>{{ dailyPrice.fuel.displayValue }} <span class="text-muted">({{ dailyPrice.latestPrice.date|date }})</span></dt>
 <dd>
-    {{ dailyPrice.latestPrice.price }} €
-    (Average: {{ dailyPrice.weightedAveragePrice }} €,
+    <twig:Price price="{{ dailyPrice.latestPrice.price }}" />
+    (Average: <twig:Price price="{{ dailyPrice.weightedAveragePrice }}" />,
     {{ dailyPrice.aggregate.getPercentile(dailyPrice.latestPrice.price) }})
 </dd>
 {% endif %}

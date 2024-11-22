@@ -1,0 +1,6 @@
+{% props price, time = null %}
+
+{{ "%.3f €"|format(price) }}
+{% if time %}
+({{ time|date('h:i:s') }})
+{% endif %}
