@@ -14,8 +14,8 @@ abstract class Chart
     public const TEMPLATE = 'components/Chart.html.twig';
 
     public string $uniqueId;
-    public AbstractStation $station;
-    public string $fuel;
+    public ?AbstractStation $station = null;
+    public ?string $fuel = null;
 
     public function __construct(
         public ChartHelper $chartHelper,

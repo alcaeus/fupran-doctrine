@@ -30,7 +30,11 @@ export default class extends Controller {
     }
 
     #getFilter() {
-        let filter = {'station._id': UUID.createFromHexString(this.stationValue)}
+        let filter = {}
+
+        if (this.stationValue) {
+            filter['station._id'] = UUID.createFromHexString(this.stationValue)
+        }
 
         if (this.fuelValue) {
             filter.fuel = this.fuelValue
