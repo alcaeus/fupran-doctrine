@@ -1,0 +1,10 @@
+{% props fromDay = '2024-11-01', toDay = '2024-11-30' %}
+<div data-controller="filter" data-action="chart:connected@window->filter#chartConnected">
+    <div class="input-group input-group-sm mb-3">
+        <span class="input-group-text">From</span>
+        <input type="date" data-filter-target="fromDay" class="form-control" name="fromDay" value="{{ fromDay }}" />
+        <span class="input-group-text">To</span>
+        <input type="date" data-filter-target="toDay" class="form-control" name="ToDay" value="{{ toDay }}" />
+        <button type="button" data-action="click->filter#update" class="btn btn-primary">Filter</button>
+    </div>
+</div>

@@ -9,6 +9,9 @@
         </ul>
     </div>
     <div class="card-body">
+        <twig:ChartFilter />
+    </div>
+    <div class="card-body">
         <div class="tab-content" id="chartContent">
             {% for fuel in this.fuels %}
                 <div class="tab-pane fade {{ loop.index0 == 0 ? 'show active' : '' }}" id="chartContent_{{ fuel.value }}" role="tabpanel" aria-labelledby="chartNav_{{ fuel.value }}" tabindex="0">
