@@ -8,22 +8,14 @@
 >
     {% if this.allowRangeFilter %}
     <div>
-        <h5>Filter</h5>
-        <form class="row">
-            <label for="chartFilterFromDay" class="col-auto col-form-label col-form-label-sm">From:</label>
-            <div class="col-sm-2">
-                <input type="date" data-chart-target="fromDay" class="form-control form-control-sm" id="chartFilterFromDay" name="fromDay" value="2024-11-01" />
-            </div>
-
-            <label for="chartFilterToDay" class="col-auto col-form-label col-form-label-sm">To:</label>
-            <div class="col-sm-2">
-                <input type="date" data-chart-target="toDay" class="form-control form-control-sm" id="chartFilterToDay" name="ToDay" value="2024-11-30" />
-            </div>
-
-            <div class="col-sm-2">
-                <button type="button" data-action="click->chart#updateChartFilter" class="btn btn-sm btn-primary">Update</button>
-            </div>
-        </form>
+        <label for="chartsFilterFromDay" class="form-label">Filter</label>
+        <div class="input-group input-group-sm mb-3">
+            <span class="input-group-text">From</span>
+            <input type="date" data-chart-target="fromDay" class="form-control" id="chartFilterFromDay" name="fromDay" value="2024-11-01" />
+            <span class="input-group-text">To</span>
+            <input type="date" data-chart-target="toDay" class="form-control" id="chartFilterToDay" name="ToDay" value="2024-11-30" />
+            <button type="button" data-action="click->chart#updateChartFilter" class="btn btn-primary">Filter</button>
+        </div>
     </div>
     {% endif %}
     <div data-chart-target="chart" style="height: 600px;"></div>
