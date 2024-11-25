@@ -19,5 +19,6 @@ class LatestPriceList
         public readonly Collection $e5 = new ArrayCollection(),
         #[EmbedMany(targetDocument: EmbeddedDailyPrice::class)]
         public readonly Collection $e10 = new ArrayCollection(),
-    ) {}
+    ) {
+    }
 }

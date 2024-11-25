@@ -16,7 +16,6 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations\Field;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Id;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\MappedSuperclass;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\ReferenceMany;
-use Doctrine\ODM\MongoDB\Mapping\Annotations\ReferenceOne;
 use Doctrine\ODM\MongoDB\Types\Type;
 
 #[MappedSuperclass]
@@ -64,7 +63,7 @@ class AbstractDailyPrice
             return $this->prices->last() ?: null;
         }
     }
-    /** phpcs:enable **/
+    /* phpcs:enable **/
 
     public function __construct()
     {
