@@ -6,6 +6,7 @@ namespace App\Document;
 
 use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbeddedDocument;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Field;
+use Doctrine\ODM\MongoDB\Mapping\Annotations\Index;
 use Stringable;
 
 #[EmbeddedDocument]
@@ -17,6 +18,7 @@ class Address implements Stringable
         #[Field]
         public string $houseNumber,
         #[Field]
+        #[Index]
         public string $postCode,
         #[Field]
         public string $city,
