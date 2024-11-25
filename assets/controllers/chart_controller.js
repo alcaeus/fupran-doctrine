@@ -34,18 +34,22 @@ export default class extends Controller {
 
         // If this is a tabbed chart, add an event listener to only render the chart when it's shown
         if (this.element.classList.contains('tab-pane')) {
-            this.element.addEventListener('show.bs.tab', () => this.render())
-
             // Render the chart in the currently active tab
             if (this.element.classList.contains('show')) {
-                this.render()
+                this.#render()
+            } else {
+                // Register an event listener for all hidden tabs to render charts on-demand
+                this.element.addEventListener('show.bs.tab', () => {
+                    this.#render()
+                    this.element.removeEventListener('show.bs.tab')
+                })
             }
         } else {
-            this.render()
+            this.#render()
         }
     }
 
-    render() {
+    #render() {
         if (this.rendered) {
             return;
         }
@@ -53,12 +57,6 @@ export default class extends Controller {
         this.chart.render(this.chartTarget)
 
         this.rendered = true
-    }
-
-    forceRender() {
-        this.rendered = false
-
-        this.render()
     }
 
     #getFilter() {
