@@ -32,8 +32,9 @@ export default class extends Controller {
                 },
             })
 
+        // TODO: Re-enable once this is properly working. Right now, show.bs.tab event isn't fired
         // If this is a tabbed chart, add an event listener to only render the chart when it's shown
-        if (this.element.classList.contains('tab-pane')) {
+        if (false && this.element.classList.contains('tab-pane')) {
             // Render the chart in the currently active tab
             if (this.element.classList.contains('show')) {
                 this.#render()
