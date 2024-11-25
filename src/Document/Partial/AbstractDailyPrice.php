@@ -8,12 +8,14 @@ use App\Document\DailyAggregate;
 use App\Document\Price;
 use App\Fuel;
 use DateTimeImmutable;
+use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbedMany;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbedOne;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Field;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Id;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\MappedSuperclass;
+use Doctrine\ODM\MongoDB\Mapping\Annotations\ReferenceMany;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\ReferenceOne;
 use Doctrine\ODM\MongoDB\Types\Type;
 
@@ -47,14 +49,25 @@ class AbstractDailyPrice
     #[Field]
     public readonly float $weightedAveragePrice;
 
-    #[ReferenceOne(targetDocument: DailyAggregate::class, repositoryMethod: 'getAggregateForDailyPrice')]
-    public readonly DailyAggregate $aggregate;
+    #[ReferenceMany(targetDocument: DailyAggregate::class, repositoryMethod: 'getAggregateForDailyPrice')]
+    private readonly Collection $aggregates;
 
     /** phpcs:disable **/
+    public ?DailyAggregate $aggregate {
+        get {
+            return $this->aggregates->first() ?: null;
+        }
+    }
+
     public ?Price $latestPrice {
         get {
             return $this->prices->last() ?: null;
         }
     }
     /** phpcs:enable **/
+
+    public function __construct()
+    {
+        $this->aggregates = new ArrayCollection();
+    }
 }

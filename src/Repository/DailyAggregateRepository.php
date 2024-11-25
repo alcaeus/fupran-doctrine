@@ -10,6 +10,7 @@ use App\Document\DailyAggregate;
 use App\Document\DailyPrice;
 use App\Document\Partial\AbstractDailyPrice;
 use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
+use Doctrine\ODM\MongoDB\Iterator\Iterator;
 use MongoDB\Builder\Pipeline;
 use MongoDB\Builder\Stage;
 
@@ -22,14 +23,14 @@ class DailyAggregateRepository extends AbstractRepository
         parent::__construct($registry, DailyAggregate::class);
     }
 
-    public function getAggregateForDailyPrice(AbstractDailyPrice $dailyPrice): DailyAggregate
+    public function getAggregateForDailyPrice(AbstractDailyPrice $dailyPrice): Iterator
     {
         return $this->createQueryBuilder()
             ->field('day')->equals($dailyPrice->day)
             ->field('fuel')->equals($dailyPrice->fuel)
             ->limit(1)
             ->getQuery()
-            ->getSingleResult();
+            ->getIterator();
     }
 
     public function getLatestCompoundAggregate(): CompoundDailyAggregate
