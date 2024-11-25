@@ -14,6 +14,7 @@ readonly class ChartHelper
         public string $stationCheapestTimesHeatmap,
         public string $stationMostExpensiveTimesHeatmap,
         public string $stationDifferenceToCheapest,
+        public string $stationDifferenceToAverage,
         public string $stationDayPriceOverview,
         public string $aggregatedPriceOverview,
         public string $aggregatedPriceHistory,

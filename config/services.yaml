@@ -32,6 +32,7 @@ services:
             $stationCheapestTimesHeatmap: '%env(MONGODB_CHARTS_CHEAPEST_TIMES_HEATMAP)%'
             $stationMostExpensiveTimesHeatmap: '%env(MONGODB_CHARTS_MOST_EXPENSIVE_TIMES_HEATMAP)%'
             $stationDifferenceToCheapest: '%env(MONGODB_CHARTS_DIFFERENCE_TO_CHEAPEST)%'
+            $stationDifferenceToAverage: '%env(MONGODB_CHARTS_DIFFERENCE_TO_AVERAGE)%'
             $stationDayPriceOverview: '%env(MONGODB_CHARTS_DAY_PRICE_OVERVIEW)%'
             $aggregatedPriceOverview: '%env(MONGODB_CHARTS_AGGREGATED_PRICE_OVERVIEW)%'
             $aggregatedPriceHistory: '%env(MONGODB_CHARTS_AGGREGATED_PRICE_HISTORY)%'
