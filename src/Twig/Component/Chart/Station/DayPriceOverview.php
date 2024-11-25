@@ -12,6 +12,7 @@ use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 class DayPriceOverview extends Chart
 {
     public DateTimeImmutable $date;
+    public bool $allowRangeFilter = false;
 
     public function getChartId(): string
     {

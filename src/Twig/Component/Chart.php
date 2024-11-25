@@ -16,6 +16,7 @@ abstract class Chart
     public string $uniqueId;
     public ?AbstractStation $station = null;
     public ?string $fuel = null;
+    public bool $allowRangeFilter = true;
 
     public function __construct(
         public ChartHelper $chartHelper,

@@ -3,7 +3,7 @@ import { UUID } from 'bson'
 import ChartsEmbedSDK from '@mongodb-js/charts-embed-dom'
 
 export default class extends Controller {
-    static targets = ['chart']
+    static targets = ['chart', 'fromDay', 'toDay']
 
     static values = {
         tabbed: Boolean,
@@ -49,6 +49,10 @@ export default class extends Controller {
         }
     }
 
+    updateChartFilter(event) {
+        this.chart.setPreFilter(this.#getFilter())
+    }
+
     #render() {
         if (this.rendered) {
             return;
@@ -70,7 +74,16 @@ export default class extends Controller {
             filter.fuel = this.fuelValue
         }
 
-        if (this.dayValue) {
+        if (this.hasFromDayTarget || this.hasToDayTarget) {
+            filter.day = {}
+
+            if (this.hasFromDayTarget) {
+                filter.day['$gte'] = new Date(this.fromDayTarget.value)
+            }
+            if (this.hasToDayTarget) {
+                filter.day['$lte'] = new Date(this.toDayTarget.value)
+            }
+        } else if (this.dayValue) {
             filter.day = new Date(this.dayValue * 1000)
         }
 
