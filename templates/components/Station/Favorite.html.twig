@@ -1,0 +1,15 @@
+{% props station, control = false %}
+
+{% if control %}
+<a href="{{ path('app_station_favorite', {'id': station.id }) }}" class="icon-link">
+{% endif %}
+
+{% if station.favorite %}
+    <twig:ux:icon name="bi:star-fill" class="bi" />
+{% else %}
+    <twig:ux:icon name="bi:star" class="bi" />
+{% endif %}
+
+{% if control %}
+</a>
+{% endif %}

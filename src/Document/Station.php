@@ -11,7 +11,9 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Document;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbedMany;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbedOne;
+use Doctrine\ODM\MongoDB\Mapping\Annotations\Field;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Id;
+use Doctrine\ODM\MongoDB\Mapping\Annotations\Index;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\SearchIndex;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Uid\UuidV4;
@@ -47,6 +49,10 @@ class Station extends AbstractStation
 
     #[EmbedMany(targetDocument: LatestPriceReport::class)]
     public Collection $latestPrices;
+
+    #[Field]
+    #[Index]
+    public bool $favorite = false;
 
     public function __construct(string|UuidV4|null $id = null)
     {

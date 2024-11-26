@@ -4,7 +4,10 @@
     <twig:Station:Map station="{{ station }}" />
 
     <div class="card-body">
-        <h5 class="text-truncate">{{ station.name }}</h5>
+        <h5 class="text-truncate">
+            <twig:Station:Favorite station="{{ station }}" control="true" />
+            {{ station.name }}
+        </h5>
         <h6 class="card-subtitle text-muted">{{ station.brand }}</h6>
         <address class="card-text">
             {{ station.address.street }} {{ station.address.houseNumber }}<br />
