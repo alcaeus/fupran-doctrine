@@ -21,15 +21,17 @@
                     <span class="navbar-toggler-icon"></span>
                 </button>
 
-                <div class="collapse navbar-collapse" id="navbarNav">
-                    <ul class="navbar-nav">
+                <div class="d-flex collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav flex-grow-1">
                         <li class="nav-item">
                             <a href="{{ path('app_stations') }}" class="nav-link">Stations</a>
                         </li>
                     </ul>
-                    <form class="d-flex" role="search" action="{{ path('app_stations_search') }}" method="get">
-                        <input class="form-control me-2" name="query" type="search" placeholder="Search" aria-label="Search">
-                        <button class="btn btn-outline-light" type="submit">Search</button>
+                    <form role="search" action="{{ path('app_stations_search') }}" method="get">
+                        <div class="input-group input-group-sm">
+                            <input class="form-control" name="query" type="search" placeholder="Search" aria-label="Search">
+                            <button class="btn btn-outline-light" type="submit">Search</button>
+                        </div>
                     </form>
                 </div>
             </div>
