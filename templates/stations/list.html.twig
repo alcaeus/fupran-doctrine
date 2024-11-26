@@ -6,18 +6,7 @@
     {% else %}
         <div id="stations" class="row row-cols-3 gy-4">
             {% for station in stations %}
-                <div class="col">
-                    <div id="{{ station.id }}" class="card">
-                        <div class="card-body">
-                            <h5 class="text-truncate"><a href="{{ path('app_stations_show', {'id': station.id }) }}">{{ station.name }}</a></h5>
-                            <h6 class="card-subtitle text-muted">{{ station.brand|default(' ') }}</h6>
-                            <address class="card-text">
-                                {{ station.address.street }} {{ station.address.houseNumber }}<br />
-                                {{ station.address.postCode }} {{ station.address.city }}
-                            </address>
-                        </div>
-                    </div>
-                </div>
+                <twig:Station:ListCard station="{{ station }}" />
             {% endfor %}
 
             <div class="col-12">
