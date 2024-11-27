@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "626ae2844dd6396287a6f79bb6641a23",
+    "content-hash": "8de2dfcb3f0246a107c8c373e9f23da9",
     "packages": [
         {
             "name": "composer/semver",
@@ -747,16 +747,16 @@
         },
         {
             "name": "doctrine/mongodb-odm",
-            "version": "2.9.0",
+            "version": "2.9.x-dev",
             "source": {
                 "type": "git",
                 "url": "https://github.com/doctrine/mongodb-odm.git",
-                "reference": "3c9b1e8668343408cb70c9c9cd724b834d95438a"
+                "reference": "27483495e170e5af1e36eecf250e91de4903d294"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/mongodb-odm/zipball/3c9b1e8668343408cb70c9c9cd724b834d95438a",
-                "reference": "3c9b1e8668343408cb70c9c9cd724b834d95438a",
+                "url": "https://api.github.com/repos/doctrine/mongodb-odm/zipball/27483495e170e5af1e36eecf250e91de4903d294",
+                "reference": "27483495e170e5af1e36eecf250e91de4903d294",
                 "shasum": ""
             },
             "require": {
@@ -841,7 +841,7 @@
             ],
             "support": {
                 "issues": "https://github.com/doctrine/mongodb-odm/issues",
-                "source": "https://github.com/doctrine/mongodb-odm/tree/2.9.0"
+                "source": "https://github.com/doctrine/mongodb-odm/tree/2.9.x"
             },
             "funding": [
                 {
@@ -857,7 +857,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2024-09-20T12:31:14+00:00"
+            "time": "2024-11-18T12:08:43+00:00"
         },
         {
             "name": "doctrine/mongodb-odm-bundle",
@@ -1192,28 +1192,28 @@
         },
         {
             "name": "jean85/pretty-package-versions",
-            "version": "2.0.6",
+            "version": "2.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/Jean85/pretty-package-versions.git",
-                "reference": "f9fdd29ad8e6d024f52678b570e5593759b550b4"
+                "reference": "3c4e5f62ba8d7de1734312e4fff32f67a8daaf10"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/Jean85/pretty-package-versions/zipball/f9fdd29ad8e6d024f52678b570e5593759b550b4",
-                "reference": "f9fdd29ad8e6d024f52678b570e5593759b550b4",
+                "url": "https://api.github.com/repos/Jean85/pretty-package-versions/zipball/3c4e5f62ba8d7de1734312e4fff32f67a8daaf10",
+                "reference": "3c4e5f62ba8d7de1734312e4fff32f67a8daaf10",
                 "shasum": ""
             },
             "require": {
-                "composer-runtime-api": "^2.0.0",
-                "php": "^7.1|^8.0"
+                "composer-runtime-api": "^2.1.0",
+                "php": "^7.4|^8.0"
             },
             "require-dev": {
                 "friendsofphp/php-cs-fixer": "^3.2",
                 "jean85/composer-provided-replaced-stub-package": "^1.0",
                 "phpstan/phpstan": "^1.4",
-                "phpunit/phpunit": "^7.5|^8.5|^9.4",
-                "vimeo/psalm": "^4.3"
+                "phpunit/phpunit": "^7.5|^8.5|^9.6",
+                "vimeo/psalm": "^4.3 || ^5.0"
             },
             "type": "library",
             "extra": {
@@ -1245,9 +1245,9 @@
             ],
             "support": {
                 "issues": "https://github.com/Jean85/pretty-package-versions/issues",
-                "source": "https://github.com/Jean85/pretty-package-versions/tree/2.0.6"
+                "source": "https://github.com/Jean85/pretty-package-versions/tree/2.1.0"
             },
-            "time": "2024-03-08T09:58:59+00:00"
+            "time": "2024-11-18T16:19:46+00:00"
         },
         {
             "name": "jmikola/geojson",
@@ -1310,16 +1310,16 @@
         },
         {
             "name": "laminas/laminas-code",
-            "version": "4.15.1",
+            "version": "4.16.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/laminas/laminas-code.git",
-                "reference": "877ad42fe9c164785182fca8afa3f416a056884d"
+                "reference": "1793e78dad4108b594084d05d1fb818b85b110af"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/laminas/laminas-code/zipball/877ad42fe9c164785182fca8afa3f416a056884d",
-                "reference": "877ad42fe9c164785182fca8afa3f416a056884d",
+                "url": "https://api.github.com/repos/laminas/laminas-code/zipball/1793e78dad4108b594084d05d1fb818b85b110af",
+                "reference": "1793e78dad4108b594084d05d1fb818b85b110af",
                 "shasum": ""
             },
             "require": {
@@ -1369,7 +1369,7 @@
                     "type": "community_bridge"
                 }
             ],
-            "time": "2024-10-25T10:15:16+00:00"
+            "time": "2024-11-20T13:15:13+00:00"
         },
         {
             "name": "mongodb/mongodb",
@@ -1377,12 +1377,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/mongodb/mongo-php-library.git",
-                "reference": "1b00b23acde47643a1107dabe94cc3432ecf1025"
+                "reference": "1074e23e23dc395238de55f2b952626128a277f2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/mongodb/mongo-php-library/zipball/1b00b23acde47643a1107dabe94cc3432ecf1025",
-                "reference": "1b00b23acde47643a1107dabe94cc3432ecf1025",
+                "url": "https://api.github.com/repos/mongodb/mongo-php-library/zipball/1074e23e23dc395238de55f2b952626128a277f2",
+                "reference": "1074e23e23dc395238de55f2b952626128a277f2",
                 "shasum": ""
             },
             "require": {
@@ -1450,7 +1450,7 @@
                 "issues": "https://github.com/mongodb/mongo-php-library/issues",
                 "source": "https://github.com/mongodb/mongo-php-library/tree/v1.x"
             },
-            "time": "2024-11-11T11:51:57+00:00"
+            "time": "2024-11-22T16:25:44+00:00"
         },
         {
             "name": "monolog/monolog",
@@ -8910,12 +8910,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/phpunit.git",
-                "reference": "284a0993f62a7579f49a500c7aab2ca14bfa2c13"
+                "reference": "7588ae31af862bae0801c32dc25b7573970b24d7"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/284a0993f62a7579f49a500c7aab2ca14bfa2c13",
-                "reference": "284a0993f62a7579f49a500c7aab2ca14bfa2c13",
+                "url": "https://api.github.com/repos/sebastianbergmann/phpunit/zipball/7588ae31af862bae0801c32dc25b7573970b24d7",
+                "reference": "7588ae31af862bae0801c32dc25b7573970b24d7",
                 "shasum": ""
             },
             "require": {
@@ -9003,7 +9003,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2024-11-17T08:27:33+00:00"
+            "time": "2024-11-26T13:41:37+00:00"
         },
         {
             "name": "sebastian/cli-parser",
@@ -10770,6 +10770,7 @@
     "aliases": [],
     "minimum-stability": "dev",
     "stability-flags": {
+        "doctrine/mongodb-odm": 20,
         "mongodb/mongodb": 20
     },
     "prefer-stable": true,

@@ -8,6 +8,7 @@
         "ext-ctype": "*",
         "ext-iconv": "*",
         "doctrine/data-fixtures": "^1.8",
+        "doctrine/mongodb-odm": "2.9.x-dev",
         "doctrine/mongodb-odm-bundle": "^5.1",
         "jmikola/geojson": "^1.2",
         "mongodb/mongodb": "v1.x-dev",
