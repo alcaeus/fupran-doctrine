@@ -64,6 +64,7 @@ class DailyAggregateRepository extends AbstractRepository
             PriceReport::computeDailyAggregates(),
             Stage::merge(
                 $this->getDocumentCollection()->getCollectionName(),
+                on: ['day', 'fuel'],
                 whenMatched: 'replace',
             ),
         );
