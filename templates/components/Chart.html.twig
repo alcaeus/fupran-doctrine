@@ -1,11 +1,12 @@
 <div
     {{ attributes }}
-    data-controller="chart"
-    data-action="filter:update@window->chart#updateFilter"
-    data-chart-url-value="{{ this.chartHelper.baseUrl }}"
-    data-chart-chart-value="{{ this.chartId }}"
-    data-chart-station-value="{{ this.station is not null ? this.station.id : null }}"
-    data-chart-fuel-value="{{ this.fuel }}"
+    {{ stimulus_controller('chart', {
+        url: this.chartHelper.baseUrl,
+        chart: this.chartId,
+        station: this.station is not null ? this.station.id : null,
+        fuel: this.fuel,
+    }) }}
+    {{ stimulus_action('chart', 'updateFilter', 'filter:update@window') }}
 >
-    <div data-chart-target="chart" style="height: 600px;"></div>
+    <div {{ stimulus_target('chart', 'chart') }} style="height: 600px;"></div>
 </div>

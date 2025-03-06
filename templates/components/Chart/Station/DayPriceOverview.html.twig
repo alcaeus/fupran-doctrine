@@ -1,10 +1,11 @@
 <div
     {{ attributes }}
-    data-controller="chart"
-    data-chart-url-value="{{ this.chartHelper.baseUrl }}"
-    data-chart-chart-value="{{ this.chartId }}"
-    data-chart-station-value="{{ this.station is not null ? this.station.id : null }}"
-    data-chart-day-value="{{ this.timestamp }}"
+    {{ stimulus_controller('chart', {
+        url: this.chartHelper.baseUrl,
+        chart: this.chartId,
+        station: this.station is not null ? this.station.id : null,
+        day: this.timestamp,
+    }) }}
 >
-    <div data-chart-target="chart" style="height: 300px;"></div>
+    <div {{ stimulus_target('chart', 'chart') }} style="height: 600px;"></div>
 </div>
