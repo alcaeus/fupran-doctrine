@@ -153,6 +153,53 @@ class PriceReportTest extends TestCase
         self::assertSame($expectedWeightedAverage, $result[0]->weightedAveragePrice);
     }
 
+    public function testAddExtremeValues(): void
+    {
+        $price1 = ['_id' => 1, 'price' => 2, 'date' => new UTCDateTime(new DateTimeImmutable('2025-06-27T00:00:00+00:00'))];
+        $price2 = ['_id' => 2, 'price' => 1, 'date' => new UTCDateTime(new DateTimeImmutable('2025-06-27T01:00:00+00:00'))];
+        $price3 = ['_id' => 3, 'price' => 3, 'date' => new UTCDateTime(new DateTimeImmutable('2025-06-27T02:00:00+00:00'))];
+
+        $document = [
+            'prices' => [
+                $price1,
+                $price2,
+                $price3,
+            ],
+            'pricesByPrice' => [
+                $price2,
+                $price1,
+                $price3,
+            ],
+        ];
+
+        $pipeline = new Pipeline(
+            Stage::documents([$document]),
+            PriceReport::addExtremeValues(),
+        );
+
+        $result = iterator_to_array(
+            $this
+                ->getTestDatabase()
+                ->aggregate($pipeline, ['typeMap' => self::TYPEMAP]),
+        );
+
+        self::assertCount(1, $result);
+        $result = $result[0];
+        self::assertEquals(
+            (object) [
+                'prices' => [
+                    $price1,
+                    $price2,
+                    $price3,
+                ],
+                'closingPrice' => 3,
+                'lowestPrice' => $price2,
+                'highestPrice' => $price3,
+            ],
+            $result,
+        );
+    }
+
     private function getClient(): Client
     {
         return new Client(getenv('MONGODB_URI') ?: null);
