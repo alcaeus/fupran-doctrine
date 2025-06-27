@@ -50,7 +50,7 @@ class PriceReportTest extends TestCase
         $result = iterator_to_array(
             $this
                 ->getTestDatabase()
-                ->aggregate(iterator_to_array($pipeline), ['typeMap' => self::TYPEMAP]),
+                ->aggregate($pipeline, ['typeMap' => self::TYPEMAP]),
         );
 
         self::assertEquals(
@@ -143,7 +143,7 @@ class PriceReportTest extends TestCase
         $result = iterator_to_array(
             $this
                 ->getTestDatabase()
-                ->aggregate(iterator_to_array($pipeline), ['typeMap' => self::TYPEMAP]),
+                ->aggregate($pipeline, ['typeMap' => self::TYPEMAP]),
         );
 
         self::assertCount(1, $result);

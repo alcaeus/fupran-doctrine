@@ -148,8 +148,7 @@ class ImportPriceReportsCommand extends Command
         );
 
         [$time] = measure(
-            // TODO: iterator_to_array becomes obsolete in mongodb/mongodb 2.0
-            static fn () => $importCollection->aggregate(iterator_to_array($pipeline)),
+            static fn () => $importCollection->aggregate($pipeline),
         );
 
         $importCollection->drop();
@@ -170,8 +169,7 @@ class ImportPriceReportsCommand extends Command
         );
 
         [$time] = measure(
-            // TODO: iterator_to_array becomes obsolete in mongodb/mongodb 2.0
-            fn () => $this->collection->aggregate(iterator_to_array($pipeline)),
+            fn () => $this->collection->aggregate($pipeline),
         );
 
         $this->collection->drop();
@@ -201,11 +199,10 @@ class ImportPriceReportsCommand extends Command
         );
 
         [$time] = measure(
-            // TODO: iterator_to_array becomes obsolete in mongodb/mongodb 2.0
             fn () => $this
                 ->dailyPriceRepository
                 ->getDocumentCollection()
-                ->aggregate(iterator_to_array($pipeline)),
+                ->aggregate($pipeline),
         );
 
         $io->writeln(sprintf('Done in %.5fs.', $time));
@@ -236,11 +233,10 @@ class ImportPriceReportsCommand extends Command
         );
 
         [$time] = measure(
-            // TODO: iterator_to_array becomes obsolete in mongodb/mongodb 2.0
             fn () => $this
                 ->dailyPriceRepository
                 ->getDocumentCollection()
-                ->aggregate(iterator_to_array($pipeline)),
+                ->aggregate($pipeline),
         );
 
         $io->writeln(sprintf('Done in %.5fs.', $time));

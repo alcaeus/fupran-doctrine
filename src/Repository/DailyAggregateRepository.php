@@ -69,11 +69,10 @@ class DailyAggregateRepository extends AbstractRepository
             ),
         );
 
-        // TODO: iterator_to_array becomes obsolete in mongodb/mongodb 2.0
         $this
             ->getDocumentManager()
             ->getRepository(DailyPrice::class)
             ->getDocumentCollection()
-            ->aggregate(iterator_to_array($pipeline));
+            ->aggregate($pipeline);
     }
 }
