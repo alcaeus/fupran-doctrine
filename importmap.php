@@ -70,6 +70,12 @@ return [
         'version' => '4.17.21',
     ],
     'chart.js' => [
-        'version' => '3.9.1',
+        'version' => '4.0.1',
+    ],
+    'chartjs-adapter-date-fns' => [
+        'version' => '3.0.0',
+    ],
+    'date-fns' => [
+        'version' => '2.29.3',
     ],
 ];
