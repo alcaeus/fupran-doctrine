@@ -69,4 +69,7 @@ return [
     'lodash-es' => [
         'version' => '4.17.21',
     ],
+    'chart.js' => [
+        'version' => '3.9.1',
+    ],
 ];

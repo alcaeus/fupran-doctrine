@@ -40,6 +40,7 @@
         "symfony/translation": "7.2.*",
         "symfony/twig-bundle": "7.2.*",
         "symfony/uid": "7.2.*",
+        "symfony/ux-chartjs": "^2.27",
         "symfony/ux-icons": "^2.21",
         "symfony/ux-leaflet-map": "^2.21",
         "symfony/ux-map": "^2.21",
