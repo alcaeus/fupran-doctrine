@@ -10,7 +10,7 @@
                 <twig:Station:LatestPriceData dailyPrice="{{ station.latestPrice.e10 }}" />
             </dl>
 
-            <twig:Chart:Station:DayPriceOverview station="{{ station }}" date="{{ station.latestPrice.diesel.latestPrice.date }}" />
+            <twig:Chart:Station:DayPriceOverview priceReport="{{ station.latestPrice }}" />
         </div>
     </div>
 {% else %}
