@@ -17,9 +17,9 @@ use Symfony\Component\Routing\Annotation\Route;
 class StationsController extends AbstractController
 {
     #[Route('/stations/{page}', name: 'app_stations', requirements: ['page' => '\d+'], methods: ['GET'])]
-    public function index(StationRepository $stations, int $page = 1): Response
+    public function index(DocumentManager $dm, int $page = 1): Response
     {
-        $paginator = new QueryPaginator($stations->createQueryBuilder()->sort('_id'), $page);
+        $paginator = new QueryPaginator($dm->createQueryBuilder(Station::class)->sort('_id'), $page);
 
         return $this->render(
             'stations/index.html.twig',
