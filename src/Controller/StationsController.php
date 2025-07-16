@@ -9,6 +9,7 @@ use App\Doctrine\QueryPaginator;
 use App\Document\Station;
 use App\Repository\StationRepository;
 use Doctrine\ODM\MongoDB\DocumentManager;
+use Doctrine\ODM\MongoDB\Query\Builder;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
@@ -16,10 +17,14 @@ use Symfony\Component\Routing\Annotation\Route;
 
 class StationsController extends AbstractController
 {
-    #[Route('/stations/{page}', name: 'app_stations', requirements: ['page' => '\d+'], methods: ['GET'])]
-    public function index(DocumentManager $dm, int $page = 1): Response
+    public function __construct(private readonly DocumentManager $dm)
     {
-        $paginator = new QueryPaginator($dm->createQueryBuilder(Station::class)->sort('_id'), $page);
+    }
+
+    #[Route('/stations/{page}', name: 'app_stations', requirements: ['page' => '\d+'], methods: ['GET'])]
+    public function index(int $page = 1): Response
+    {
+        $paginator = new QueryPaginator($this->createStationQueryBuilder()->sort('_id'), $page);
 
         return $this->render(
             'stations/index.html.twig',
@@ -28,10 +33,10 @@ class StationsController extends AbstractController
     }
 
     #[Route('/stations/favorites/{page}', name: 'app_stations_favorites', requirements: ['page' => '\d+'], methods: ['GET'])]
-    public function favorites(StationRepository $stations, int $page = 1): Response
+    public function favorites(int $page = 1): Response
     {
         $paginator = new QueryPaginator(
-            $stations->createQueryBuilder()->field('favorite')->equals(true)->sort('_id'),
+            $this->createStationQueryBuilder()->field('favorite')->equals(true)->sort('_id'),
             $page,
         );
 
@@ -51,11 +56,11 @@ class StationsController extends AbstractController
     }
 
     #[Route('/stations/{id}/favorite', name: 'app_station_favorite', requirements: ['id' => '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'], methods: ['GET'])]
-    public function favorite(Station $station, DocumentManager $documentManager): Response
+    public function favorite(Station $station): Response
     {
-        $station->favorite = !$station->favorite;
-        $documentManager->persist($station);
-        $documentManager->flush();
+        $station->favorite = ! $station->favorite;
+        $this->dm->persist($station);
+        $this->dm->flush();
 
         return $this->redirectToRoute('app_station_show', ['id' => $station->id]);
 //        return $this->json(['favorite' => $station->favorite]);
@@ -95,5 +100,10 @@ class StationsController extends AbstractController
                 'postCode' => $postCode,
             ],
         );
+    }
+
+    private function createStationQueryBuilder(): Builder
+    {
+        return $this->dm->createQueryBuilder(Station::class);
     }
 }
