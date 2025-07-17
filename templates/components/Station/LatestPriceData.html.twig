@@ -4,7 +4,7 @@
 <dt>{{ dailyPrice.fuel.displayValue }} <span class="text-muted">({{ dailyPrice.latestPrice.date|date }})</span></dt>
 <dd>
     <twig:Price price="{{ dailyPrice.latestPrice.price }}" />
-    (Average: <twig:Price price="{{ dailyPrice.weightedAveragePrice }}" />,
-    {{ dailyPrice.aggregate.getPercentile(dailyPrice.latestPrice.price) }})
+    (Average: <twig:Price price="{{ dailyPrice.weightedAveragePrice }}" />)
+{#    {{ dailyPrice.aggregate.getPercentile(dailyPrice.latestPrice.price) }})#}
 </dd>
 {% endif %}
