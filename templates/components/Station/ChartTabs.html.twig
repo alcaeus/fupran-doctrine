@@ -8,35 +8,35 @@
             {% endfor %}
         </ul>
     </div>
-    <div class="card-body">
-        <twig:ChartFilter />
-    </div>
+{#    <div class="card-body">#}
+{#        <twig:ChartFilter />#}
+{#    </div>#}
     <div class="card-body">
         <div class="tab-content" id="chartContent">
             {% for fuel in this.fuels %}
                 <div class="tab-pane fade {{ loop.index0 == 0 ? 'show active' : '' }}" id="chartContent_{{ fuel.value }}" role="tabpanel" aria-labelledby="chartNav_{{ fuel.value }}" tabindex="0">
-                    <h5 class="card-title">Hourly Difference to Daily Average Price</h5>
-                    <twig:Chart:Station:DifferenceToAverage station="{{ this.station }}" fuel="{{ fuel.value }}" />
+{#                    <h5 class="card-title">Hourly Difference to Daily Average Price</h5>#}
+{#                    <twig:Chart:Station:DifferenceToAverage station="{{ this.station }}" fuel="{{ fuel.value }}" />#}
 
                     <h5 class="card-title">Price History</h5>
-                    <twig:Chart:Station:PriceHistory station="{{ this.station }}" fuel="{{ fuel.value }}" />
+                    <twig:Chart:Station:PriceHistory station="{{ this.station }}" fuel="{{ fuel }}" />
 
-                    <h5 class="card-title">Cheapest and Most Expensive Times</h5>
-                    <twig:Chart:Station:ExtremeTimes station="{{ this.station }}" fuel="{{ fuel.value }}" />
+{#                    <h5 class="card-title">Cheapest and Most Expensive Times</h5>#}
+{#                    <twig:Chart:Station:ExtremeTimes station="{{ this.station }}" fuel="{{ fuel.value }}" />#}
 
-                    <h5 class="card-title">Pricing Heatmaps</h5>
-                    <div class="container">
-                        <div class="row row-cols-2 mb-4">
-                            <div class="col">
-                                <twig:Chart:Station:Heatmap:CheapestTimes station="{{ this.station }}" fuel="{{ fuel.value }}" />
-                            </div>
+{#                    <h5 class="card-title">Pricing Heatmaps</h5>#}
+{#                    <div class="container">#}
+{#                        <div class="row row-cols-2 mb-4">#}
+{#                            <div class="col">#}
+{#                                <twig:Chart:Station:Heatmap:CheapestTimes station="{{ this.station }}" fuel="{{ fuel.value }}" />#}
+{#                            </div>#}
 
-                            <div class="col">
-                                <twig:Chart:Station:Heatmap:MostExpensiveTimes station="{{ this.station }}" fuel="{{ fuel.value }}" />
-                            </div>
-                        </div>
-                    </div>
-                    <div class="col"></div>
+{#                            <div class="col">#}
+{#                                <twig:Chart:Station:Heatmap:MostExpensiveTimes station="{{ this.station }}" fuel="{{ fuel.value }}" />#}
+{#                            </div>#}
+{#                        </div>#}
+{#                    </div>#}
+{#                    <div class="col"></div>#}
                 </div>
             {% endfor %}
         </div>

@@ -8,7 +8,7 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbeddedDocument;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbedOne;
 
 #[EmbeddedDocument]
-class DailyPriceReport
+class LatestPrice
 {
     #[EmbedOne(targetDocument: EmbeddedDailyPrice::class)]
     public readonly EmbeddedDailyPrice $diesel;
