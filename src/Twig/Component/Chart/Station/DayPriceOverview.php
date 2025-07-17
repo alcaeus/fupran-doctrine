@@ -17,7 +17,7 @@ use function array_map;
 #[AsTwigComponent('Chart:Station:DayPriceOverview', template: ChartJs::TEMPLATE)]
 class DayPriceOverview extends ChartJs
 {
-    public LatestPrice $priceReport;
+    public LatestPrice $latestPrice;
 
     public function getChart(): Chart
     {
@@ -46,11 +46,11 @@ class DayPriceOverview extends ChartJs
 
         foreach (Fuel::cases() as $fuel) {
             $fuelType = $fuel->value;
-            if (! isset($this->priceReport->$fuelType)) {
+            if (! isset($this->latestPrice->$fuelType)) {
                 continue;
             }
 
-            $datasets[] = $this->createDataset($this->priceReport->$fuelType, $fuel);
+            $datasets[] = $this->createDataset($this->latestPrice->$fuelType, $fuel);
         }
 
         return $datasets;
