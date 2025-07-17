@@ -4,23 +4,20 @@ declare(strict_types=1);
 
 namespace App\Twig\Component\Chart\Station;
 
-use App\Document\DailyPriceReport;
 use App\Document\EmbeddedDailyPrice;
+use App\Document\LatestPrice;
 use App\Document\Price;
 use App\Fuel;
-use DateTimeInterface;
-use Symfony\UX\Chartjs\Builder\ChartBuilderInterface;
+use App\Twig\Component\ChartJs;
 use Symfony\UX\Chartjs\Model\Chart;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
-#[AsTwigComponent('Chart:Station:DayPriceOverview')]
-class DayPriceOverview
-{
-    public DailyPriceReport $priceReport;
+use function array_map;
 
-    public function __construct(public readonly ChartBuilderInterface $chartBuilder)
-    {
-    }
+#[AsTwigComponent('Chart:Station:DayPriceOverview', template: ChartJs::TEMPLATE)]
+class DayPriceOverview extends ChartJs
+{
+    public LatestPrice $priceReport;
 
     public function getChart(): Chart
     {
@@ -33,15 +30,11 @@ class DayPriceOverview
         $chart->setOptions([
             'parsing' => false,
             'datasets' => [
-                'line' => [
-                    'stepped' => 'before',
-                ]
+                'line' => ['stepped' => 'before'],
             ],
             'scales' => [
-                'x' => [
-                    'type' => 'time',
-                ]
-            ]
+                'x' => ['type' => 'time'],
+            ],
         ]);
 
         return $chart;
@@ -68,21 +61,12 @@ class DayPriceOverview
         return [
             'label' => $fuel->value,
             'data' => array_map(
-                fn (Price $price) => [
+                static fn (Price $price) => [
                     'x' => $price->date->getTimestamp() * 1000,
                     'y' => $price->price,
                 ],
                 $dailyPrice->prices->toArray(),
-            )
+            ),
         ];
-    }
-
-    private function getTimeInSeconds(DateTimeInterface $dateTime): int
-    {
-        $hours = (int) $dateTime->format('H');
-        $minutes = (int) $dateTime->format('i');
-        $seconds = (int) $dateTime->format('s');
-
-        return $hours * 3600 + $minutes * 60 + $seconds;
     }
 }
