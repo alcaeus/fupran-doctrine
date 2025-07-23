@@ -38,9 +38,9 @@ services:
             $aggregatedPriceHistory: '%env(MONGODB_CHARTS_AGGREGATED_PRICE_HISTORY)%'
             $aggregatedPriceHistoryWithChanges: '%env(MONGODB_CHARTS_AGGREGATED_PRICE_HISTORY_WITH_CHANGES)%'
 
-    App\Type\BinaryUuidType:
+    Doctrine\ODM\MongoDB\Types\BinaryUuidType:
         factory: ['Doctrine\ODM\MongoDB\Types\Type', 'getType']
-        arguments: ['binaryUuid']
+        arguments: ['uuid']
 
     Doctrine\Persistence\ManagerRegistry: '@doctrine_mongodb'
 

@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "3abb1d7c49e16992c6669c6e57d6ea23",
+    "content-hash": "aac41981cb3238734c9e2459c0d9c0bd",
     "packages": [
         {
             "name": "composer/semver",
@@ -746,16 +746,16 @@
         },
         {
             "name": "doctrine/mongodb-odm",
-            "version": "2.11.2",
+            "version": "dev-support-symfony-uuid",
             "source": {
                 "type": "git",
-                "url": "https://github.com/doctrine/mongodb-odm.git",
-                "reference": "9cc829197581df02c227f00cfa789b077949dffa"
+                "url": "https://github.com/alcaeus/mongodb-odm.git",
+                "reference": "c77fecbcfdccdb1cd8cb398259c2fa5bf42e563c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/mongodb-odm/zipball/9cc829197581df02c227f00cfa789b077949dffa",
-                "reference": "9cc829197581df02c227f00cfa789b077949dffa",
+                "url": "https://api.github.com/repos/alcaeus/mongodb-odm/zipball/c77fecbcfdccdb1cd8cb398259c2fa5bf42e563c",
+                "reference": "c77fecbcfdccdb1cd8cb398259c2fa5bf42e563c",
                 "shasum": ""
             },
             "require": {
@@ -785,11 +785,13 @@
                 "ext-bcmath": "*",
                 "jmikola/geojson": "^1.0",
                 "phpbench/phpbench": "^1.0.0",
-                "phpstan/phpstan": "~1.10.67",
-                "phpstan/phpstan-phpunit": "^1.0",
+                "phpstan/phpstan": "^2.1",
+                "phpstan/phpstan-deprecation-rules": "^2.0",
+                "phpstan/phpstan-phpunit": "^2.0",
                 "phpunit/phpunit": "^10.4",
                 "squizlabs/php_codesniffer": "^3.5",
-                "symfony/cache": "^5.4 || ^6.0 || ^7.0"
+                "symfony/cache": "^5.4 || ^6.0 || ^7.0",
+                "symfony/uid": "^5.4 || ^6.0 || ^7.0"
             },
             "suggest": {
                 "doctrine/annotations": "For annotation mapping support",
@@ -801,7 +803,16 @@
                     "Doctrine\\ODM\\MongoDB\\": "lib/Doctrine/ODM/MongoDB"
                 }
             },
-            "notification-url": "https://packagist.org/downloads/",
+            "autoload-dev": {
+                "psr-4": {
+                    "Doctrine\\ODM\\MongoDB\\Benchmark\\": "benchmark",
+                    "Doctrine\\ODM\\MongoDB\\Tests\\": "tests/Doctrine/ODM/MongoDB/Tests",
+                    "Documentation\\": "tests/Documentation",
+                    "Documents\\": "tests/Documents",
+                    "Stubs\\": "tests/Stubs",
+                    "TestDocuments\\": "tests/Doctrine/ODM/MongoDB/Tests/Mapping/Driver/fixtures"
+                }
+            },
             "license": [
                 "MIT"
             ],
@@ -839,24 +850,23 @@
                 "php"
             ],
             "support": {
-                "issues": "https://github.com/doctrine/mongodb-odm/issues",
-                "source": "https://github.com/doctrine/mongodb-odm/tree/2.11.2"
+                "source": "https://github.com/alcaeus/mongodb-odm/tree/support-symfony-uuid"
             },
             "funding": [
                 {
-                    "url": "https://www.doctrine-project.org/sponsorship.html",
-                    "type": "custom"
+                    "type": "patreon",
+                    "url": "https://www.patreon.com/phpdoctrine"
                 },
                 {
-                    "url": "https://www.patreon.com/phpdoctrine",
-                    "type": "patreon"
+                    "type": "tidelift",
+                    "url": "https://tidelift.com/funding/github/packagist/doctrine%2Fmongodb-odm"
                 },
                 {
-                    "url": "https://tidelift.com/funding/github/packagist/doctrine%2Fmongodb-odm",
-                    "type": "tidelift"
+                    "type": "custom",
+                    "url": "https://www.doctrine-project.org/sponsorship.html"
                 }
             ],
-            "time": "2025-05-23T07:27:12+00:00"
+            "time": "2025-07-21T10:28:06+00:00"
         },
         {
             "name": "doctrine/mongodb-odm-bundle",
@@ -10987,9 +10997,18 @@
             "time": "2024-03-03T12:36:25+00:00"
         }
     ],
-    "aliases": [],
+    "aliases": [
+        {
+            "package": "doctrine/mongodb-odm",
+            "version": "dev-support-symfony-uuid",
+            "alias": "2.12.x-dev",
+            "alias_normalized": "2.12.9999999.9999999-dev"
+        }
+    ],
     "minimum-stability": "dev",
-    "stability-flags": {},
+    "stability-flags": {
+        "doctrine/mongodb-odm": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {

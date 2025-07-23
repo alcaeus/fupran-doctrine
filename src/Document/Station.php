@@ -15,6 +15,7 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations\Field;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Id;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Index;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\SearchIndex;
+use Doctrine\ODM\MongoDB\Types\Type;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Uid\UuidV4;
 
@@ -38,7 +39,7 @@ use Symfony\Component\Uid\UuidV4;
 )]
 class Station extends AbstractStation
 {
-    #[Id(type: 'binaryUuid', strategy: 'none')]
+    #[Id(type: Type::UUID, strategy: 'none')]
     public readonly Uuid $id;
 
     #[EmbedOne(targetDocument: Address::class)]
