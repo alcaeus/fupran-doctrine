@@ -93,7 +93,7 @@ class DailyPriceRepository extends AbstractRepository
             // TODO: Use aggregation pipeline update when Doctrine ODM supports it
             ->findOneAndUpdate(
                 [
-                    'station._id' => Type::getType('binaryUuid')->convertToDatabaseValue($station->id),
+                    'station._id' => Type::getType(Type::UUID)->convertToDatabaseValue($station->id),
                     'fuel' => $fuel->value,
                     'day' => new UTCDateTime($day),
                 ],
@@ -290,7 +290,7 @@ class DailyPriceRepository extends AbstractRepository
             ->getDocumentCollection()
             ->updateOne(
                 [
-                    '_id' => Type::getType('binaryUuid')->convertToDatabaseValue($station->id),
+                    '_id' => Type::getType(Type::UUID)->convertToDatabaseValue($station->id),
                 ],
                 PriceReport::updateLatestPriceInStation(
                     fuel: $embeddedDailyPrice->fuel,

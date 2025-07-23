@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Import;
 
 use App\Document\DailyPrice;
-use App\Type\BinaryUuidType;
 use Doctrine\ODM\MongoDB\DocumentManager;
+use Doctrine\ODM\MongoDB\Types\BinaryUuidType;
 use MongoDB\BSON\UTCDateTime;
 use MongoDB\Driver\BulkWrite;
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Import;
 
 use App\Repository\StationRepository;
-use App\Type\BinaryUuidType;
+use Doctrine\ODM\MongoDB\Types\BinaryUuidType;
 use MongoDB\Driver\BulkWrite;
 
 use function mb_strtolower;

@@ -17,7 +17,6 @@ doctrine_mongodb:
                     dir: '%kernel.project_dir%/src/Document'
                     prefix: 'App\Document'
     types:
-        binaryUuid: App\Type\BinaryUuidType
         point: App\Type\PointType
 
 when@prod:

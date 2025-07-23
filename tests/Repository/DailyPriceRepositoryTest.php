@@ -330,6 +330,6 @@ JSON;
 
     private function getBinaryUuid(): Binary
     {
-        return Type::getType('binaryUuid')->convertToDatabaseValue(self::STATION_UUID);
+        return Type::getType(Type::UUID)->convertToDatabaseValue(self::STATION_UUID);
     }
 }
