@@ -6,14 +6,18 @@ namespace App\Controller;
 
 use App\Doctrine\AggregationPaginator;
 use App\Doctrine\QueryPaginator;
+use App\Document\DailyPrice;
 use App\Document\Station;
+use App\DTO\PriceReportDTO;
 use App\Repository\StationRepository;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use Doctrine\ODM\MongoDB\Query\Builder;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
-use Symfony\Component\Routing\Annotation\Route;
+use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
+use Symfony\Component\Routing\Attribute\Route;
 
 class StationsController extends AbstractController
 {
@@ -53,6 +57,14 @@ class StationsController extends AbstractController
             'stations/show.html.twig',
             ['station' => $station],
         );
+    }
+
+    #[Route('/stations/{id}/price', name: 'app_station_report', requirements: ['id' => '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'], methods: ['POST'], format: 'json')]
+    public function report(
+        Station $station,
+        #[MapRequestPayload] PriceReportDTO $priceReport,
+    ): Response {
+        return new JsonResponse([]);
     }
 
     #[Route('/stations/{id}/favorite', name: 'app_station_favorite', requirements: ['id' => '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'], methods: ['GET'])]
