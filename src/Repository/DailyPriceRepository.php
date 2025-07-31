@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Document\DailyPrice;
+use App\Document\Price;
 use App\Document\Station;
 use App\Fuel;
+use DateTimeImmutable;
 use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
 use Doctrine\ODM\MongoDB\Iterator\Iterator;
 use Doctrine\ODM\MongoDB\Types\Type;
@@ -57,5 +59,30 @@ class DailyPriceRepository extends AbstractRepository
             ->limit(30)
             ->getQuery()
             ->execute();
+    }
+
+    public function reportPrice(
+        Station $station,
+        Fuel $fuel,
+        float $price,
+        DateTimeImmutable $date,
+    ): ?DailyPrice {
+        $priceDocument = new Price($date, $price);
+
+        $day = $date->setTime(0, 0);
+        $dailyPriceDocument = $this
+            ->createQueryBuilder()
+            ->findAndUpdate()
+            ->returnNew()
+            ->field('station._id')->equals(Type::getType('binaryUuid')->convertToDatabaseValue($station->id))
+            ->field('fuel')->equals($fuel->value)
+            ->field('day')->equals($day)
+            ->field('prices')->push($priceDocument)
+            ->getQuery()
+            ->execute();
+
+        return $dailyPriceDocument instanceof DailyPrice
+            ? $dailyPriceDocument
+            : null;
     }
 }
