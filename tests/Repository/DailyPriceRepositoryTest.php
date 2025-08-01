@@ -1,10 +1,13 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Tests\Repository;
 
 use App\Document\DailyPrice;
 use App\Document\Station;
 use App\Fuel;
+use DateTimeImmutable;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use Doctrine\ODM\MongoDB\Types\Type;
 use MongoDB\BSON\Binary;
@@ -13,7 +16,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 class DailyPriceRepositoryTest extends KernelTestCase
 {
-    const string STATION_UUID = '0e18d0d3-ed38-4e7f-a18e-507a78ad901d';
+    public const string STATION_UUID = '0e18d0d3-ed38-4e7f-a18e-507a78ad901d';
 
     protected function setUp(): void
     {
@@ -138,7 +141,7 @@ JSON;
         $this->assertInstanceOf(Station::class, $station);
     }
 
-    public function testAddNewPrice(): void
+    public function testAddNewHigherPrice(): void
     {
         self::insertSampleData();
 
@@ -152,7 +155,7 @@ JSON;
             $station,
             Fuel::Diesel,
             1.629,
-            new \DateTimeImmutable('2024-11-19T06:07:29Z')
+            new DateTimeImmutable('2024-11-19T06:07:29Z'),
         );
 
         $this->assertInstanceOf(DailyPrice::class, $dailyPrice);
@@ -162,13 +165,50 @@ JSON;
         $latestPrice = $dailyPrice->prices[1];
 
         $this->assertEqualsWithDelta(1.629, $latestPrice->price, 0.0001);
-        $this->assertEqualsWithDelta(1.599, $latestPrice->previousPrice, 0.0001);
-        $this->assertEqualsWithDelta(0.07, $latestPrice->previousPrice, 0.0001);
+        $this->assertEqualsWithDelta(1.569, $latestPrice->previousPrice, 0.0001);
+        $this->assertEqualsWithDelta(0.06, $latestPrice->change, 0.0001);
+        $this->assertEqualsWithDelta(1.618, $dailyPrice->weightedAveragePrice, 0.0001);
 
+        $this->assertEqualsWithDelta(1.599, $dailyPrice->openingPrice, 0.0001);
         $this->assertEqualsWithDelta(1.629, $dailyPrice->closingPrice, 0.0001);
 
-        $this->assertEquals($firstPrice, $dailyPrice->lowestPrice);
-        $this->assertEquals($latestPrice, $dailyPrice->highestPrice);
+        $this->assertEquals($firstPrice->id, $dailyPrice->lowestPrice->id);
+        $this->assertEquals($latestPrice->id, $dailyPrice->highestPrice->id);
+    }
+
+    public function testAddNewLowerPrice(): void
+    {
+        self::insertSampleData();
+
+        $documentManager = self::getDocumentManager();
+        $dailyPriceRepository = $documentManager->getRepository(DailyPrice::class);
+
+        $station = $documentManager->getRepository(Station::class)->find(self::STATION_UUID);
+        $this->assertInstanceOf(Station::class, $station);
+
+        $dailyPrice = $dailyPriceRepository->reportPrice(
+            $station,
+            Fuel::Diesel,
+            1.529,
+            new DateTimeImmutable('2024-11-19T06:07:29Z'),
+        );
+
+        $this->assertInstanceOf(DailyPrice::class, $dailyPrice);
+        $this->assertCount(2, $dailyPrice->prices);
+
+        $firstPrice = $dailyPrice->prices[0];
+        $latestPrice = $dailyPrice->prices[1];
+
+        $this->assertEqualsWithDelta(1.529, $latestPrice->price, 0.0001);
+        $this->assertEqualsWithDelta(1.569, $latestPrice->previousPrice, 0.0001);
+        $this->assertEqualsWithDelta(-0.04, $latestPrice->change, 0.0001);
+        $this->assertEqualsWithDelta(1.543, $dailyPrice->weightedAveragePrice, 0.0001);
+
+        $this->assertEqualsWithDelta(1.599, $dailyPrice->openingPrice, 0.0001);
+        $this->assertEqualsWithDelta(1.529, $dailyPrice->closingPrice, 0.0001);
+
+        $this->assertEquals($latestPrice->id, $dailyPrice->lowestPrice->id);
+        $this->assertEquals($firstPrice->id, $dailyPrice->highestPrice->id);
     }
 
     private static function getDocumentManager(): DocumentManager
@@ -178,6 +218,6 @@ JSON;
 
     private function getBinaryUuid(): Binary
     {
-        return (Type::getType('binaryUuid'))->convertToDatabaseValue(self::STATION_UUID);
+        return Type::getType('binaryUuid')->convertToDatabaseValue(self::STATION_UUID);
     }
 }
