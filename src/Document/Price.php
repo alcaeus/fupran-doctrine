@@ -11,25 +11,29 @@ use Doctrine\ODM\MongoDB\Types\Type;
 use MongoDB\BSON\ObjectId;
 
 #[EmbeddedDocument]
-readonly class Price
+class Price
 {
     #[Field(type: Type::OBJECTID, name: '_id')]
-    public string $id;
+    public readonly string $id;
+
     #[Field]
-    public ?float $change;
+    public ?float $change = null;
+
+    #[Field]
+    public ?float $previousPrice = null;
 
     public function __construct(
         #[Field(type: Type::DATE_IMMUTABLE)]
-        public DateTimeImmutable $date,
-        #[Field()]
-        public float $price,
-        #[Field()]
-        public ?float $previousPrice = null,
+        public readonly DateTimeImmutable $date,
+        #[Field]
+        public readonly float $price,
+        ?float $previousPrice = null,
         ObjectId $id = new ObjectId(),
     ) {
         $this->id = (string) $id;
 
-        if ($this->previousPrice !== null) {
+        if ($previousPrice !== null) {
+            $this->previousPrice = $previousPrice;
             $this->change = $this->price - $this->previousPrice;
         }
     }

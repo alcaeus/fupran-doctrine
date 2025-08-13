@@ -17,5 +17,5 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations\Index;
 class DailyPrice extends AbstractDailyPrice
 {
     #[EmbedOne(targetDocument: PartialStation::class)]
-    public readonly PartialStation $station;
+    public PartialStation $station;
 }
