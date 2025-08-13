@@ -211,6 +211,74 @@ JSON;
         $this->assertEquals($firstPrice->id, $dailyPrice->highestPrice->id);
     }
 
+    public function testAddPriceForNonExistentDayWithoutPreviousData(): void
+    {
+        self::insertSampleData();
+
+        $documentManager = self::getDocumentManager();
+        $dailyPriceRepository = $documentManager->getRepository(DailyPrice::class);
+
+        $station = $documentManager->getRepository(Station::class)->find(self::STATION_UUID);
+        $this->assertInstanceOf(Station::class, $station);
+
+        $dailyPrice = $dailyPriceRepository->reportPrice(
+            $station,
+            Fuel::Diesel,
+            1.529,
+            new DateTimeImmutable('2024-11-18T06:07:29Z'),
+        );
+
+        $this->assertInstanceOf(DailyPrice::class, $dailyPrice);
+        $this->assertCount(1, $dailyPrice->prices);
+
+        $price = $dailyPrice->prices[0];
+
+        $this->assertEqualsWithDelta(1.529, $price->price, 0.0001);
+        $this->assertNull($price->previousPrice);
+        $this->assertNull($price->change);
+        $this->assertEqualsWithDelta(1.529, $dailyPrice->weightedAveragePrice, 0.0001);
+
+        $this->assertNull($dailyPrice->openingPrice);
+        $this->assertEqualsWithDelta(1.529, $dailyPrice->closingPrice, 0.0001);
+
+        $this->assertEquals($price->id, $dailyPrice->lowestPrice->id);
+        $this->assertEquals($price->id, $dailyPrice->highestPrice->id);
+    }
+
+    public function testAddPriceForNonExistentDay(): void
+    {
+        self::insertSampleData();
+
+        $documentManager = self::getDocumentManager();
+        $dailyPriceRepository = $documentManager->getRepository(DailyPrice::class);
+
+        $station = $documentManager->getRepository(Station::class)->find(self::STATION_UUID);
+        $this->assertInstanceOf(Station::class, $station);
+
+        $dailyPrice = $dailyPriceRepository->reportPrice(
+            $station,
+            Fuel::Diesel,
+            1.529,
+            new DateTimeImmutable('2024-11-20T06:07:29Z'),
+        );
+
+        $this->assertInstanceOf(DailyPrice::class, $dailyPrice);
+        $this->assertCount(1, $dailyPrice->prices);
+
+        $price = $dailyPrice->prices[0];
+
+        $this->assertEqualsWithDelta(1.529, $price->price, 0.0001);
+        $this->assertEqualsWithDelta(1.569, $price->previousPrice, 0.0001);
+        $this->assertEqualsWithDelta(-0.04, $price->change, 0.0001);
+        $this->assertEqualsWithDelta(1.539, $dailyPrice->weightedAveragePrice, 0.0001);
+
+        $this->assertEqualsWithDelta(1.569, $dailyPrice->openingPrice, 0.0001);
+        $this->assertEqualsWithDelta(1.529, $dailyPrice->closingPrice, 0.0001);
+
+        $this->assertEquals($price->id, $dailyPrice->lowestPrice->id);
+        $this->assertEquals($price->id, $dailyPrice->highestPrice->id);
+    }
+
     private static function getDocumentManager(): DocumentManager
     {
         return self::getContainer()->get(DocumentManager::class);
