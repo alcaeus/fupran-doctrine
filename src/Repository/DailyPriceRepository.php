@@ -42,8 +42,8 @@ class DailyPriceRepository extends AbstractRepository
     public function getLatestPricesForStation(Station $station): Iterator
     {
         return $this->createQueryBuilder()
-            ->field('station._id')
-            ->equals(Type::getType('binaryUuid')->convertToDatabaseValue($station->id))
+            ->field('station.referencedStation')
+            ->equals($station->id)
             ->sort('day', -1)
             ->limit(count(Fuel::cases()))
             ->getQuery()
@@ -68,8 +68,8 @@ class DailyPriceRepository extends AbstractRepository
     private function getLast30DaysForStationAndFuel(Station $station, Fuel $fuel): Iterator
     {
         return $this->createQueryBuilder()
-            ->field('station._id')
-            ->equals(Type::getType('binaryUuid')->convertToDatabaseValue($station->id))
+            ->field('station.referencedStation')
+            ->equals($station)
             ->field('fuel')
             ->equals($fuel)
             ->sort('day', -1)
@@ -119,8 +119,8 @@ class DailyPriceRepository extends AbstractRepository
     private function updateOpeningPrice(Station $station, DailyPrice $dailyPrice): ?DailyPrice
     {
         $previousPrice = $this->createQueryBuilder()
-            ->field('station._id')
-            ->equals(Type::getType('binaryUuid')->convertToDatabaseValue($station->id))
+            ->field('station.referencedStation')
+            ->equals($station)
             ->field('fuel')
             ->equals($dailyPrice->fuel)
             ->field('day')
