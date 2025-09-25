@@ -49,7 +49,7 @@ class AbstractDailyPrice
     public float $weightedAveragePrice;
 
     #[ReferenceMany(targetDocument: DailyAggregate::class, repositoryMethod: 'getAggregateForDailyPrice')]
-    private Collection $aggregates;
+    protected Collection $aggregates;
 
     /** phpcs:disable **/
     public ?DailyAggregate $aggregate {

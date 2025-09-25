@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Repository;
 
 use App\Document\DailyPrice;
+use App\Document\EmbeddedDailyPrice;
 use App\Document\Partial\PartialStation;
 use App\Document\Station;
 use App\Fuel;
@@ -175,6 +176,13 @@ JSON;
 
         $this->assertEquals($firstPrice->id, $dailyPrice->lowestPrice->id);
         $this->assertEquals($latestPrice->id, $dailyPrice->highestPrice->id);
+
+        // TODO: Workaround since we can't refresh documents with readonly properties
+        $documentManager->detach($station);
+        $station = $documentManager->find(Station::class, $station->id);
+        $this->assertNotNull($station->latestPrice);
+        $this->assertInstanceOf(EmbeddedDailyPrice::class, $station->latestPrice->diesel);
+        $this->assertEquals($dailyPrice->id, $station->latestPrice->diesel->id);
     }
 
     public function testAddNewLowerPrice(): void
@@ -210,6 +218,13 @@ JSON;
 
         $this->assertEquals($latestPrice->id, $dailyPrice->lowestPrice->id);
         $this->assertEquals($firstPrice->id, $dailyPrice->highestPrice->id);
+
+        // TODO: Workaround since we can't refresh documents with readonly properties
+        $documentManager->detach($station);
+        $station = $documentManager->find(Station::class, $station->id);
+        $this->assertNotNull($station->latestPrice);
+        $this->assertInstanceOf(EmbeddedDailyPrice::class, $station->latestPrice->diesel);
+        $this->assertEquals($dailyPrice->id, $station->latestPrice->diesel->id);
     }
 
     public function testAddPriceForNonExistentDayWithoutPreviousData(): void
@@ -248,6 +263,13 @@ JSON;
 
         $this->assertEquals($price->id, $dailyPrice->lowestPrice->id);
         $this->assertEquals($price->id, $dailyPrice->highestPrice->id);
+
+        // TODO: Workaround since we can't refresh documents with readonly properties
+        $documentManager->detach($station);
+        $station = $documentManager->find(Station::class, $station->id);
+        $this->assertNotNull($station->latestPrice);
+        $this->assertInstanceOf(EmbeddedDailyPrice::class, $station->latestPrice->diesel);
+        $this->assertEquals($dailyPrice->id, $station->latestPrice->diesel->id);
     }
 
     public function testAddPriceForNonExistentDay(): void
@@ -286,6 +308,13 @@ JSON;
 
         $this->assertEquals($price->id, $dailyPrice->lowestPrice->id);
         $this->assertEquals($price->id, $dailyPrice->highestPrice->id);
+
+        // TODO: Workaround since we can't refresh documents with readonly properties
+        $documentManager->detach($station);
+        $station = $documentManager->find(Station::class, $station->id);
+        $this->assertNotNull($station->latestPrice);
+        $this->assertInstanceOf(EmbeddedDailyPrice::class, $station->latestPrice->diesel);
+        $this->assertEquals($dailyPrice->id, $station->latestPrice->diesel->id);
     }
 
     private static function getDocumentManager(): DocumentManager

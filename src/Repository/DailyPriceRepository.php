@@ -7,6 +7,7 @@ namespace App\Repository;
 use App\Aggregation\PriceReport;
 use App\Codec\MetadataCodecFactory;
 use App\Document\DailyPrice;
+use App\Document\EmbeddedDailyPrice;
 use App\Document\Price;
 use App\Document\Station;
 use App\Fuel;
@@ -89,6 +90,7 @@ class DailyPriceRepository extends AbstractRepository
 
         $encodedPriceDocument = $this->codec->encode($priceDocument);
         $document = $this->getDocumentCollection()
+            // TODO: Use aggregation pipeline update when Doctrine ODM supports it
             ->findOneAndUpdate(
                 [
                     'station._id' => Type::getType('binaryUuid')->convertToDatabaseValue($station->id),
@@ -96,7 +98,7 @@ class DailyPriceRepository extends AbstractRepository
                     'day' => new UTCDateTime($day),
                 ],
                 // TODO: encode call can be removed once PHPLIB supports pipeline updates in findOneAndUpdate
-                $this->encoder->encode(self::getDailyPriceUpdatePipeline()),
+                $this->encoder->encode(self::getDailyPriceUpdatePipeline(Expression::variable('priceDocument'))),
                 [
                     'upsert' => true,
                     'returnDocument' => FindOneAndUpdate::RETURN_DOCUMENT_AFTER,
@@ -112,6 +114,18 @@ class DailyPriceRepository extends AbstractRepository
 
             $dailyPrice = $this->updateOpeningPrice($station, $dailyPrice);
         }
+
+        $embeddedDailyPrice = EmbeddedDailyPrice::fromDailyPrice($dailyPrice);
+
+        $this->getDocumentManager()->getRepository(Station::class)
+            ->createQueryBuilder()
+            ->findAndUpdate()
+            ->field('id')
+            ->equals($station->id)
+            ->field('latestPrice.diesel')
+            ->set($embeddedDailyPrice)
+            ->getQuery()
+            ->execute();
 
         return $dailyPrice;
     }
@@ -145,10 +159,8 @@ class DailyPriceRepository extends AbstractRepository
         );
     }
 
-    private static function getDailyPriceUpdatePipeline(): Pipeline
+    private static function getDailyPriceUpdatePipeline(Expression\ResolvesToObject $priceDocument): Pipeline
     {
-        $priceDocument = Expression::variable('priceDocument');
-
         return new Pipeline(
             self::upsertEmptyDocument(),
             Stage::set(
@@ -265,12 +277,12 @@ class DailyPriceRepository extends AbstractRepository
         );
     }
 
-    private function hydrateDocument(object|array|null $document): ?DailyPrice
+    private function hydrateDocument(object|array|null $document, string $class = DailyPrice::class): ?DailyPrice
     {
         $hints = [Query::HINT_REFRESH => true];
 
         return $document
-            ? $this->getDocumentManager()->getUnitOfWork()->getOrCreateDocument(DailyPrice::class, $document, $hints)
+            ? $this->getDocumentManager()->getUnitOfWork()->getOrCreateDocument($class, $document, $hints)
             : null;
     }
 }
