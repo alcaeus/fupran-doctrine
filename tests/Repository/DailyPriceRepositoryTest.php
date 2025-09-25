@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Repository;
 
 use App\Document\DailyPrice;
+use App\Document\Partial\PartialStation;
 use App\Document\Station;
 use App\Fuel;
 use DateTimeImmutable;
@@ -229,6 +230,10 @@ JSON;
         );
 
         $this->assertInstanceOf(DailyPrice::class, $dailyPrice);
+
+        $this->assertInstanceOf(PartialStation::class, $dailyPrice->station);
+        $this->assertSame($station->name, $dailyPrice->station->name);
+
         $this->assertCount(1, $dailyPrice->prices);
 
         $price = $dailyPrice->prices[0];
@@ -263,6 +268,10 @@ JSON;
         );
 
         $this->assertInstanceOf(DailyPrice::class, $dailyPrice);
+
+        $this->assertInstanceOf(PartialStation::class, $dailyPrice->station);
+        $this->assertSame($station->name, $dailyPrice->station->name);
+
         $this->assertCount(1, $dailyPrice->prices);
 
         $price = $dailyPrice->prices[0];

@@ -106,9 +106,14 @@ class DailyPriceRepository extends AbstractRepository
 
         $dailyPrice = $this->hydrateDocument($document);
 
-        return isset($dailyPrice->openingPrice)
-            ? $dailyPrice
-            : $this->updateOpeningPrice($station, $dailyPrice);
+        if (! isset($dailyPrice->station->name)) {
+            $dailyPrice->station->refreshData();
+            $this->dm->flush();
+
+            $dailyPrice = $this->updateOpeningPrice($station, $dailyPrice);
+        }
+
+        return $dailyPrice;
     }
 
     private function updateOpeningPrice(Station $station, DailyPrice $dailyPrice): ?DailyPrice
