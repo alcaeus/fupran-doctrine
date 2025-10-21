@@ -3,15 +3,13 @@
     "license": "proprietary",
     "minimum-stability": "dev",
     "prefer-stable": true,
-    "repositories": [
-      { "type":  "vcs", "url": "https://github.com/alcaeus/mongodb-odm" }
-    ],
     "require": {
         "php": ">=8.4",
         "ext-ctype": "*",
         "ext-iconv": "*",
+        "ext-mongodb": "^2.1.4",
         "doctrine/data-fixtures": "^1.8",
-        "doctrine/mongodb-odm": "dev-support-dot-syntax-prepare-values as 2.12.x-dev",
+        "doctrine/mongodb-odm": "^2.13",
         "doctrine/mongodb-odm-bundle": "^5.1",
         "jmikola/geojson": "^1.2",
         "mongodb/mongodb": "^2.1",
