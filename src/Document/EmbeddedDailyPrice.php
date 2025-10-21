@@ -5,10 +5,10 @@ declare(strict_types=1);
 namespace App\Document;
 
 use App\Document\Partial\AbstractDailyPrice;
-use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbeddedDocument;
 use Doctrine\ODM\MongoDB\PersistentCollection\PersistentCollectionInterface;
+
 use function is_object;
 
 #[EmbeddedDocument]

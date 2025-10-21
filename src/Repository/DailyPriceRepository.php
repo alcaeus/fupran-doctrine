@@ -109,6 +109,8 @@ class DailyPriceRepository extends AbstractRepository
         $dailyPrice = $this->hydrateDocument($document);
 
         if (! isset($dailyPrice->station->name)) {
+            // An empty name indicates that we've just created a new DailyPrice document
+            // Copy over station details, then update the opening price
             $dailyPrice->station->refreshData();
             $this->dm->flush();
 
@@ -117,15 +119,7 @@ class DailyPriceRepository extends AbstractRepository
 
         $embeddedDailyPrice = EmbeddedDailyPrice::fromDailyPrice($dailyPrice);
 
-        $this->getDocumentManager()->getRepository(Station::class)
-            ->createQueryBuilder()
-            ->findAndUpdate()
-            ->field('id')
-            ->equals($station->id)
-            ->field('latestPrice.diesel')
-            ->set($embeddedDailyPrice)
-            ->getQuery()
-            ->execute();
+        $this->updateLatestDailyPriceInStation($station, $embeddedDailyPrice);
 
         return $dailyPrice;
     }
@@ -284,5 +278,27 @@ class DailyPriceRepository extends AbstractRepository
         return $document
             ? $this->getDocumentManager()->getUnitOfWork()->getOrCreateDocument($class, $document, $hints)
             : null;
+    }
+
+    public function updateLatestDailyPriceInStation(Station $station, EmbeddedDailyPrice $embeddedDailyPrice): void
+    {
+        // Update latestPrice and latestPrices embedded documents in the Station
+        // TODO: Use aggregation pipeline update when Doctrine ODM supports it
+        $this
+            ->getDocumentManager()
+            ->getRepository(Station::class)
+            ->getDocumentCollection()
+            ->updateOne(
+                [
+                    '_id' => Type::getType('binaryUuid')->convertToDatabaseValue($station->id),
+                ],
+                PriceReport::updateLatestPriceInStation(
+                    fuel: $embeddedDailyPrice->fuel,
+                    embeddedDailyPrice: Expression::variable('priceDocument'),
+                ),
+                [
+                    'let' => ['priceDocument' => $this->codec->encode($embeddedDailyPrice)],
+                ],
+            );
     }
 }

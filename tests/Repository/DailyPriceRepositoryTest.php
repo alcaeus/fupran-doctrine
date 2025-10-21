@@ -11,6 +11,7 @@ use App\Document\Station;
 use App\Fuel;
 use DateTimeImmutable;
 use Doctrine\ODM\MongoDB\DocumentManager;
+use Doctrine\ODM\MongoDB\PersistentCollection\PersistentCollectionInterface;
 use Doctrine\ODM\MongoDB\Types\Type;
 use MongoDB\BSON\Binary;
 use MongoDB\BSON\Document;
@@ -270,6 +271,11 @@ JSON;
         $this->assertNotNull($station->latestPrice);
         $this->assertInstanceOf(EmbeddedDailyPrice::class, $station->latestPrice->diesel);
         $this->assertEquals($dailyPrice->id, $station->latestPrice->diesel->id);
+
+        $this->assertNotNull($station->latestPrices);
+        $this->assertInstanceOf(PersistentCollectionInterface::class, $station->latestPrices->diesel);
+        $this->assertCount(1, $station->latestPrices->diesel);
+        $this->assertEquals($dailyPrice->id, $station->latestPrices->diesel->first()->id);
     }
 
     public function testAddPriceForNonExistentDay(): void

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Aggregation;
 
+use App\Fuel;
 use MongoDB\BSON\PackedArray;
 use MongoDB\Builder\Accumulator;
 use MongoDB\Builder\Expression;
@@ -457,6 +458,31 @@ class PriceReport
                 latestPrice: Expression::arrayToObject(Expression::fieldPath('latestPrice')),
                 latestPrices: Expression::arrayToObject(Expression::fieldPath('latestPrices')),
             ),
+        );
+    }
+
+    public static function updateLatestPriceInStation(Fuel $fuel, Expression\ResolvesToObject $embeddedDailyPrice): Pipeline
+    {
+        $fieldName = 'latestPrice.' . $fuel->value;
+        $collectionFieldName = 'latestPrices.' . $fuel->value;
+
+        return new Pipeline(
+            Stage::set(...[
+                $fieldName => $embeddedDailyPrice,
+                $collectionFieldName => Expression::sortArray(
+                    Expression::concatArrays(
+                        Expression::filter(
+                            Expression::ifNull(Expression::arrayFieldPath($collectionFieldName), []),
+                            Expression::ne(
+                                Expression::variable('this.day'),
+                                Expression::getField('day', $embeddedDailyPrice),
+                            ),
+                        ),
+                        [$embeddedDailyPrice],
+                    ),
+                    object(day: -1),
+                ),
+            ]),
         );
     }
 }
