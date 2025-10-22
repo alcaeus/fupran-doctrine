@@ -22,34 +22,34 @@ use Doctrine\ODM\MongoDB\Types\Type;
 class AbstractDailyPrice
 {
     #[Id]
-    public readonly string $id;
+    public string $id;
 
     #[Field(type: Type::DATE_IMMUTABLE)]
-    public readonly DateTimeImmutable $day;
+    public DateTimeImmutable $day;
 
     #[Field(enumType: Fuel::class)]
-    public readonly Fuel $fuel;
+    public Fuel $fuel;
 
     #[Field(nullable: true)]
-    public readonly ?float $openingPrice;
+    public ?float $openingPrice;
 
     #[Field]
-    public readonly float $closingPrice;
+    public float $closingPrice;
 
     #[EmbedOne(targetDocument: Price::class)]
-    public readonly Price $lowestPrice;
+    public Price $lowestPrice;
 
     #[EmbedOne(targetDocument: Price::class)]
-    public readonly Price $highestPrice;
+    public Price $highestPrice;
 
     #[EmbedMany(targetDocument: Price::class)]
-    public readonly Collection $prices;
+    public Collection $prices;
 
     #[Field]
-    public readonly float $weightedAveragePrice;
+    public float $weightedAveragePrice;
 
     #[ReferenceMany(targetDocument: DailyAggregate::class, repositoryMethod: 'getAggregateForDailyPrice')]
-    private readonly Collection $aggregates;
+    protected Collection $aggregates;
 
     /** phpcs:disable **/
     public ?DailyAggregate $aggregate {

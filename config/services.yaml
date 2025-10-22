@@ -44,5 +44,11 @@ services:
 
     Doctrine\Persistence\ManagerRegistry: '@doctrine_mongodb'
 
+    MongoDB\Builder\BuilderEncoder:
+      arguments:
+        $encoders:
+          App\Builder\Expression\Document: '@App\Builder\Encoder\DocumentEncoder'
+#        $encoders: !tagged_iterator 'mongodb.builder.encoder'
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

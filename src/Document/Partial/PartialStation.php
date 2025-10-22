@@ -17,4 +17,12 @@ class PartialStation extends AbstractStation
 
     #[EmbedOne(targetDocument: PartialAddress::class)]
     public PartialAddress $address;
+
+    public function refreshData(): void
+    {
+        $this->name = $this->referencedStation->name;
+        $this->brand = $this->referencedStation->brand;
+        $this->location = $this->referencedStation->location;
+        $this->address = PartialAddress::fromAddress($this->referencedStation->address);
+    }
 }

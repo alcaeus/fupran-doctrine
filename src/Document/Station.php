@@ -6,10 +6,7 @@ namespace App\Document;
 
 use App\Document\Partial\AbstractStation;
 use App\Repository\StationRepository;
-use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Document;
-use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbedMany;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbedOne;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Field;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Id;
@@ -47,8 +44,8 @@ class Station extends AbstractStation
     #[EmbedOne(targetDocument: DailyPriceReport::class)]
     public ?DailyPriceReport $latestPrice = null;
 
-    #[EmbedMany(targetDocument: DailyPriceReport::class)]
-    public Collection $latestPrices;
+    #[EmbedOne(targetDocument: DailyPriceReports::class)]
+    public ?DailyPriceReports $latestPrices = null;
 
     #[Field]
     #[Index]
@@ -57,6 +54,5 @@ class Station extends AbstractStation
     public function __construct(string|UuidV4|null $id = null)
     {
         $this->id = $id instanceof UuidV4 ? $id : new UuidV4($id);
-        $this->latestPrices = new ArrayCollection();
     }
 }
