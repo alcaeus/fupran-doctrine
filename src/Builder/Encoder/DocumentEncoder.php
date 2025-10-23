@@ -10,14 +10,14 @@ use MongoDB\BSON\Document as BSONDocument;
 use MongoDB\Codec\EncodeIfSupported;
 use MongoDB\Codec\Encoder;
 use MongoDB\Exception\UnsupportedValueException;
-use Symfony\Component\DependencyInjection\Attribute\AsTaggedItem;
+use Symfony\Component\DependencyInjection\Attribute\AutoconfigureTag;
 
 /**
  * @internal
  *
  * @template-implements Encoder<BSONDocument, DocumentExpression>
  */
-#[AsTaggedItem('mongodb.builder.encoder')]
+#[AutoconfigureTag('mongodb.builder.encoder', ['expressionClass' => DocumentExpression::class])]
 final class DocumentEncoder implements Encoder
 {
     /** @template-use EncodeIfSupported<BSONDocument, DocumentExpression> */

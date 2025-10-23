@@ -46,9 +46,10 @@ services:
 
     MongoDB\Builder\BuilderEncoder:
       arguments:
-        $encoders:
-          App\Builder\Expression\Document: '@App\Builder\Encoder\DocumentEncoder'
+#        $encoders:
+#          App\Builder\Expression\Document: '@App\Builder\Encoder\DocumentEncoder'
 #        $encoders: !tagged_iterator 'mongodb.builder.encoder'
+        $encoders: !tagged_iterator { tag: 'mongodb.builder.encoder', index_by: 'expressionClass' }
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
