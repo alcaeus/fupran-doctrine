@@ -15,17 +15,12 @@ use Closure;
 use DateTimeImmutable;
 use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
 use Doctrine\ODM\MongoDB\Iterator\Iterator;
-use Doctrine\ODM\MongoDB\Query\Query;
-use Doctrine\ODM\MongoDB\Types\Type;
-use MongoDB\BSON\ObjectId;
-use MongoDB\BSON\UTCDateTime;
 use MongoDB\Builder\BuilderEncoder;
 use MongoDB\Builder\Expression;
 use MongoDB\Builder\Pipeline;
 use MongoDB\Builder\Stage;
 use MongoDB\Builder\Stage\ReplaceWithStage;
 use MongoDB\Builder\Type\ExpressionInterface;
-use MongoDB\Operation\FindOneAndUpdate;
 
 use function count;
 use function MongoDB\object;
@@ -89,24 +84,21 @@ class DailyPriceRepository extends AbstractRepository
         $priceDocument = new Price($date, $price);
 
         $encodedPriceDocument = $this->codec->encode($priceDocument);
-        $document = $this->getDocumentCollection()
-            // TODO: Use aggregation pipeline update when Doctrine ODM supports it
-            ->findOneAndUpdate(
-                [
-                    'station._id' => Type::getType(Type::UUID)->convertToDatabaseValue($station->id),
-                    'fuel' => $fuel->value,
-                    'day' => new UTCDateTime($day),
-                ],
+        $dailyPrice = $this->createQueryBuilder()
+            ->findAndUpdate()
+            ->upsert()
+            ->returnNew()
+            ->field('station.referencedStation')->equals($station)
+            ->field('fuel')->equals($fuel)
+            ->field('day')->equals($day)
+            ->pipeline(
                 // TODO: encode call can be removed once PHPLIB supports pipeline updates in findOneAndUpdate
                 $this->encoder->encode(self::getDailyPriceUpdatePipeline(Expression::variable('priceDocument'))),
-                [
-                    'upsert' => true,
-                    'returnDocument' => FindOneAndUpdate::RETURN_DOCUMENT_AFTER,
-                    'let' => ['priceDocument' => $encodedPriceDocument],
-                ],
-            );
-
-        $dailyPrice = $this->hydrateDocument($document);
+            )
+            ->getQuery([
+                'let' => ['priceDocument' => $encodedPriceDocument],
+            ])
+            ->execute();
 
         if (! isset($dailyPrice->station->name)) {
             // An empty name indicates that we've just created a new DailyPrice document
@@ -137,20 +129,18 @@ class DailyPriceRepository extends AbstractRepository
             ->getQuery()
             ->getSingleResult();
 
+        // TODO: encode call can be removed once PHPLIB supports pipeline updates in findOneAndUpdate
         $update = $previousPrice
             ? $this->encoder->encode(self::getUpdateOpeningPricePipeline($previousPrice->closingPrice))
             : ['$set' => ['openingPrice' => null]];
 
-        $newDocument = $this->getDocumentCollection()
-            ->findOneAndUpdate(
-                ['_id' => new ObjectId($dailyPrice->id)],
-                $update,
-                ['returnDocument' => FindOneAndUpdate::RETURN_DOCUMENT_AFTER],
-            );
-
-        return $this->hydrateDocument(
-            $newDocument,
-        );
+        return $this->createQueryBuilder()
+            ->findAndUpdate()
+            ->returnNew()
+            ->field('id')->equals($dailyPrice->id)
+            ->pipeline($update)
+            ->getQuery()
+            ->execute();
     }
 
     private static function getDailyPriceUpdatePipeline(Expression\ResolvesToObject $priceDocument): Pipeline
@@ -271,34 +261,22 @@ class DailyPriceRepository extends AbstractRepository
         );
     }
 
-    private function hydrateDocument(object|array|null $document, string $class = DailyPrice::class): ?DailyPrice
-    {
-        $hints = [Query::HINT_REFRESH => true];
-
-        return $document
-            ? $this->getDocumentManager()->getUnitOfWork()->getOrCreateDocument($class, $document, $hints)
-            : null;
-    }
-
     public function updateLatestDailyPriceInStation(Station $station, EmbeddedDailyPrice $embeddedDailyPrice): void
     {
         // Update latestPrice and latestPrices embedded documents in the Station
-        // TODO: Use aggregation pipeline update when Doctrine ODM supports it
-        $this
-            ->getDocumentManager()
-            ->getRepository(Station::class)
-            ->getDocumentCollection()
-            ->updateOne(
-                [
-                    '_id' => Type::getType(Type::UUID)->convertToDatabaseValue($station->id),
-                ],
+        $this->getDocumentManager()
+            ->createQueryBuilder(Station::class)
+            ->updateOne()
+            ->field('id')->equals($station->id)
+            ->pipeline(
                 PriceReport::updateLatestPriceInStation(
                     fuel: $embeddedDailyPrice->fuel,
                     embeddedDailyPrice: Expression::variable('priceDocument'),
                 ),
-                [
-                    'let' => ['priceDocument' => $this->codec->encode($embeddedDailyPrice)],
-                ],
-            );
+            )
+            ->getQuery([
+                'let' => ['priceDocument' => $this->codec->encode($embeddedDailyPrice)],
+            ])
+            ->execute();
     }
 }
