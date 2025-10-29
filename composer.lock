@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "1ad11f5650298f85ab09972d03524c13",
+    "content-hash": "c90d1b792a743589b627c4b53c15bca6",
     "packages": [
         {
             "name": "composer/semver",
@@ -743,16 +743,16 @@
         },
         {
             "name": "doctrine/mongodb-odm",
-            "version": "2.14.0",
+            "version": "dev-query-builder-support-update-pipelines",
             "source": {
                 "type": "git",
-                "url": "https://github.com/doctrine/mongodb-odm.git",
-                "reference": "2f1298cf6df2f3a4f65f274901fb75ed49a9da78"
+                "url": "https://github.com/alcaeus/mongodb-odm.git",
+                "reference": "3cc290604f964426cbefc0e059e1741b681a2189"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/doctrine/mongodb-odm/zipball/2f1298cf6df2f3a4f65f274901fb75ed49a9da78",
-                "reference": "2f1298cf6df2f3a4f65f274901fb75ed49a9da78",
+                "url": "https://api.github.com/repos/alcaeus/mongodb-odm/zipball/3cc290604f964426cbefc0e059e1741b681a2189",
+                "reference": "3cc290604f964426cbefc0e059e1741b681a2189",
                 "shasum": ""
             },
             "require": {
@@ -767,10 +767,10 @@
                 "mongodb/mongodb": "^1.21.2 || ^2.1.1",
                 "php": "^8.1",
                 "psr/cache": "^1.0 || ^2.0 || ^3.0",
-                "symfony/console": "^5.4 || ^6.0 || ^7.0",
+                "symfony/console": "^5.4 || ^6.4 || ^7.0 || ^8.0",
                 "symfony/deprecation-contracts": "^2.2 || ^3.0",
-                "symfony/var-dumper": "^5.4 || ^6.0 || ^7.0",
-                "symfony/var-exporter": "^6.2 || ^7.0"
+                "symfony/var-dumper": "^5.4 || ^6.4 || ^7.0 || ^8.0",
+                "symfony/var-exporter": "^6.4 || ^7.0"
             },
             "conflict": {
                 "doctrine/annotations": "<1.12 || >=3.0"
@@ -787,8 +787,8 @@
                 "phpstan/phpstan-phpunit": "^2.0",
                 "phpunit/phpunit": "^10.5.58",
                 "squizlabs/php_codesniffer": "^4",
-                "symfony/cache": "^5.4 || ^6.0 || ^7.0",
-                "symfony/uid": "^5.4 || ^6.0 || ^7.0"
+                "symfony/cache": "^5.4 || ^6.0 || ^7.0 || ^8.0",
+                "symfony/uid": "^5.4 || ^6.0 || ^7.0 || ^8.0"
             },
             "suggest": {
                 "doctrine/annotations": "For annotation mapping support",
@@ -800,7 +800,22 @@
                     "Doctrine\\ODM\\MongoDB\\": "src"
                 }
             },
-            "notification-url": "https://packagist.org/downloads/",
+            "autoload-dev": {
+                "psr-4": {
+                    "Doctrine\\ODM\\MongoDB\\Benchmark\\": "benchmark",
+                    "Doctrine\\ODM\\MongoDB\\Tests\\": "tests/Tests",
+                    "Documentation\\": "tests/Documentation",
+                    "Documents\\": "tests/Documents",
+                    "Documents84\\": "tests/Documents84",
+                    "Stubs\\": "tests/Stubs",
+                    "TestDocuments\\": "tests/Tests/Mapping/Driver/fixtures"
+                }
+            },
+            "scripts": {
+                "docs": [
+                    "composer update -d docs && ./docs/vendor/bin/build-docs.sh @additional_args"
+                ]
+            },
             "license": [
                 "MIT"
             ],
@@ -838,24 +853,23 @@
                 "php"
             ],
             "support": {
-                "issues": "https://github.com/doctrine/mongodb-odm/issues",
-                "source": "https://github.com/doctrine/mongodb-odm/tree/2.14.0"
+                "source": "https://github.com/alcaeus/mongodb-odm/tree/query-builder-support-update-pipelines"
             },
             "funding": [
                 {
-                    "url": "https://www.doctrine-project.org/sponsorship.html",
-                    "type": "custom"
+                    "type": "patreon",
+                    "url": "https://www.patreon.com/phpdoctrine"
                 },
                 {
-                    "url": "https://www.patreon.com/phpdoctrine",
-                    "type": "patreon"
+                    "type": "tidelift",
+                    "url": "https://tidelift.com/funding/github/packagist/doctrine%2Fmongodb-odm"
                 },
                 {
-                    "url": "https://tidelift.com/funding/github/packagist/doctrine%2Fmongodb-odm",
-                    "type": "tidelift"
+                    "type": "custom",
+                    "url": "https://www.doctrine-project.org/sponsorship.html"
                 }
             ],
-            "time": "2025-10-27T14:03:48+00:00"
+            "time": "2025-10-29T11:55:31+00:00"
         },
         {
             "name": "doctrine/mongodb-odm-bundle",
@@ -11268,9 +11282,18 @@
             "time": "2024-03-03T12:36:25+00:00"
         }
     ],
-    "aliases": [],
+    "aliases": [
+        {
+            "package": "doctrine/mongodb-odm",
+            "version": "dev-query-builder-support-update-pipelines",
+            "alias": "2.14.0",
+            "alias_normalized": "2.14.0.0"
+        }
+    ],
     "minimum-stability": "dev",
-    "stability-flags": {},
+    "stability-flags": {
+        "doctrine/mongodb-odm": 20
+    },
     "prefer-stable": true,
     "prefer-lowest": false,
     "platform": {
