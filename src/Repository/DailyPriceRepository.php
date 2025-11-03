@@ -15,7 +15,6 @@ use Closure;
 use DateTimeImmutable;
 use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
 use Doctrine\ODM\MongoDB\Iterator\Iterator;
-use MongoDB\Builder\BuilderEncoder;
 use MongoDB\Builder\Expression;
 use MongoDB\Builder\Pipeline;
 use MongoDB\Builder\Stage;
@@ -29,7 +28,6 @@ class DailyPriceRepository extends AbstractRepository
 {
     public function __construct(
         ManagerRegistry $registry,
-        private readonly BuilderEncoder $encoder,
         private readonly MetadataCodecFactory $codec,
     ) {
         parent::__construct($registry, DailyPrice::class);
@@ -91,10 +89,7 @@ class DailyPriceRepository extends AbstractRepository
             ->field('station.referencedStation')->equals($station)
             ->field('fuel')->equals($fuel)
             ->field('day')->equals($day)
-            ->pipeline(
-                // TODO: encode call can be removed once PHPLIB supports pipeline updates in findOneAndUpdate
-                $this->encoder->encode(self::getDailyPriceUpdatePipeline(Expression::variable('priceDocument'))),
-            )
+            ->pipeline(self::getDailyPriceUpdatePipeline(Expression::variable('priceDocument')))
             ->getQuery([
                 'let' => ['priceDocument' => $encodedPriceDocument],
             ])
@@ -129,16 +124,15 @@ class DailyPriceRepository extends AbstractRepository
             ->getQuery()
             ->getSingleResult();
 
-        // TODO: encode call can be removed once PHPLIB supports pipeline updates in findOneAndUpdate
-        $update = $previousPrice
-            ? $this->encoder->encode(self::getUpdateOpeningPricePipeline($previousPrice->closingPrice))
-            : ['$set' => ['openingPrice' => null]];
-
         return $this->createQueryBuilder()
             ->findAndUpdate()
             ->returnNew()
             ->field('id')->equals($dailyPrice->id)
-            ->pipeline($update)
+            ->pipeline(
+                $previousPrice
+                    ? self::getUpdateOpeningPricePipeline($previousPrice->closingPrice)
+                    : ['$set' => ['openingPrice' => null]],
+            )
             ->getQuery()
             ->execute();
     }
