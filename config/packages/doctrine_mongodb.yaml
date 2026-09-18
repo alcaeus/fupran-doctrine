@@ -1,6 +1,7 @@
 doctrine_mongodb:
     auto_generate_proxy_classes: true
     auto_generate_hydrator_classes: true
+    auto_generate_persistent_collection_classes: true
     connections:
         default:
             server: '%env(resolve:MONGODB_URL)%'
@@ -23,6 +24,7 @@ when@prod:
     doctrine_mongodb:
         auto_generate_proxy_classes: false
         auto_generate_hydrator_classes: false
+        auto_generate_persistent_collection_classes: false
         document_managers:
             default:
                 metadata_cache_driver:

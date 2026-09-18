@@ -1,0 +1,3 @@
+uuid,name,brand,street,house_number,post_code,city,latitude,longitude,first_active,openingtimes_json
+0e18d0d3-ed38-4e7f-a18e-507a78ad901d,OIL! Tankstelle München,OIL!,Eversbuschstraße 33,,80999,München,48.1807,11.4609,1970-01-01 01:00:00+01,"{""openingTimes"":[{""applicable_days"":192,""periods"":[{""startp"":""07:00"",""endp"":""20:00""}]},{""applicable_days"":63,""periods"":[{""startp"":""06:00"",""endp"":""22:00""}]}]}"
+44e2bdb7-13e3-4156-8576-8326cdd20459,bft Tankstelle,"",Schellengasse ,53,36304,Alsfeld,50.7520089,9.2790394,1970-01-01 01:00:00+01,{}

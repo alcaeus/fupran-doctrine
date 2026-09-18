@@ -1,0 +1,5 @@
+uuid,name,brand,street,house_number,post_code,city,latitude,longitude,first_active,openingtimes_json
+0e18d0d3-ed38-4e7f-a18e-507a78ad901d,OIL! Tankstelle München,OIL!,Eversbuschstraße 33,,80999,München,48.1807,11.4609,1970-01-01 01:00:00+01,"{""openingTimes"":[{""applicable_days"":192,""periods"":[{""startp"":""07:00"",""endp"":""20:00""}]},{""applicable_days"":63,""periods"":[{""startp"":""06:00"",""endp"":""22:00""}]}]}"
+44e2bdb7-13e3-4156-8576-8326cdd20459,bft Tankstelle,"",Schellengasse ,53,36304,Alsfeld,50.7520089,9.2790394,1970-01-01 01:00:00+01,{}
+183311cd-53cd-4779-a829-3f91a0e2c3e8,please delete - bitte loeschen,,please delete - bitte loeschen,0,00000,please delete - bitte loeschen,0,0,2014-03-18 16:45:31+01,{}
+f34f9241-6f55-48c6-aa4c-ee19f7272a22,BFT Tankstelle Schmidt e.K.,,Fürst-Dominik-Str.,2,55758,Sien,0,0,2014-03-18 16:45:31+01,{}
