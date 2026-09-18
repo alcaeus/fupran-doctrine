@@ -6,14 +6,13 @@ namespace App\Tests\Repository;
 
 use App\Document\DailyPrice;
 use App\Document\EmbeddedDailyPrice;
-use App\Document\Partial\PartialStation;
+use App\Document\Price;
 use App\Document\Station;
 use App\Fuel;
+use App\Repository\DailyPriceRepository;
 use DateTimeImmutable;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use Doctrine\ODM\MongoDB\PersistentCollection\PersistentCollectionInterface;
-use Doctrine\ODM\MongoDB\Types\Type;
-use MongoDB\BSON\Binary;
 use MongoDB\BSON\Document;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -149,7 +148,7 @@ JSON;
         self::insertSampleData();
 
         $documentManager = self::getDocumentManager();
-        $dailyPriceRepository = $documentManager->getRepository(DailyPrice::class);
+        $dailyPriceRepository = self::getContainer()->get(DailyPriceRepository::class);
 
         $station = $documentManager->getRepository(Station::class)->find(self::STATION_UUID);
         $this->assertInstanceOf(Station::class, $station);
@@ -166,6 +165,8 @@ JSON;
 
         $firstPrice = $dailyPrice->prices[0];
         $latestPrice = $dailyPrice->prices[1];
+        $this->assertInstanceOf(Price::class, $firstPrice);
+        $this->assertInstanceOf(Price::class, $latestPrice);
 
         $this->assertEqualsWithDelta(1.629, $latestPrice->price, 0.0001);
         $this->assertEqualsWithDelta(1.569, $latestPrice->previousPrice, 0.0001);
@@ -181,8 +182,8 @@ JSON;
         // TODO: Workaround since we can't refresh documents with readonly properties
         $documentManager->detach($station);
         $station = $documentManager->find(Station::class, $station->id);
+        $this->assertInstanceOf(Station::class, $station);
         $this->assertNotNull($station->latestPrice);
-        $this->assertInstanceOf(EmbeddedDailyPrice::class, $station->latestPrice->diesel);
         $this->assertEquals($dailyPrice->id, $station->latestPrice->diesel->id);
     }
 
@@ -191,7 +192,7 @@ JSON;
         self::insertSampleData();
 
         $documentManager = self::getDocumentManager();
-        $dailyPriceRepository = $documentManager->getRepository(DailyPrice::class);
+        $dailyPriceRepository = self::getContainer()->get(DailyPriceRepository::class);
 
         $station = $documentManager->getRepository(Station::class)->find(self::STATION_UUID);
         $this->assertInstanceOf(Station::class, $station);
@@ -208,6 +209,8 @@ JSON;
 
         $firstPrice = $dailyPrice->prices[0];
         $latestPrice = $dailyPrice->prices[1];
+        $this->assertInstanceOf(Price::class, $firstPrice);
+        $this->assertInstanceOf(Price::class, $latestPrice);
 
         $this->assertEqualsWithDelta(1.529, $latestPrice->price, 0.0001);
         $this->assertEqualsWithDelta(1.569, $latestPrice->previousPrice, 0.0001);
@@ -223,8 +226,8 @@ JSON;
         // TODO: Workaround since we can't refresh documents with readonly properties
         $documentManager->detach($station);
         $station = $documentManager->find(Station::class, $station->id);
+        $this->assertInstanceOf(Station::class, $station);
         $this->assertNotNull($station->latestPrice);
-        $this->assertInstanceOf(EmbeddedDailyPrice::class, $station->latestPrice->diesel);
         $this->assertEquals($dailyPrice->id, $station->latestPrice->diesel->id);
     }
 
@@ -233,7 +236,7 @@ JSON;
         self::insertSampleData();
 
         $documentManager = self::getDocumentManager();
-        $dailyPriceRepository = $documentManager->getRepository(DailyPrice::class);
+        $dailyPriceRepository = self::getContainer()->get(DailyPriceRepository::class);
 
         $station = $documentManager->getRepository(Station::class)->find(self::STATION_UUID);
         $this->assertInstanceOf(Station::class, $station);
@@ -247,12 +250,12 @@ JSON;
 
         $this->assertInstanceOf(DailyPrice::class, $dailyPrice);
 
-        $this->assertInstanceOf(PartialStation::class, $dailyPrice->station);
         $this->assertSame($station->name, $dailyPrice->station->name);
 
         $this->assertCount(1, $dailyPrice->prices);
 
         $price = $dailyPrice->prices[0];
+        $this->assertInstanceOf(Price::class, $price);
 
         $this->assertEqualsWithDelta(1.529, $price->price, 0.0001);
         $this->assertNull($price->previousPrice);
@@ -268,14 +271,17 @@ JSON;
         // TODO: Workaround since we can't refresh documents with readonly properties
         $documentManager->detach($station);
         $station = $documentManager->find(Station::class, $station->id);
+        $this->assertInstanceOf(Station::class, $station);
         $this->assertNotNull($station->latestPrice);
-        $this->assertInstanceOf(EmbeddedDailyPrice::class, $station->latestPrice->diesel);
         $this->assertEquals($dailyPrice->id, $station->latestPrice->diesel->id);
 
         $this->assertNotNull($station->latestPrices);
         $this->assertInstanceOf(PersistentCollectionInterface::class, $station->latestPrices->diesel);
         $this->assertCount(1, $station->latestPrices->diesel);
-        $this->assertEquals($dailyPrice->id, $station->latestPrices->diesel->first()->id);
+
+        $firstLatestPrice = $station->latestPrices->diesel->first();
+        $this->assertInstanceOf(EmbeddedDailyPrice::class, $firstLatestPrice);
+        $this->assertEquals($dailyPrice->id, $firstLatestPrice->id);
     }
 
     public function testAddPriceForNonExistentDay(): void
@@ -283,7 +289,7 @@ JSON;
         self::insertSampleData();
 
         $documentManager = self::getDocumentManager();
-        $dailyPriceRepository = $documentManager->getRepository(DailyPrice::class);
+        $dailyPriceRepository = self::getContainer()->get(DailyPriceRepository::class);
 
         $station = $documentManager->getRepository(Station::class)->find(self::STATION_UUID);
         $this->assertInstanceOf(Station::class, $station);
@@ -297,12 +303,12 @@ JSON;
 
         $this->assertInstanceOf(DailyPrice::class, $dailyPrice);
 
-        $this->assertInstanceOf(PartialStation::class, $dailyPrice->station);
         $this->assertSame($station->name, $dailyPrice->station->name);
 
         $this->assertCount(1, $dailyPrice->prices);
 
         $price = $dailyPrice->prices[0];
+        $this->assertInstanceOf(Price::class, $price);
 
         $this->assertEqualsWithDelta(1.529, $price->price, 0.0001);
         $this->assertEqualsWithDelta(1.569, $price->previousPrice, 0.0001);
@@ -318,18 +324,13 @@ JSON;
         // TODO: Workaround since we can't refresh documents with readonly properties
         $documentManager->detach($station);
         $station = $documentManager->find(Station::class, $station->id);
+        $this->assertInstanceOf(Station::class, $station);
         $this->assertNotNull($station->latestPrice);
-        $this->assertInstanceOf(EmbeddedDailyPrice::class, $station->latestPrice->diesel);
         $this->assertEquals($dailyPrice->id, $station->latestPrice->diesel->id);
     }
 
     private static function getDocumentManager(): DocumentManager
     {
         return self::getContainer()->get(DocumentManager::class);
-    }
-
-    private function getBinaryUuid(): Binary
-    {
-        return Type::getType(Type::UUID)->convertToDatabaseValue(self::STATION_UUID);
     }
 }

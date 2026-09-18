@@ -9,8 +9,6 @@ use Doctrine\Common\Collections\Collection;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbeddedDocument;
 use Doctrine\ODM\MongoDB\PersistentCollection\PersistentCollectionInterface;
 
-use function is_object;
-
 #[EmbeddedDocument]
 class EmbeddedDailyPrice extends AbstractDailyPrice
 {
@@ -27,18 +25,25 @@ class EmbeddedDailyPrice extends AbstractDailyPrice
         $self->highestPrice = clone $dailyPrice->highestPrice;
 
         // Deep clone prices, including the persistent collection if necessary
-        $self->prices = static::deepClone($dailyPrice->prices);
-        $self->aggregates = static::deepClone($dailyPrice->aggregates);
+        $self->prices = self::deepClone($dailyPrice->prices);
+        $self->aggregates = self::deepClone($dailyPrice->aggregates);
 
         $self->weightedAveragePrice = $dailyPrice->weightedAveragePrice;
 
         return $self;
     }
 
+    /**
+     * @param Collection<int, T> $collection
+     *
+     * @return Collection<int, T>
+     *
+     * @template T of object
+     */
     private static function deepClone(Collection $collection): Collection
     {
         if (! $collection instanceof PersistentCollectionInterface) {
-            return $collection->map(static fn ($element) => is_object($element) ? clone $element : $element);
+            return $collection->map(static fn ($element) => clone $element);
         }
 
         $clonedCollection = clone $collection;

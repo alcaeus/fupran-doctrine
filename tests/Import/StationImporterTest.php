@@ -130,6 +130,7 @@ class StationImporterTest extends KernelTestCase
         return $station;
     }
 
+    /** @param array<float|int> $expectedCoordinates */
     private function assertPointEquals(array $expectedCoordinates, Point $point): void
     {
         self::assertEqualsWithDelta($expectedCoordinates, $point->getCoordinates(), 0.0001);

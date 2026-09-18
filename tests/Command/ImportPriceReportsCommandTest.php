@@ -20,6 +20,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 
 use function array_key_exists;
+use function assert;
 use function iterator_to_array;
 
 /**
@@ -120,11 +121,13 @@ class ImportPriceReportsCommandTest extends KernelTestCase
         return $dailyPrice;
     }
 
+    /** @return array<string, mixed> */
     private function findRawDailyPrice(string $stationUuid, Fuel $fuel, string $day): array
     {
         $binaryUuidType = Type::getType(Type::UUID);
         assert($binaryUuidType instanceof BinaryUuidType);
 
+        /** @var array<int, array<string, mixed>> $documents */
         $documents = iterator_to_array(
             self::getDocumentManager()
                 ->getDocumentCollection(DailyPrice::class)

@@ -12,6 +12,11 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbedMany;
 #[EmbeddedDocument]
 class LatestPriceList
 {
+    /**
+     * @param Collection<int, EmbeddedDailyPrice> $diesel
+     * @param Collection<int, EmbeddedDailyPrice> $e5
+     * @param Collection<int, EmbeddedDailyPrice> $e10
+     */
     public function __construct(
         #[EmbedMany(targetDocument: EmbeddedDailyPrice::class)]
         public readonly Collection $diesel = new ArrayCollection(),

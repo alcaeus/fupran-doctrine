@@ -8,20 +8,20 @@ use RuntimeException;
 
 use function sprintf;
 
-class ImportException extends RuntimeException
+final class ImportException extends RuntimeException
 {
-    public static function fileNotFound(string $fileOrDirectory): static
+    public static function fileNotFound(string $fileOrDirectory): self
     {
-        return new static(sprintf('File or directory "%s" does not exist', $fileOrDirectory));
+        return new self(sprintf('File or directory "%s" does not exist', $fileOrDirectory));
     }
 
-    public static function cannotImportFile(string $fileOrDirectory): static
+    public static function cannotImportFile(string $fileOrDirectory): self
     {
-        throw new static(sprintf('Cannot import file "%s"', $fileOrDirectory));
+        return new self(sprintf('Cannot import file "%s"', $fileOrDirectory));
     }
 
-    public static function fileNotReadable(string $file): static
+    public static function fileNotReadable(string $file): self
     {
-        throw new static(sprintf('Cannot open file "%s"', $file));
+        return new self(sprintf('Cannot open file "%s"', $file));
     }
 }

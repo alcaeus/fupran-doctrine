@@ -7,8 +7,10 @@ namespace App\Import;
 use App\Repository\StationRepository;
 use Doctrine\ODM\MongoDB\Types\BinaryUuidType;
 use MongoDB\Driver\BulkWrite;
+use UnexpectedValueException;
 
 use function mb_strtolower;
+use function sprintf;
 use function ucwords;
 
 final class StationImporter extends Importer
@@ -20,6 +22,7 @@ final class StationImporter extends Importer
         parent::__construct($stations->getDocumentCollection());
     }
 
+    /** @param array<string, string|null> $data */
     protected function storeDocument(BulkWrite $bulk, array $data): void
     {
         $bulk->update(
@@ -29,19 +32,24 @@ final class StationImporter extends Importer
         );
     }
 
+    /**
+     * @param array<string, string|null> $rawData
+     *
+     * @return array<string, mixed>
+     */
     private function buildDocument(array $rawData): array
     {
-        $longitude = (float) $rawData['longitude'];
-        $latitude = (float) $rawData['latitude'];
+        $longitude = (float) $this->requireField($rawData, 'longitude');
+        $latitude = (float) $this->requireField($rawData, 'latitude');
 
         $data = [
-            'name' => $this->normalizeCapitalization($rawData['name']),
+            'name' => $this->normalizeCapitalization($this->requireField($rawData, 'name')),
             'brand' => $rawData['brand'],
             'address' => [
-                'street' => $this->normalizeCapitalization($rawData['street']),
+                'street' => $this->normalizeCapitalization($this->requireField($rawData, 'street')),
                 'houseNumber' => $rawData['house_number'],
                 'postCode' => $rawData['post_code'],
-                'city' => $this->normalizeCapitalization($rawData['city']),
+                'city' => $this->normalizeCapitalization($this->requireField($rawData, 'city')),
             ],
         ];
 
@@ -58,11 +66,27 @@ final class StationImporter extends Importer
         return $data;
     }
 
+    /**
+     * @param array<string, string|null> $rawData
+     *
+     * @return array<string, mixed>
+     */
     private function buildQuery(array $rawData): array
     {
         return [
-            '_id' => $this->binaryUuidType->convertToDatabaseValue($rawData['uuid']),
+            '_id' => $this->binaryUuidType->convertToDatabaseValue($this->requireField($rawData, 'uuid')),
         ];
+    }
+
+    /** @param array<string, string|null> $rawData */
+    private function requireField(array $rawData, string $fieldName): string
+    {
+        $value = $rawData[$fieldName] ?? null;
+        if ($value === null) {
+            throw new UnexpectedValueException(sprintf('Missing "%s" column in station row.', $fieldName));
+        }
+
+        return $value;
     }
 
     private function normalizeCapitalization(string $text): string

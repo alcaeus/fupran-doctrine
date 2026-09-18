@@ -18,6 +18,7 @@ class ChartTabs
     public bool $showE5 = true;
     public bool $showE10 = true;
 
+    /** @return array<int, Fuel> */
     public function getFuels(): array
     {
         return array_filter([

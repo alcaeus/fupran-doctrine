@@ -14,6 +14,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
 use Symfony\Component\Routing\Attribute\Route;
+use UnexpectedValueException;
 
 class StationsController extends AbstractController
 {
@@ -24,7 +25,7 @@ class StationsController extends AbstractController
     #[Route('/stations/{page}', name: 'app_stations', requirements: ['page' => '\d+'], methods: ['GET'])]
     public function index(int $page = 1): Response
     {
-        $paginator = new QueryPaginator($this->createStationQueryBuilder()->sort('_id'), $page);
+        $paginator = new QueryPaginator($this->createStationQueryBuilder()->sort('_id'), self::requirePositivePage($page));
 
         return $this->render(
             'stations/index.html.twig',
@@ -37,7 +38,7 @@ class StationsController extends AbstractController
     {
         $paginator = new QueryPaginator(
             $this->createStationQueryBuilder()->field('favorite')->equals(true)->sort('_id'),
-            $page,
+            self::requirePositivePage($page),
         );
 
         return $this->render(
@@ -74,7 +75,7 @@ class StationsController extends AbstractController
         #[MapQueryParameter]
         int $page = 1,
     ): Response {
-        $paginator = new AggregationPaginator($stations->createSearchPipeline($query), $page);
+        $paginator = new AggregationPaginator($stations->createSearchPipeline($query), self::requirePositivePage($page));
 
         return $this->render(
             'stations/search.html.twig',
@@ -91,7 +92,7 @@ class StationsController extends AbstractController
         string $postCode,
         int $page = 1,
     ): Response {
-        $paginator = new QueryPaginator($stations->listByPostCode($postCode), $page);
+        $paginator = new QueryPaginator($stations->listByPostCode($postCode), self::requirePositivePage($page));
 
         return $this->render(
             'stations/postCode.html.twig',
@@ -105,5 +106,15 @@ class StationsController extends AbstractController
     private function createStationQueryBuilder(): Builder
     {
         return $this->dm->createQueryBuilder(Station::class);
+    }
+
+    /** @return positive-int */
+    private static function requirePositivePage(int $page): int
+    {
+        if ($page < 1) {
+            throw new UnexpectedValueException('Expected page number to be a positive integer.');
+        }
+
+        return $page;
     }
 }

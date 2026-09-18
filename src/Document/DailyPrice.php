@@ -12,8 +12,8 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbedOne;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Index;
 
 #[Document(repositoryClass: DailyPriceRepository::class)]
-#[Index(keys: ['fuel' => 1, 'day' => -1, 'station._id' => 1], unique: true)]
-#[Index(keys: ['station._id' => 1, 'day' => -1])]
+#[Index(keys: ['fuel' => 'asc', 'day' => 'desc', 'station._id' => 'asc'], unique: true)]
+#[Index(keys: ['station._id' => 'asc', 'day' => 'desc'])]
 class DailyPrice extends AbstractDailyPrice
 {
     #[EmbedOne(targetDocument: PartialStation::class)]

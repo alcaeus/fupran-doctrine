@@ -17,12 +17,18 @@ class PointType extends Type
 {
     public function convertToDatabaseValue(mixed $value): ?stdClass
     {
-        return $value
-            ? (object) [
-                'type' => 'Point',
-                'coordinates' => $value->getCoordinates(),
-            ]
-            : null;
+        if ($value === null) {
+            return null;
+        }
+
+        if (! $value instanceof Point) {
+            throw new Exception('Invalid data received for Point');
+        }
+
+        return (object) [
+            'type' => 'Point',
+            'coordinates' => $value->getCoordinates(),
+        ];
     }
 
     public function convertToPHPValue(mixed $value): Point
@@ -44,6 +50,7 @@ class PointType extends Type
         return '$return = new \GeoJson\Geometry\Point($value[\'coordinates\']);';
     }
 
+    /** @phpstan-assert-if-true array{type: string, coordinates: array{0: float|int, 1: float|int}} $value */
     private function isValidPointData(mixed $value): bool
     {
         return // This means it's a point

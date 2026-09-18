@@ -15,8 +15,8 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations\Index;
 use Doctrine\ODM\MongoDB\Types\Type;
 
 #[Document(repositoryClass: DailyAggregateRepository::class)]
-#[Index(keys: ['fuel' => 1, 'day' => -1])]
-#[Index(keys: ['day' => -1])]
+#[Index(keys: ['fuel' => 'asc', 'day' => 'desc'])]
+#[Index(keys: ['day' => 'desc'])]
 class DailyAggregate
 {
     #[Id]
@@ -42,6 +42,17 @@ class DailyAggregate
 
     #[EmbedOne(targetDocument: Percentiles::class)]
     public Percentiles $percentiles;
+
+    /**
+     * Doctrine ODM hydrates this document via reflection, bypassing the
+     * constructor. It is declared for manual construction and to satisfy
+     * static analysis of the readonly properties above.
+     */
+    public function __construct(DateTimeImmutable $day, Fuel $fuel)
+    {
+        $this->day = $day;
+        $this->fuel = $fuel;
+    }
 
     public function getPercentile(float $price): string
     {

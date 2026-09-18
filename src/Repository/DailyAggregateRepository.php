@@ -7,7 +7,6 @@ namespace App\Repository;
 use App\Aggregation\PriceReport;
 use App\Document\CompoundDailyAggregate;
 use App\Document\DailyAggregate;
-use App\Document\DailyPrice;
 use App\Document\Partial\AbstractDailyPrice;
 use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
 use Doctrine\ODM\MongoDB\Iterator\Iterator;
@@ -16,13 +15,17 @@ use MongoDB\Builder\Stage;
 
 use function iterator_to_array;
 
+/** @extends AbstractRepository<DailyAggregate> */
 class DailyAggregateRepository extends AbstractRepository
 {
-    public function __construct(ManagerRegistry $registry)
-    {
+    public function __construct(
+        ManagerRegistry $registry,
+        private readonly DailyPriceRepository $dailyPriceRepository,
+    ) {
         parent::__construct($registry, DailyAggregate::class);
     }
 
+    /** @return Iterator<DailyAggregate> */
     public function getAggregateForDailyPrice(AbstractDailyPrice $dailyPrice): Iterator
     {
         return $this->createQueryBuilder()
@@ -55,7 +58,10 @@ class DailyAggregateRepository extends AbstractRepository
             ->getAggregation()
             ->getIterator();
 
-        return iterator_to_array($results)[0];
+        /** @var array<int, CompoundDailyAggregate> $aggregates */
+        $aggregates = iterator_to_array($results);
+
+        return $aggregates[0];
     }
 
     public function recomputeDailyAggregates(): void
@@ -69,9 +75,7 @@ class DailyAggregateRepository extends AbstractRepository
             ),
         );
 
-        $this
-            ->getDocumentManager()
-            ->getRepository(DailyPrice::class)
+        $this->dailyPriceRepository
             ->getDocumentCollection()
             ->aggregate($pipeline);
     }

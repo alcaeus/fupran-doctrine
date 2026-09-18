@@ -24,9 +24,13 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use UnexpectedValueException;
 
 use function App\measure;
+use function array_values;
 use function count;
+use function is_array;
+use function is_string;
 use function iterator_to_array;
 use function sprintf;
 use function uniqid;
@@ -77,7 +81,7 @@ class ImportPriceReportsCommand extends Command
             }
 
             try {
-                $this->importDataAndPreAggregate($input->getArgument('fileOrDirectory'), $io);
+                $this->importDataAndPreAggregate($this->getFileOrDirectoryArgument($input), $io);
             } catch (ImportException $e) {
                 $io->error($e->getMessage());
 
@@ -120,7 +124,25 @@ class ImportPriceReportsCommand extends Command
         }
     }
 
-    private function importDataAndPreAggregate(string|array $fileOrDirectory, SymfonyStyle $io): void
+    /** @return list<string> */
+    private function getFileOrDirectoryArgument(InputInterface $input): array
+    {
+        $fileOrDirectory = $input->getArgument('fileOrDirectory');
+        if (! is_array($fileOrDirectory)) {
+            throw new UnexpectedValueException('Expected "fileOrDirectory" argument to be an array.');
+        }
+
+        foreach ($fileOrDirectory as $value) {
+            if (! is_string($value)) {
+                throw new UnexpectedValueException('Expected "fileOrDirectory" argument to be an array of strings.');
+            }
+        }
+
+        return array_values($fileOrDirectory);
+    }
+
+    /** @param list<string> $fileOrDirectory */
+    private function importDataAndPreAggregate(array $fileOrDirectory, SymfonyStyle $io): void
     {
         if (! $fileOrDirectory) {
             $io->writeln('No files specified for import, only recomputing aggregates for existing data.');
@@ -222,6 +244,7 @@ class ImportPriceReportsCommand extends Command
         $io->writeln(sprintf('Done in %.5fs.', $time));
     }
 
+    /** @return list<string> */
     private function getCollectionNames(string $prefix): array
     {
         $filter = ['name' => new Regex('^' . $prefix)];
@@ -233,11 +256,17 @@ class ImportPriceReportsCommand extends Command
     {
         $collections = $this->getCollectionNames($prefix);
 
-        return match (count($collections)) {
+        $selected = match (count($collections)) {
             0 => null,
             1 => $collections[0],
             default => $io->choice('Please select a collection to be recovered:', $collections),
         };
+
+        if ($selected !== null && ! is_string($selected)) {
+            throw new UnexpectedValueException('Expected the selected collection name to be a string.');
+        }
+
+        return $selected;
     }
 
     private function runPostImportAggregations(?Collection $importCollection, SymfonyStyle $io): void

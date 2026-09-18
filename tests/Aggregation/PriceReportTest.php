@@ -19,6 +19,7 @@ use PHPUnit\Framework\TestCase;
 use stdClass;
 
 use function array_map;
+use function array_values;
 use function getenv;
 use function is_array;
 use function iterator_to_array;
@@ -110,6 +111,7 @@ class PriceReportTest extends TestCase
         ];
     }
 
+    /** @param array<string, mixed> $document */
     #[DataProvider('dataComputeWeightedAverage')]
     public function testComputeWeightedAverage(float $expectedWeightedAverage, array $document): void
     {
@@ -353,19 +355,30 @@ class PriceReportTest extends TestCase
     /**
      * Runs the given stages against the provided input documents (via $documents) and
      * returns the decoded results.
+     *
+     * @param list<array<string, mixed>> $documents
+     *
+     * @return array<int, stdClass>
      */
     private function runPipeline(array $documents, StageInterface|Pipeline ...$stages): array
     {
-        $pipeline = new Pipeline(Stage::documents($documents), ...$stages);
+        $pipeline = new Pipeline(Stage::documents($documents), ...array_values($stages));
 
-        return iterator_to_array(
+        /** @var array<int, stdClass> $results */
+        $results = iterator_to_array(
             $this
                 ->getTestDatabase()
                 ->aggregate($pipeline, ['typeMap' => self::TYPEMAP]),
         );
+
+        return $results;
     }
 
-    /** Like {@see self::runPipeline()}, but for a single input document producing exactly one result. */
+    /**
+     * Like {@see self::runPipeline()}, but for a single input document producing exactly one result.
+     *
+     * @param array<string, mixed> $document
+     */
     private function runPipelineForSingleDocument(array $document, StageInterface|Pipeline ...$stages): stdClass
     {
         $results = $this->runPipeline([$document], ...$stages);

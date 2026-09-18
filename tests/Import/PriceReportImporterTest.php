@@ -13,6 +13,7 @@ use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 use function array_filter;
 use function array_values;
+use function assert;
 use function count;
 use function iterator_to_array;
 
@@ -101,26 +102,38 @@ class PriceReportImporterTest extends KernelTestCase
         return $this->importer ??= self::getContainer()->get(PriceReportImporter::class);
     }
 
+    /** @return list<array<string, mixed>> */
     private function fetchAllDocuments(): array
     {
-        return iterator_to_array(
+        /** @var list<array<string, mixed>> $documents */
+        $documents = iterator_to_array(
             $this->getImporter()->collection->find([], [
                 'typeMap' => ['root' => 'array', 'document' => 'array', 'array' => 'array'],
             ]),
             false,
         );
+
+        return $documents;
     }
 
+    /**
+     * @param list<array<string, mixed>> $documents
+     *
+     * @return list<array<string, mixed>>
+     */
     private function filterByStation(array $documents, string $uuid): array
     {
         $binary = $this->getBinaryUuidType()->convertToDatabaseValue($uuid);
 
         return array_values(array_filter(
             $documents,
-            static fn (array $document) => (string) $document['station'] === (string) $binary,
+            static fn (array $document) => $document['station'] instanceof Binary
+                && $binary instanceof Binary
+                && (string) $document['station'] === (string) $binary,
         ));
     }
 
+    /** @param list<array<string, mixed>> $documents */
     private function countByStationAndFuel(array $documents, string $uuid, string $fuel): int
     {
         return count(array_filter(
@@ -131,6 +144,9 @@ class PriceReportImporterTest extends KernelTestCase
 
     private function getBinaryUuidType(): BinaryUuidType
     {
-        return Type::getType(Type::UUID);
+        $type = Type::getType(Type::UUID);
+        assert($type instanceof BinaryUuidType);
+
+        return $type;
     }
 }

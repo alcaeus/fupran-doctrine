@@ -8,7 +8,13 @@ use Closure;
 
 use function microtime;
 
-/** @return array{0: float, 1: mixed} */
+/**
+ * @param Closure(): T $closure
+ *
+ * @return array{0: float, 1: T}
+ *
+ * @template T
+ */
 function measure(Closure $closure): array
 {
     $start = microtime(true);

@@ -10,6 +10,7 @@ use GeoJson\Geometry\Point;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Throwable;
+use UnexpectedValueException;
 
 class PointTypeTest extends TestCase
 {
@@ -21,7 +22,12 @@ class PointTypeTest extends TestCase
 
         Type::registerType('point', PointType::class);
 
-        $this->type = Type::getType('point');
+        $type = Type::getType('point');
+        if (! $type instanceof PointType) {
+            throw new UnexpectedValueException('Expected the "point" type to be registered as PointType.');
+        }
+
+        $this->type = $type;
     }
 
     public function testConvertToDatabaseValue(): void
@@ -45,10 +51,10 @@ class PointTypeTest extends TestCase
 
         $point = $this->type->convertToPHPValue($value);
 
-        self::assertInstanceOf(Point::class, $point);
         self::assertSame([1.5, 2.5], $point->getCoordinates());
     }
 
+    /** @return iterable<string, array{mixed}> */
     public static function dataConvertToPHPValueRejectsInvalidData(): iterable
     {
         yield 'not an array' => ['foo'];
@@ -74,6 +80,7 @@ class PointTypeTest extends TestCase
     {
         $value = new Point([1.5, 2.5]);
 
+        $return = null;
         eval($this->type->closureToMongo());
 
         self::assertEquals($this->type->convertToDatabaseValue($value), $return);
@@ -83,6 +90,7 @@ class PointTypeTest extends TestCase
     {
         $value = ['type' => 'Point', 'coordinates' => [1.5, 2.5]];
 
+        $return = null;
         eval($this->type->closureToPHP());
 
         self::assertEquals($this->type->convertToPHPValue($value), $return);

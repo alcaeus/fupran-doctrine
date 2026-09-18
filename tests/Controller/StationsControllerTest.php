@@ -120,6 +120,7 @@ class StationsControllerTest extends WebTestCase
 
         self::getDocumentManager()->clear();
         $reloaded = self::getDocumentManager()->find(Station::class, $station->id);
+        self::assertInstanceOf(Station::class, $reloaded);
         self::assertTrue($reloaded->favorite);
     }
 

@@ -14,7 +14,11 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use UnexpectedValueException;
 
+use function array_values;
+use function is_array;
+use function is_string;
 use function microtime;
 use function sprintf;
 
@@ -50,7 +54,7 @@ class ImportStationsCommand extends Command
 
         try {
             $start = microtime(true);
-            $result = $this->importer->import($input->getArgument('fileOrDirectory'), $io);
+            $result = $this->importer->import($this->getFileOrDirectoryArgument($input), $io);
             $end = microtime(true);
 
             $io->success(sprintf('Done in %.5fs: %d inserted, %d updated.', $end - $start, $result->numInserted, $result->numUpdated));
@@ -61,5 +65,22 @@ class ImportStationsCommand extends Command
         }
 
         return Command::SUCCESS;
+    }
+
+    /** @return list<string> */
+    private function getFileOrDirectoryArgument(InputInterface $input): array
+    {
+        $fileOrDirectory = $input->getArgument('fileOrDirectory');
+        if (! is_array($fileOrDirectory)) {
+            throw new UnexpectedValueException('Expected "fileOrDirectory" argument to be an array.');
+        }
+
+        foreach ($fileOrDirectory as $value) {
+            if (! is_string($value)) {
+                throw new UnexpectedValueException('Expected "fileOrDirectory" argument to be an array of strings.');
+            }
+        }
+
+        return array_values($fileOrDirectory);
     }
 }

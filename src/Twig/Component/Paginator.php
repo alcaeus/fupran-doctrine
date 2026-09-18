@@ -12,5 +12,6 @@ class Paginator
     public int $currentPage;
     public int $totalPages;
     public string $routeName;
+    /** @var array<string, mixed>|object */
     public array|object $routeParams = [];
 }

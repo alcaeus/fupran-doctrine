@@ -21,6 +21,9 @@
             "src/Document/.gitignore"
         ]
     },
+    "phpstan/phpstan": {
+        "version": "2.2.14"
+    },
     "phpunit/phpunit": {
         "version": "9.6",
         "recipe": {

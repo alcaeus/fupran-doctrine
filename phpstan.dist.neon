@@ -1,0 +1,25 @@
+includes:
+	- vendor/phpstan/phpstan-symfony/extension.neon
+	- vendor/phpstan/phpstan-symfony/rules.neon
+	- vendor/phpstan/phpstan-doctrine/extension.neon
+	- vendor/phpstan/phpstan-doctrine/rules.neon
+	- vendor/phpstan/phpstan-phpunit/extension.neon
+	- vendor/phpstan/phpstan-phpunit/rules.neon
+
+parameters:
+	level: max
+	paths:
+		- src
+		- tests
+	tmpDir: var/cache/phpstan
+	symfony:
+		containerXmlPath: var/cache/dev/App_KernelDevDebugContainer.xml
+
+	ignoreErrors:
+		# PartialStation::$referencedStation is a private #[ReferenceOne] property that
+		# Doctrine ODM populates via reflection when hydrating the owning document. It
+		# is never assigned from application code, which is exactly what makes it a
+		# ReferenceOne: the framework, not our code, is responsible for writing it.
+		-
+			message: '#Property App\\Document\\Partial\\PartialStation::\$referencedStation is never written, only read\.#'
+			path: src/Document/Partial/PartialStation.php

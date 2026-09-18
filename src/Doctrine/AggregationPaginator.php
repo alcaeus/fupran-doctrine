@@ -11,13 +11,17 @@ use IteratorAggregate;
 use Traversable;
 
 use function ceil;
-use function iterator_to_array;
+use function is_array;
+use function is_int;
+use function max;
 
+/** @template-implements IteratorAggregate<int, mixed> */
 final class AggregationPaginator implements IteratorAggregate, Countable
 {
+    /** @var int<0, max> */
     private int $pageCount;
 
-    /** @psalm-var positive-int $page */
+    /** @param positive-int $page */
     public function __construct(
         private Builder $aggregation,
         public readonly int $page,
@@ -25,6 +29,7 @@ final class AggregationPaginator implements IteratorAggregate, Countable
     ) {
     }
 
+    /** @return int<0, max> */
     public function count(): int
     {
         return $this->pageCount ??= $this->getNumberOfPages();
@@ -35,6 +40,7 @@ final class AggregationPaginator implements IteratorAggregate, Countable
         return $this->getResultsForCurrentPage();
     }
 
+    /** @return int<0, max> */
     private function getNumberOfPages(): int
     {
         $builder = clone $this->aggregation;
@@ -44,11 +50,17 @@ final class AggregationPaginator implements IteratorAggregate, Countable
             ->count('numDocuments')
             ->getAggregation()
             ->getIterator();
-        $numResults = iterator_to_array($results)[0]['numDocuments'] ?? 0;
 
-        return (int) ceil($numResults / $this->perPage);
+        $firstResult = $results->current();
+        $numResults = is_array($firstResult) ? $firstResult['numDocuments'] ?? 0 : 0;
+        if (! is_int($numResults)) {
+            $numResults = 0;
+        }
+
+        return max(0, (int) ceil($numResults / $this->perPage));
     }
 
+    /** @return Iterator<mixed> */
     private function getResultsForCurrentPage(): Iterator
     {
         $builder = clone $this->aggregation;

@@ -11,12 +11,15 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbedMany;
 #[EmbeddedDocument]
 class DailyPriceReports
 {
+    /** @var ArrayCollection<int, EmbeddedDailyPrice> */
     #[EmbedMany(targetDocument: EmbeddedDailyPrice::class)]
     public readonly ArrayCollection $diesel;
 
+    /** @var ArrayCollection<int, EmbeddedDailyPrice> */
     #[EmbedMany(targetDocument: EmbeddedDailyPrice::class)]
     public readonly ArrayCollection $e5;
 
+    /** @var ArrayCollection<int, EmbeddedDailyPrice> */
     #[EmbedMany(targetDocument: EmbeddedDailyPrice::class)]
     public readonly ArrayCollection $e10;
 

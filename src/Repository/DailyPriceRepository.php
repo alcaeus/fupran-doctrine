@@ -20,10 +20,12 @@ use MongoDB\Builder\Pipeline;
 use MongoDB\Builder\Stage;
 use MongoDB\Builder\Stage\ReplaceWithStage;
 use MongoDB\Builder\Type\ExpressionInterface;
+use UnexpectedValueException;
 
 use function count;
 use function MongoDB\object;
 
+/** @extends AbstractRepository<DailyPrice> */
 class DailyPriceRepository extends AbstractRepository
 {
     public function __construct(
@@ -33,6 +35,7 @@ class DailyPriceRepository extends AbstractRepository
         parent::__construct($registry, DailyPrice::class);
     }
 
+    /** @return Iterator<DailyPrice> */
     public function getLatestPricesForStation(Station $station): Iterator
     {
         return $this->createQueryBuilder()
@@ -41,24 +44,28 @@ class DailyPriceRepository extends AbstractRepository
             ->sort('day', -1)
             ->limit(count(Fuel::cases()))
             ->getQuery()
-            ->execute();
+            ->getIterator();
     }
 
+    /** @return Iterator<DailyPrice> */
     public function getLast30DaysDieselForStation(Station $station): Iterator
     {
         return $this->getLast30DaysForStationAndFuel($station, Fuel::Diesel);
     }
 
+    /** @return Iterator<DailyPrice> */
     public function getLast30DaysE5ForStation(Station $station): Iterator
     {
         return $this->getLast30DaysForStationAndFuel($station, Fuel::E5);
     }
 
+    /** @return Iterator<DailyPrice> */
     public function getLast30DaysE10ForStation(Station $station): Iterator
     {
         return $this->getLast30DaysForStationAndFuel($station, Fuel::E10);
     }
 
+    /** @return Iterator<DailyPrice> */
     private function getLast30DaysForStationAndFuel(Station $station, Fuel $fuel): Iterator
     {
         return $this->createQueryBuilder()
@@ -69,7 +76,7 @@ class DailyPriceRepository extends AbstractRepository
             ->sort('day', -1)
             ->limit(30)
             ->getQuery()
-            ->execute();
+            ->getIterator();
     }
 
     public function reportPrice(
@@ -95,6 +102,10 @@ class DailyPriceRepository extends AbstractRepository
             ])
             ->execute();
 
+        if (! $dailyPrice instanceof DailyPrice) {
+            throw new UnexpectedValueException('Expected findAndUpdate() to return a hydrated DailyPrice document.');
+        }
+
         if (! isset($dailyPrice->station->name)) {
             // An empty name indicates that we've just created a new DailyPrice document
             // Copy over station details, then update the opening price
@@ -102,6 +113,10 @@ class DailyPriceRepository extends AbstractRepository
             $this->dm->flush();
 
             $dailyPrice = $this->updateOpeningPrice($station, $dailyPrice);
+
+            if ($dailyPrice === null) {
+                throw new UnexpectedValueException('Expected updateOpeningPrice() to return the just-created DailyPrice document.');
+            }
         }
 
         $embeddedDailyPrice = EmbeddedDailyPrice::fromDailyPrice($dailyPrice);
@@ -124,17 +139,31 @@ class DailyPriceRepository extends AbstractRepository
             ->getQuery()
             ->getSingleResult();
 
-        return $this->createQueryBuilder()
+        if ($previousPrice !== null && ! $previousPrice instanceof DailyPrice) {
+            throw new UnexpectedValueException('Expected query to return a hydrated DailyPrice document.');
+        }
+
+        $updatedPrice = $this->createQueryBuilder()
             ->findAndUpdate()
             ->returnNew()
             ->field('id')->equals($dailyPrice->id)
             ->pipeline(
                 $previousPrice
                     ? self::getUpdateOpeningPricePipeline($previousPrice->closingPrice)
-                    : ['$set' => ['openingPrice' => null]],
+                    : [['$set' => ['openingPrice' => null]]],
             )
             ->getQuery()
             ->execute();
+
+        if ($updatedPrice === null) {
+            return null;
+        }
+
+        if (! $updatedPrice instanceof DailyPrice) {
+            throw new UnexpectedValueException('Expected findAndUpdate() to return a hydrated DailyPrice document.');
+        }
+
+        return $updatedPrice;
     }
 
     private static function getDailyPriceUpdatePipeline(Expression\ResolvesToObject $priceDocument): Pipeline
@@ -188,6 +217,7 @@ class DailyPriceRepository extends AbstractRepository
         );
     }
 
+    /** @param Closure(ExpressionInterface, ExpressionInterface): ExpressionInterface $comparisonExpression */
     private static function conditionallyUpdatePrice(Expression\ResolvesToObject $priceDocument, Closure $comparisonExpression, string $fieldPrefix): ExpressionInterface
     {
         return Expression::cond(

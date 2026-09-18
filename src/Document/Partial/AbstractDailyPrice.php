@@ -42,12 +42,14 @@ class AbstractDailyPrice
     #[EmbedOne(targetDocument: Price::class)]
     public Price $highestPrice;
 
+    /** @var Collection<int, Price> */
     #[EmbedMany(targetDocument: Price::class)]
     public Collection $prices;
 
     #[Field]
     public float $weightedAveragePrice;
 
+    /** @var Collection<int, DailyAggregate> */
     #[ReferenceMany(targetDocument: DailyAggregate::class, repositoryMethod: 'getAggregateForDailyPrice')]
     protected Collection $aggregates;
 

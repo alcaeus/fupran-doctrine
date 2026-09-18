@@ -9,6 +9,7 @@ use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
 use Doctrine\ODM\MongoDB\Aggregation\Builder as AggregationBuilder;
 use Doctrine\ODM\MongoDB\Query\Builder as QueryBuilder;
 
+/** @extends AbstractRepository<Station> */
 class StationRepository extends AbstractRepository
 {
     public function __construct(ManagerRegistry $registry)
@@ -29,7 +30,7 @@ class StationRepository extends AbstractRepository
                         ->autocomplete('address.street', $query)
                         ->autocomplete('address.city', $query)
                         ->autocomplete('address.postCode', $query)
-            ->sort('score', 'searchScore');
+            ->sort('score', ['$meta' => 'searchScore']);
 
         return $builder;
     }

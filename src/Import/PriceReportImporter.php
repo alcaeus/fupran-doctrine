@@ -9,8 +9,10 @@ use Doctrine\ODM\MongoDB\DocumentManager;
 use Doctrine\ODM\MongoDB\Types\BinaryUuidType;
 use MongoDB\BSON\UTCDateTime;
 use MongoDB\Driver\BulkWrite;
+use UnexpectedValueException;
 
 use function array_filter;
+use function sprintf;
 use function strtotime;
 use function uniqid;
 
@@ -30,6 +32,7 @@ final class PriceReportImporter extends Importer
         parent::__construct($collection);
     }
 
+    /** @param array<string, string|null> $data */
     protected function storeDocument(BulkWrite $bulk, array $data): void
     {
         foreach ($this->buildDocuments($data) as $priceReport) {
@@ -37,6 +40,11 @@ final class PriceReportImporter extends Importer
         }
     }
 
+    /**
+     * @param array<string, string|null> $rawData
+     *
+     * @return array<int, array<string, mixed>>
+     */
     private function buildDocuments(array $rawData): array
     {
         return array_filter([
@@ -46,6 +54,11 @@ final class PriceReportImporter extends Importer
         ]);
     }
 
+    /**
+     * @param array<string, string|null> $rawData
+     *
+     * @return array<string, mixed>|null
+     */
     private function buildDocument(array $rawData, string $fuelType): ?array
     {
         if ($rawData[$fuelType . 'change'] !== '1') {
@@ -61,8 +74,18 @@ final class PriceReportImporter extends Importer
             return null;
         }
 
+        $date = $rawData['date'];
+        if ($date === null) {
+            throw new UnexpectedValueException('Missing "date" column in price report row.');
+        }
+
+        $timestamp = strtotime($date);
+        if ($timestamp === false) {
+            throw new UnexpectedValueException(sprintf('Could not parse date "%s" in price report row.', $date));
+        }
+
         return [
-            'date' => new UTCDateTime(strtotime($rawData['date']) * 1000),
+            'date' => new UTCDateTime($timestamp * 1000),
             'station' => $this->binaryUuidType->convertToDatabaseValue($rawData['station_uuid']),
             'fuel' => $fuelType,
             'price' => $price,

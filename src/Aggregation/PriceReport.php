@@ -403,6 +403,10 @@ class PriceReport
         );
     }
 
+    /**
+     * @param PackedArray|ResolvesToArray|BSONArray|array<mixed> $inputs
+     * @param Optional|PackedArray|BSONArray|array<mixed>        $defaults
+     */
     public static function mergeObjectsInLists(
         PackedArray|ResolvesToArray|BSONArray|array $inputs,
         Optional|bool $useLongestLength = Optional::Undefined,
