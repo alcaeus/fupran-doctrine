@@ -28,10 +28,9 @@ use function iterator_to_array;
  * production, where each day's report is imported in its own command invocation), rather
  * than in a single import spanning both days.
  *
- * This currently does NOT work: ImportPriceReportsCommand::execute() has the fix for it
- * (addMissingOpeningPrices(), which looks up the previous day's closingPrice via a $lookup
- * into DailyPrice), but that call is commented out with a "TODO: ... This is currently
- * slooooow" note. The active path (addOpeningPriceAndMergeIntoPrices() /
+ * This currently does NOT work: a fix for it (looking up the previous day's closingPrice
+ * via a $lookup into DailyPrice) was too slow and has been removed; see git history for the
+ * removed implementation. The active path (addOpeningPriceAndMergeIntoPrices() /
  * PriceReport::addPreviousClosingPrice()) only derives openingPrice from other days
  * present in the *same* import batch, so it has no visibility into a day that was merged
  * into DailyPrice by an earlier, separate import.
@@ -84,9 +83,8 @@ class ImportPriceReportsCommandTest extends KernelTestCase
         if (! array_key_exists('openingPrice', $dayTwoDiesel)) {
             $this->markTestIncomplete(
                 'openingPrice is not set on the second day\'s DailyPrice document when two '
-                . 'day-by-day imports are run one after the other. See '
-                . 'ImportPriceReportsCommand::execute(), where the fix for this '
-                . '(addMissingOpeningPrices()) is commented out as "currently slooooow".',
+                . 'day-by-day imports are run one after the other. See the class docblock '
+                . 'above for details; the fix for this was too slow and has been removed.',
             );
         }
 

@@ -191,15 +191,6 @@ class PriceReport
         );
     }
 
-    public static function addMissingOpeningPrices(): Pipeline
-    {
-        return new Pipeline(
-            self::matchOnlyDaysWithMissingPrices(),
-            self::lookupPreviousDay(),
-            self::extractOpeningPrice(),
-        );
-    }
-
     public static function groupPriceReportsByStationDayFuel(): Stage\GroupStage
     {
         return Stage::group(

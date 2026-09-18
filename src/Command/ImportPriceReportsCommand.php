@@ -85,9 +85,9 @@ class ImportPriceReportsCommand extends Command
             }
         }
 
-        // TODO: Add openingPrice field where it does not exist (happens when multiple imports are done)
-        // This is currently slooooow, so we disable it in favour of doing a single import
-        // $this->addMissingOpeningPrices($io);
+        // TODO: Add openingPrice field where it does not exist (happens when multiple imports are done).
+        // A previous attempt at this (looking up the previous day's closingPrice via a $lookup into
+        // DailyPrice) was too slow and was removed; see git history for the removed implementation.
 
         // TODO: Get days that were updated to only recompute changed data
         $this->computeDailyAggregates($io);
@@ -183,26 +183,6 @@ class ImportPriceReportsCommand extends Command
 
         [$time] = measure(
             $this->dailyAggregateRepository->recomputeDailyAggregates(...),
-        );
-
-        $io->writeln(sprintf('Done in %.5fs.', $time));
-    }
-
-    private function addMissingOpeningPrices(SymfonyStyle $io): void
-    {
-        $io->write('Adding opening price for records previously imported...');
-
-        $pipeline = new Pipeline(
-            PriceReport::addMissingOpeningPrices(),
-            Stage::project(openingPrice: true),
-            Stage::merge($this->dailyPriceRepository->getDocumentCollection()->getCollectionName()),
-        );
-
-        [$time] = measure(
-            fn () => $this
-                ->dailyPriceRepository
-                ->getDocumentCollection()
-                ->aggregate($pipeline),
         );
 
         $io->writeln(sprintf('Done in %.5fs.', $time));
