@@ -15,7 +15,7 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations\Index;
 use Doctrine\ODM\MongoDB\Types\Type;
 
 #[Document(repositoryClass: DailyAggregateRepository::class)]
-#[Index(keys: ['fuel' => 'asc', 'day' => 'desc'])]
+#[Index(keys: ['fuel' => 'asc', 'day' => 'desc'], options: ['unique' => true])]
 #[Index(keys: ['day' => 'desc'])]
 class DailyAggregate
 {
