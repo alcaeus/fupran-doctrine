@@ -9,7 +9,7 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbeddedDocument;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbedMany;
 
 #[EmbeddedDocument]
-class DailyPriceReports
+class LatestPrices
 {
     /** @var ArrayCollection<int, EmbeddedDailyPrice> */
     #[EmbedMany(targetDocument: EmbeddedDailyPrice::class)]

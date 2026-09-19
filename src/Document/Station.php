@@ -45,8 +45,8 @@ class Station extends AbstractStation
     #[EmbedOne(targetDocument: LatestPrice::class)]
     public ?LatestPrice $latestPrice = null;
 
-    #[EmbedOne(targetDocument: DailyPriceReports::class)]
-    public ?DailyPriceReports $latestPrices = null;
+    #[EmbedOne(targetDocument: LatestPrices::class)]
+    public ?LatestPrices $latestPrices = null;
 
     #[Field]
     #[Index]
