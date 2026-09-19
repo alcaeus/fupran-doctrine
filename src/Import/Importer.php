@@ -44,6 +44,7 @@ abstract class Importer
             ->files()
             ->name('*.csv');
 
+        $style->writeln(sprintf('Importing %d files...', $finder->count()));
         $style?->progressStart($finder->count());
 
         $result = new ImportResult();
