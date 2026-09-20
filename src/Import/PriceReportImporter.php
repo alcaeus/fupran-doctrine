@@ -7,6 +7,7 @@ namespace App\Import;
 use App\Document\DailyPrice;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use Doctrine\ODM\MongoDB\Types\BinaryUuidType;
+use MongoDB\BSON\Binary;
 use MongoDB\BSON\UTCDateTime;
 use MongoDB\Driver\BulkWrite;
 use UnexpectedValueException;
@@ -47,10 +48,23 @@ final class PriceReportImporter extends Importer
      */
     private function buildDocuments(array $rawData): array
     {
+        $date = $rawData['date'];
+        if ($date === null) {
+            throw new UnexpectedValueException('Missing "date" column in price report row.');
+        }
+
+        $timestamp = strtotime($date);
+        if ($timestamp === false) {
+            throw new UnexpectedValueException(sprintf('Could not parse date "%s" in price report row.', $date));
+        }
+
+        $date = new UTCDateTime($timestamp * 1000);
+        $stationUUID = $this->binaryUuidType->convertToDatabaseValue($rawData['station_uuid']);
+
         return array_filter([
-            $this->buildDocument($rawData, 'diesel'),
-            $this->buildDocument($rawData, 'e5'),
-            $this->buildDocument($rawData, 'e10'),
+            $this->buildDocument($rawData, 'diesel', $date, $stationUUID),
+            $this->buildDocument($rawData, 'e5', $date, $stationUUID),
+            $this->buildDocument($rawData, 'e10', $date, $stationUUID),
         ]);
     }
 
@@ -59,7 +73,7 @@ final class PriceReportImporter extends Importer
      *
      * @return array<string, mixed>|null
      */
-    private function buildDocument(array $rawData, string $fuelType): ?array
+    private function buildDocument(array $rawData, string $fuelType, UTCDateTime $date, Binary $stationUuid): ?array
     {
         if ($rawData[$fuelType . 'change'] !== '1') {
             return null;
@@ -74,19 +88,9 @@ final class PriceReportImporter extends Importer
             return null;
         }
 
-        $date = $rawData['date'];
-        if ($date === null) {
-            throw new UnexpectedValueException('Missing "date" column in price report row.');
-        }
-
-        $timestamp = strtotime($date);
-        if ($timestamp === false) {
-            throw new UnexpectedValueException(sprintf('Could not parse date "%s" in price report row.', $date));
-        }
-
         return [
-            'date' => new UTCDateTime($timestamp * 1000),
-            'station' => $this->binaryUuidType->convertToDatabaseValue($rawData['station_uuid']),
+            'date' => $date,
+            'station' => $stationUuid,
             'fuel' => $fuelType,
             'price' => $price,
         ];

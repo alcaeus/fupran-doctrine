@@ -180,6 +180,14 @@ class ImportPriceReportsCommand extends Command
 
     private function addOpeningPriceAndMergeIntoPrices(SymfonyStyle $io): void
     {
+        $io->write('Checking and potentially creating index on import collection...');
+
+        [$time] = measure(
+            fn () => $this->collection->createIndex(['station._id' => 1, 'fuel' => 1, 'day' => 1]),
+        );
+
+        $io->writeln(sprintf('Done in %.5fs.', $time));
+
         $io->write('Adding opening price for each day and merge into prices collection...');
 
         $pipeline = new Pipeline(
