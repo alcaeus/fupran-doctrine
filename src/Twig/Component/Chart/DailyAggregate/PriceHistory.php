@@ -9,6 +9,8 @@ use App\Twig\Component\ChartJs;
 use Symfony\UX\Chartjs\Model\Chart;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
+use function array_map;
+
 #[AsTwigComponent('Chart:DailyAggregate:PriceHistory', template: ChartJs::TEMPLATE)]
 class PriceHistory extends ChartJs
 {
