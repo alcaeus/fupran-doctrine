@@ -23,21 +23,6 @@ services:
             - '../src/functions.php'
             - '../src/Kernel.php'
 
-    App\ChartHelper:
-        arguments:
-            $baseUrl: '%env(MONGODB_CHARTS_BASE_URL)%'
-            $stationPriceHistory: '%env(MONGODB_CHARTS_PRICE_HISTORY)%'
-            $stationPriceHistoryWithChanges: '%env(MONGODB_CHARTS_PRICE_HISTORY_WITH_CHANGES)%'
-            $stationExtremeTimes: '%env(MONGODB_CHARTS_EXTREME_TIMES)%'
-            $stationCheapestTimesHeatmap: '%env(MONGODB_CHARTS_CHEAPEST_TIMES_HEATMAP)%'
-            $stationMostExpensiveTimesHeatmap: '%env(MONGODB_CHARTS_MOST_EXPENSIVE_TIMES_HEATMAP)%'
-            $stationDifferenceToCheapest: '%env(MONGODB_CHARTS_DIFFERENCE_TO_CHEAPEST)%'
-            $stationDifferenceToAverage: '%env(MONGODB_CHARTS_DIFFERENCE_TO_AVERAGE)%'
-            $stationDayPriceOverview: '%env(MONGODB_CHARTS_DAY_PRICE_OVERVIEW)%'
-            $aggregatedPriceOverview: '%env(MONGODB_CHARTS_AGGREGATED_PRICE_OVERVIEW)%'
-            $aggregatedPriceHistory: '%env(MONGODB_CHARTS_AGGREGATED_PRICE_HISTORY)%'
-            $aggregatedPriceHistoryWithChanges: '%env(MONGODB_CHARTS_AGGREGATED_PRICE_HISTORY_WITH_CHANGES)%'
-
     Doctrine\ODM\MongoDB\Types\BinaryUuidType:
         factory: ['Doctrine\ODM\MongoDB\Types\Type', 'getType']
         arguments: ['uuid']

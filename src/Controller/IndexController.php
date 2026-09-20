@@ -18,6 +18,7 @@ class IndexController extends AbstractController
             'index/index.html.twig',
             [
                 'latestDailyAggregate' => $dailyAggregates->getLatestCompoundAggregate(),
+                'recentDailyAggregates' => $dailyAggregates->getCompoundDailyAggregates()->toArray(),
             ],
         );
     }

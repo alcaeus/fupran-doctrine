@@ -1,4 +1,4 @@
-{% props fuels = [enum('App\\Fuel').Diesel, enum('App\\Fuel').E5, enum('App\\Fuel').E10] %}
+{% props recentDailyAggregates, fuels = [enum('App\\Fuel').Diesel, enum('App\\Fuel').E5, enum('App\\Fuel').E10] %}
 
 <div class="card">
     <div class="card-header">
@@ -14,11 +14,9 @@
         </ul>
     </div>
     <div class="card-body">
-        <twig:ChartFilter />
-    </div>
-    <div class="card-body">
         <div class="tab-content" id="chartContent">
-            <twig:Chart:Aggregated:PriceOverview
+            <twig:Chart:DailyAggregate:WeightedAverageHistory
+                aggregates="{{ recentDailyAggregates }}"
                 class="tab-pane fade show active"
                 id="chartContent_overview"
                 role="tabpanel"
@@ -27,7 +25,8 @@
             />
 
             {% for fuel in fuels %}
-                <twig:Chart:Aggregated:PriceHistory
+                <twig:Chart:DailyAggregate:PriceHistory
+                    aggregates="{{ recentDailyAggregates }}"
                     fuel="{{ fuel.value }}"
                     class="tab-pane fade"
                     id="chartContent_{{ fuel.value }}"

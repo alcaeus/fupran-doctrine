@@ -8,12 +8,16 @@ use App\Aggregation\PriceReport;
 use App\Document\CompoundDailyAggregate;
 use App\Document\DailyAggregate;
 use App\Document\Partial\AbstractDailyPrice;
+use DateInterval;
+use DateTimeImmutable;
+use DateTimeZone;
 use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
 use Doctrine\ODM\MongoDB\Iterator\Iterator;
 use MongoDB\Builder\Pipeline;
 use MongoDB\Builder\Stage;
 
 use function iterator_to_array;
+use function sprintf;
 
 /** @extends AbstractRepository<DailyAggregate> */
 class DailyAggregateRepository extends AbstractRepository
@@ -78,5 +82,34 @@ class DailyAggregateRepository extends AbstractRepository
         $this->dailyPriceRepository
             ->getDocumentCollection()
             ->aggregate($pipeline);
+    }
+
+    /** @return Iterator<CompoundDailyAggregate> */
+    public function getCompoundDailyAggregates(int $days = 60): Iterator
+    {
+        $today = new DateTimeImmutable()->setTimezone(new DateTimeZone('UTC'))->setTime(0, 0, 0);
+        $oldestDay = $today->sub(new DateInterval(sprintf('P%dD', $days)));
+
+        return $this->createAggregationBuilder()
+            ->hydrate(CompoundDailyAggregate::class)
+            ->match()
+                ->field('day')
+                    ->lte($today)
+                    ->gte($oldestDay)
+            ->group()
+                ->field('_id')->expression('$day')
+                ->field('fuels')->push([
+                    'k' => '$fuel',
+                    'v' => '$$ROOT',
+                ])
+            ->sort(['_id' => -1])
+            ->replaceWith(
+                $this->createAggregationBuilder()->expr()->mergeObjects(
+                    ['day' => '$_id'],
+                    $this->createAggregationBuilder()->expr()->arrayToObject('$fuels'),
+                ),
+            )
+            ->getAggregation()
+            ->getIterator();
     }
 }
