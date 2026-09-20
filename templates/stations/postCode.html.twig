@@ -11,6 +11,9 @@
     </nav>
 {% endblock %}
 
+
 {% block paginator %}
+    <twig:PostCode:Map stations="{{ stations }}" />
+
     <twig:Paginator currentPage="{{ stations.page }}" totalPages="{{ stations|length }}" routeName="app_stations_postCode" routeParams="{{ { postCode: postCode } }}" />
 {% endblock %}
