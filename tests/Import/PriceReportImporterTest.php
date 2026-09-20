@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Import;
 
 use App\Import\PriceReportImporter;
+use Doctrine\ODM\MongoDB\APM\CommandLogger;
 use Doctrine\ODM\MongoDB\Types\BinaryUuidType;
 use Doctrine\ODM\MongoDB\Types\Type;
 use MongoDB\BSON\Binary;
@@ -95,6 +96,20 @@ class PriceReportImporterTest extends KernelTestCase
             $this->getBinaryUuidType()->convertToDatabaseValue(self::BFT_ALSFELD_UUID),
             $bftAlsfeldDocument['station'],
         );
+    }
+
+    public function testImportDoesNotAccumulateCommandsInTheApmCommandLogger(): void
+    {
+        // The ODM bundle's profiler/APM command logger retains every executed command's
+        // full BSON payload for the process lifetime (it's only cleared by the HTTP
+        // profiler's per-request reset). For a bulk import, that's unbounded memory
+        // growth, so Importer::import() unregisters it for the duration of the run.
+        $commandLogger = self::getContainer()->get('doctrine_mongodb.odm.data_collector.command_logger');
+        assert($commandLogger instanceof CommandLogger);
+
+        $this->getImporter()->import(__DIR__ . '/Fixtures/prices-day1/prices.csv');
+
+        self::assertCount(0, $commandLogger);
     }
 
     private function getImporter(): PriceReportImporter

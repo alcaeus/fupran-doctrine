@@ -5,11 +5,13 @@ declare(strict_types=1);
 namespace App\Import;
 
 use App\Document\DailyPrice;
+use Doctrine\Bundle\MongoDBBundle\APM\CommandLoggerRegistry;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use Doctrine\ODM\MongoDB\Types\BinaryUuidType;
 use MongoDB\BSON\Binary;
 use MongoDB\BSON\UTCDateTime;
 use MongoDB\Driver\BulkWrite;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use UnexpectedValueException;
 
 use function array_filter;
@@ -22,6 +24,8 @@ final class PriceReportImporter extends Importer
     public function __construct(
         DocumentManager $documentManager,
         private readonly BinaryUuidType $binaryUuidType,
+        #[Autowire(service: 'doctrine_mongodb.odm.command_logger_registry')]
+        CommandLoggerRegistry $commandLoggerRegistry,
     ) {
         $tempName = uniqid('priceReportImport_');
 
@@ -30,7 +34,7 @@ final class PriceReportImporter extends Importer
             ->getDocumentDatabase(DailyPrice::class)
             ->selectCollection($tempName);
 
-        parent::__construct($collection);
+        parent::__construct($collection, $commandLoggerRegistry);
     }
 
     /** @param array<string, string|null> $data */

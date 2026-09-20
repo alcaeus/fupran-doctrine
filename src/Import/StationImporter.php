@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Import;
 
 use App\Repository\StationRepository;
+use Doctrine\Bundle\MongoDBBundle\APM\CommandLoggerRegistry;
 use Doctrine\ODM\MongoDB\Types\BinaryUuidType;
 use MongoDB\Driver\BulkWrite;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use UnexpectedValueException;
 
 use function mb_strtolower;
@@ -18,8 +20,10 @@ final class StationImporter extends Importer
     public function __construct(
         StationRepository $stations,
         private BinaryUuidType $binaryUuidType,
+        #[Autowire(service: 'doctrine_mongodb.odm.command_logger_registry')]
+        CommandLoggerRegistry $commandLoggerRegistry,
     ) {
-        parent::__construct($stations->getDocumentCollection());
+        parent::__construct($stations->getDocumentCollection(), $commandLoggerRegistry);
     }
 
     /** @param array<string, string|null> $data */

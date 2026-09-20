@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace App\Import;
 
+use Doctrine\Bundle\MongoDBBundle\APM\CommandLoggerRegistry;
 use MongoDB\Collection;
 use MongoDB\Driver\BulkWrite;
 use MongoDB\Driver\WriteResult;
+use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Finder\Finder;
 
 use function App\measure;
@@ -25,6 +28,8 @@ abstract class Importer
 {
     public function __construct(
         public readonly Collection $collection,
+        #[Autowire(service: 'doctrine_mongodb.odm.command_logger_registry')]
+        private readonly CommandLoggerRegistry $commandLoggerRegistry,
     ) {
     }
 
@@ -34,28 +39,39 @@ abstract class Importer
     /** @param string|list<string> $fileOrDirectory */
     final public function import(string|array $fileOrDirectory, ?SymfonyStyle $style = null): ImportResult
     {
-        if (is_string($fileOrDirectory) && is_file($fileOrDirectory)) {
-            return $this->importFile($fileOrDirectory, $style);
+        /* The bundle's profiler/APM command logger retains every executed command's full
+         * BSON payload for the lifetime of the process - it's only cleared by the HTTP
+         * profiler's per-request reset, which a console command never triggers. For a bulk
+         * import that means unbounded memory growth, so switch it off for the run.
+         */
+        $this->commandLoggerRegistry->unregister();
+
+        try {
+            if (is_string($fileOrDirectory) && is_file($fileOrDirectory)) {
+                return $this->importFile($fileOrDirectory, $style);
+            }
+
+            $finder = new Finder();
+            $finder
+                ->in($fileOrDirectory)
+                ->files()
+                ->name('*.csv');
+
+            $style?->writeln(sprintf('Importing %d files...', $finder->count()));
+            $style?->progressStart($finder->count(), ProgressBar::FORMAT_DEBUG);
+
+            $result = new ImportResult();
+            foreach ($finder as $file) {
+                $result = $result->withResult($this->importFile($file->getRealPath()));
+                $style?->progressAdvance();
+            }
+
+            $style?->progressFinish();
+
+            return $result;
+        } finally {
+            $this->commandLoggerRegistry->register();
         }
-
-        $finder = new Finder();
-        $finder
-            ->in($fileOrDirectory)
-            ->files()
-            ->name('*.csv');
-
-        $style->writeln(sprintf('Importing %d files...', $finder->count()));
-        $style?->progressStart($finder->count());
-
-        $result = new ImportResult();
-        foreach ($finder as $file) {
-            $result = $result->withResult($this->importFile($file->getRealPath()));
-            $style?->progressAdvance();
-        }
-
-        $style?->progressFinish();
-
-        return $result;
     }
 
     private function importFile(string $file, ?SymfonyStyle $style = null): ImportResult
