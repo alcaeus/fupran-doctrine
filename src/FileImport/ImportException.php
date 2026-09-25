@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Import;
+namespace App\FileImport;
 
 use RuntimeException;
 

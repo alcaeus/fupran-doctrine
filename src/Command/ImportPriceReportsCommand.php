@@ -6,8 +6,8 @@ namespace App\Command;
 
 use App\Aggregation\PriceReport;
 use App\Document\Station;
-use App\Import\ImportException;
-use App\Import\PriceReportImporter;
+use App\FileImport\ImportException;
+use App\FileImport\PriceReportFileImporter;
 use App\Repository\DailyAggregateRepository;
 use App\Repository\DailyPriceRepository;
 use App\Repository\StationRepository;
@@ -45,7 +45,7 @@ class ImportPriceReportsCommand extends Command
     private Collection $collection;
 
     public function __construct(
-        private readonly PriceReportImporter $importer,
+        private readonly PriceReportFileImporter $importer,
         private readonly DailyPriceRepository $dailyPriceRepository,
         private readonly DailyAggregateRepository $dailyAggregateRepository,
         private readonly StationRepository $stationRepository,

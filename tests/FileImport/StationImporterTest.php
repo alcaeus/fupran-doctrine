@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Import;
+namespace App\Tests\FileImport;
 
 use App\Document\Station;
-use App\Import\StationImporter;
+use App\FileImport\StationFileImporter;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use GeoJson\Geometry\Point;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -117,9 +117,9 @@ class StationImporterTest extends KernelTestCase
         );
     }
 
-    private function getImporter(): StationImporter
+    private function getImporter(): StationFileImporter
     {
-        return self::getContainer()->get(StationImporter::class);
+        return self::getContainer()->get(StationFileImporter::class);
     }
 
     private function findStation(string $uuid): Station

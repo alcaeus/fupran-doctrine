@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Import;
+namespace App\FileImport;
 
 use Doctrine\Bundle\MongoDBBundle\APM\CommandLoggerRegistry;
 use MongoDB\Collection;
@@ -24,7 +24,7 @@ use function is_file;
 use function is_string;
 use function sprintf;
 
-abstract class Importer
+abstract class FileImporter
 {
     public function __construct(
         public readonly Collection $collection,

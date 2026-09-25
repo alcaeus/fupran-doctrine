@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Import\ImportException;
-use App\Import\StationImporter;
+use App\FileImport\ImportException;
+use App\FileImport\StationFileImporter;
 use App\Repository\StationRepository;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -29,7 +29,7 @@ use function sprintf;
 class ImportStationsCommand extends Command
 {
     public function __construct(
-        private readonly StationImporter $importer,
+        private readonly StationFileImporter $importer,
         private readonly StationRepository $stations,
     ) {
         parent::__construct(null);

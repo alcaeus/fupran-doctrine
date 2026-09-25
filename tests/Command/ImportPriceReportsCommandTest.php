@@ -8,8 +8,8 @@ use App\Command\ImportPriceReportsCommand;
 use App\Document\DailyAggregate;
 use App\Document\DailyPrice;
 use App\Document\Station;
+use App\FileImport\StationFileImporter;
 use App\Fuel;
-use App\Import\StationImporter;
 use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\ODM\MongoDB\DocumentManager;
@@ -58,21 +58,21 @@ class ImportPriceReportsCommandTest extends KernelTestCase
 
         // Stations must exist beforehand: the aggregation pipeline joins price reports
         // against the Station collection and drops any report it cannot match.
-        self::getContainer()->get(StationImporter::class)
-            ->import(__DIR__ . '/../Import/Fixtures/stations.csv');
+        self::getContainer()->get(StationFileImporter::class)
+            ->import(__DIR__ . '/../FileImport/Fixtures/stations.csv');
     }
 
     public function testOpeningPriceIsCarriedOverFromThePreviousDaysImport(): void
     {
         $tester = new CommandTester(self::getContainer()->get(ImportPriceReportsCommand::class));
 
-        $tester->execute(['fileOrDirectory' => [__DIR__ . '/../Import/Fixtures/prices-day1']]);
+        $tester->execute(['fileOrDirectory' => [__DIR__ . '/../FileImport/Fixtures/prices-day1']]);
         self::assertSame(0, $tester->getStatusCode());
 
         $dayOne = $this->findDailyPrice(self::OIL_MUNICH_UUID, Fuel::Diesel, '2026-08-15');
         self::assertEqualsWithDelta(2.159, $dayOne->closingPrice, 0.0001);
 
-        $tester->execute(['fileOrDirectory' => [__DIR__ . '/../Import/Fixtures/prices-day2']]);
+        $tester->execute(['fileOrDirectory' => [__DIR__ . '/../FileImport/Fixtures/prices-day2']]);
         self::assertSame(0, $tester->getStatusCode());
 
         // Read the raw document instead of hydrating a DailyPrice: openingPrice is a

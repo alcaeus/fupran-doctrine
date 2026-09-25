@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Import;
+namespace App\FileImport;
 
 use App\Document\DailyPrice;
 use Doctrine\Bundle\MongoDBBundle\APM\CommandLoggerRegistry;
@@ -19,7 +19,7 @@ use function sprintf;
 use function strtotime;
 use function uniqid;
 
-final class PriceReportImporter extends Importer
+final class PriceReportFileImporter extends FileImporter
 {
     public function __construct(
         DocumentManager $documentManager,

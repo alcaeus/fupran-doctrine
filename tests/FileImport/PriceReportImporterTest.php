@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace App\Tests\Import;
+namespace App\Tests\FileImport;
 
-use App\Import\PriceReportImporter;
+use App\FileImport\PriceReportFileImporter;
 use Doctrine\ODM\MongoDB\APM\CommandLogger;
 use Doctrine\ODM\MongoDB\Types\BinaryUuidType;
 use Doctrine\ODM\MongoDB\Types\Type;
@@ -32,7 +32,7 @@ class PriceReportImporterTest extends KernelTestCase
     private const string BFT_ALSFELD_UUID = '44e2bdb7-13e3-4156-8576-8326cdd20459';
     private const string BFT_SCHMIDT_UUID = 'f34f9241-6f55-48c6-aa4c-ee19f7272a22';
 
-    private ?PriceReportImporter $importer = null;
+    private ?PriceReportFileImporter $importer = null;
 
     protected function tearDown(): void
     {
@@ -112,9 +112,9 @@ class PriceReportImporterTest extends KernelTestCase
         self::assertCount(0, $commandLogger);
     }
 
-    private function getImporter(): PriceReportImporter
+    private function getImporter(): PriceReportFileImporter
     {
-        return $this->importer ??= self::getContainer()->get(PriceReportImporter::class);
+        return $this->importer ??= self::getContainer()->get(PriceReportFileImporter::class);
     }
 
     /** @return list<array<string, mixed>> */
