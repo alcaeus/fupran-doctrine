@@ -49,6 +49,44 @@ class DailyPriceRepository extends AbstractRepository
     }
 
     /**
+     * Looks up the closing price of the last previously imported day before the first day of each station and fuel
+     * in the batch. It is stored in the batch's first day for mergeAggregatedPriceReports() to use as opening price.
+     */
+    public function resolveBoundaryOpeningPrices(Collection $aggregatedPriceReports, ?UuidRange $stationRange = null): void
+    {
+        $aggregatedPriceReports->aggregate(PriceReport::resolveBoundaryOpeningPrices(
+            $this->getDocumentCollection()->getCollectionName(),
+            $aggregatedPriceReports->getCollectionName(),
+            $stationRange,
+        ));
+    }
+
+    /**
+     * Updates the opening price of the first previously imported day following the batch, for each station and
+     * fuel. This is needed if the batch was imported after a later day, as that day was imported without knowing
+     * about the batch's closing price. The updated days are written to $updatedDays.
+     */
+    public function updateOpeningPricesFollowingBatch(Collection $aggregatedPriceReports, Collection $updatedDays, ?UuidRange $stationRange = null): void
+    {
+        $dailyPriceCollection = $this->getDocumentCollection()->getCollectionName();
+
+        $aggregatedPriceReports->aggregate(PriceReport::findDaysFollowingBatch(
+            $dailyPriceCollection,
+            $updatedDays->getCollectionName(),
+            $stationRange,
+        ));
+
+        $updatedDays->aggregate(new Pipeline(
+            Stage::merge(
+                into: $dailyPriceCollection,
+                on: '_id',
+                whenMatched: self::getUpdateOpeningPricePipeline(Expression::variable('new.openingPrice')),
+                whenNotMatched: 'discard',
+            ),
+        ));
+    }
+
+    /**
      * Adds opening prices to the pre-aggregated price reports and merges them into the DailyPrice collection.
      */
     public function mergeAggregatedPriceReports(Collection $aggregatedPriceReports, ?UuidRange $stationRange = null): void
@@ -221,7 +259,7 @@ class DailyPriceRepository extends AbstractRepository
         );
     }
 
-    private static function getUpdateOpeningPricePipeline(float $closingPrice): Pipeline
+    private static function getUpdateOpeningPricePipeline(float|Expression\ResolvesToNumber $closingPrice): Pipeline
     {
         return new Pipeline(
             Stage::set(
@@ -298,7 +336,7 @@ class DailyPriceRepository extends AbstractRepository
         );
     }
 
-    private static function updateOpeningPriceInFirstPriceDocument(float $closingPrice): Expression\LetOperator
+    private static function updateOpeningPriceInFirstPriceDocument(float|Expression\ResolvesToNumber $closingPrice): Expression\LetOperator
     {
         return Expression::let(
             [

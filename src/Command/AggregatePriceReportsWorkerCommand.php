@@ -27,7 +27,8 @@ use const FILTER_VALIDATE_INT;
  *
  * Runs the pre-aggregation for stations in one slice of the UUID space: optionally groups
  * raw price reports into the aggregated collection, then merges the aggregated price reports
- * into the DailyPrice collection and sets the latest prices on the slice's stations.
+ * into the DailyPrice collection, connects them to previously imported days and sets the latest
+ * prices on the slice's stations.
  */
 #[AsCommand(
     name: 'app:import:price-reports-aggregate-worker',
@@ -47,6 +48,7 @@ final class AggregatePriceReportsWorkerCommand extends Command
     {
         $this
             ->addArgument('aggregated-collection', InputArgument::REQUIRED, 'Name of the collection for pre-aggregated price reports')
+            ->addArgument('updated-days-collection', InputArgument::REQUIRED, 'Name of the collection for previously imported days that had their opening price updated')
             ->addArgument('part', InputArgument::REQUIRED, 'Zero-based index of the slice of stations to process')
             ->addArgument('parts', InputArgument::REQUIRED, 'Number of slices the stations are split into')
             ->addOption('import-collection', null, InputOption::VALUE_REQUIRED, 'Name of the collection with raw price reports; if omitted, only the second step is run');
@@ -59,6 +61,8 @@ final class AggregatePriceReportsWorkerCommand extends Command
         $database = $this->documentManager->getDocumentDatabase(Station::class);
         $aggregated = $database->selectCollection($this->getStringValue($input->getArgument('aggregated-collection')));
 
+        $updatedDays = $database->selectCollection($this->getStringValue($input->getArgument('updated-days-collection')));
+
         $importCollection = $input->getOption('import-collection');
         if ($importCollection !== null) {
             $this->dailyPriceRepository->aggregatePriceReportsByDay(
@@ -68,10 +72,13 @@ final class AggregatePriceReportsWorkerCommand extends Command
             );
         }
 
+        $this->dailyPriceRepository->resolveBoundaryOpeningPrices($aggregated, $range);
         $this->dailyPriceRepository->mergeAggregatedPriceReports($aggregated, $range);
+        $this->dailyPriceRepository->updateOpeningPricesFollowingBatch($aggregated, $updatedDays, $range);
 
         /* Stations are independent of each other, so once the prices of this slice of stations are merged
-         * their latest prices can be set without waiting for the other workers.
+         * and connected to their neighbouring days, their latest prices can be set without waiting for the
+         * other workers.
          */
         $this->dailyPriceRepository->updateLatestStationPrices($range);
 

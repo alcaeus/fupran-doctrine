@@ -14,6 +14,7 @@ use App\Repository\DailyPriceRepository;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use InvalidArgumentException;
 use MongoDB\BSON\Regex;
+use MongoDB\BSON\UTCDateTime;
 use MongoDB\Collection;
 use MongoDB\Database;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -45,6 +46,9 @@ class ImportPriceReportsCommand extends Command
 {
     private readonly Database $database;
     private Collection $collection;
+    private Collection $updatedDays;
+    /** @var list<UTCDateTime>|null Days with new or updated prices; null if unknown, in which case everything is recomputed */
+    private ?array $affectedDays = null;
     private bool $latestPricesUpdated = false;
 
     public function __construct(
@@ -60,6 +64,8 @@ class ImportPriceReportsCommand extends Command
         $this->database = $documentManager->getDocumentDatabase(Station::class);
         $this->collection = $this->database
             ->selectCollection(uniqid('aggregatedPriceReports_'));
+        $this->updatedDays = $this->database
+            ->selectCollection(uniqid('updatedDays_'));
     }
 
     protected function configure(): void
@@ -96,11 +102,6 @@ class ImportPriceReportsCommand extends Command
             }
         }
 
-        // TODO: Add openingPrice field where it does not exist (happens when multiple imports are done).
-        // A previous attempt at this (looking up the previous day's closingPrice via a $lookup into
-        // DailyPrice) was too slow and was removed; see git history for the removed implementation.
-
-        // TODO: Get days that were updated to only recompute changed data
         $this->computeDailyAggregates($io);
 
         // The aggregation workers already set the latest prices of their stations
@@ -116,6 +117,12 @@ class ImportPriceReportsCommand extends Command
         // Check if there is a priceReportImport collection - this means that step 1 was completed, but the
         // pre-aggregation was not.
         $collectionName = $this->selectRecoveryCollection('priceReportImport_', $io);
+
+        // Leftovers of a failed run are recreated when the steps are repeated
+        foreach ($this->getCollectionNames('updatedDays_') as $leftover) {
+            $this->database->dropCollection($leftover);
+        }
+
         if ($collectionName) {
             $io->writeln(sprintf('Recovering existing price import from collection %s.', $collectionName));
             $this->runPostImportAggregations($this->database->getCollection($collectionName), $jobs, $io);
@@ -206,11 +213,15 @@ class ImportPriceReportsCommand extends Command
 
         $io->write('Adding opening price for each day and merge into prices collection...');
 
-        [$time] = measure(
-            fn () => $this->dailyPriceRepository->mergeAggregatedPriceReports($this->collection),
-        );
+        [$time] = measure(function (): void {
+            $this->dailyPriceRepository->resolveBoundaryOpeningPrices($this->collection);
+            $this->dailyPriceRepository->mergeAggregatedPriceReports($this->collection);
+            $this->dailyPriceRepository->updateOpeningPricesFollowingBatch($this->collection, $this->updatedDays);
+        });
 
+        $this->collectAffectedDays();
         $this->collection->drop();
+        $this->updatedDays->drop();
 
         $io->writeln(sprintf('Done in %.5fs.', $time));
     }
@@ -231,10 +242,32 @@ class ImportPriceReportsCommand extends Command
         $io->write('Recomputing daily aggregates...');
 
         [$time] = measure(
-            $this->dailyAggregateRepository->recomputeDailyAggregates(...),
+            fn () => $this->dailyAggregateRepository->recomputeDailyAggregates($this->affectedDays),
         );
 
         $io->writeln(sprintf('Done in %.5fs.', $time));
+    }
+
+    /**
+     * The days with imported prices, and those previously imported days that had their opening price
+     * updated as a result, are the only ones for which daily aggregates need to be recomputed.
+     */
+    private function collectAffectedDays(): void
+    {
+        // Keyed by timestamp to remove duplicates, as UTCDateTime objects cannot be compared reliably
+        /** @var array<string, UTCDateTime> $days */
+        $days = [];
+        foreach ([$this->collection, $this->updatedDays] as $collection) {
+            foreach ($collection->distinct('day') as $day) {
+                if (! $day instanceof UTCDateTime) {
+                    throw new UnexpectedValueException('Expected day to be a UTCDateTime.');
+                }
+
+                $days[(string) $day] = $day;
+            }
+        }
+
+        $this->affectedDays = array_values($days);
     }
 
     private function clearExistingPriceReports(): void
@@ -312,15 +345,18 @@ class ImportPriceReportsCommand extends Command
             fn () => $this->parallelAggregator->aggregate(
                 $importCollection?->getCollectionName(),
                 $this->collection->getCollectionName(),
+                $this->updatedDays->getCollectionName(),
                 $jobs,
             ),
         );
 
         $this->latestPricesUpdated = true;
+        $this->collectAffectedDays();
 
         // Only drop the temporary collections once all workers succeeded, so a failed run can be recovered
         $importCollection?->drop();
         $this->collection->drop();
+        $this->updatedDays->drop();
 
         $io->writeln(sprintf('Done in %.5fs.', $time));
     }

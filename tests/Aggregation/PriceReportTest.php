@@ -257,20 +257,6 @@ class PriceReportTest extends TestCase
         );
     }
 
-    public function testMatchOnlyDaysWithMissingPrices(): void
-    {
-        $result = $this->runPipeline(
-            [
-                ['_id' => 1, 'openingPrice' => 1.0],
-                ['_id' => 2],
-            ],
-            PriceReport::matchOnlyDaysWithMissingPrices(),
-        );
-
-        self::assertCount(1, $result);
-        self::assertSame(2, $result[0]->_id);
-    }
-
     public function testComputeChangeInPriceList(): void
     {
         $result = $this->runPipelineForSingleDocument(
@@ -314,22 +300,6 @@ class PriceReportTest extends TestCase
         );
     }
 
-    public function testExtractOpeningPrice(): void
-    {
-        $result = $this->runPipeline(
-            [
-                ['_id' => 1, 'previousDay' => [['closingPrice' => 1.5]]],
-                ['_id' => 2, 'previousDay' => []],
-            ],
-            PriceReport::extractOpeningPrice(),
-            Stage::sort(_id: 1),
-        );
-
-        self::assertCount(2, $result);
-        self::assertSame(1.5, $result[0]->openingPrice);
-        self::assertNull($result[1]->openingPrice);
-    }
-
     public function testAddPreviousClosingPrice(): void
     {
         $day1 = new UTCDateTime(new DateTimeImmutable('2025-06-27T00:00:00+00:00'));
@@ -350,6 +320,29 @@ class PriceReportTest extends TestCase
         self::assertObjectNotHasProperty('openingPrice', $result[0]);
         self::assertSame(1.0, $result[1]->openingPrice);
         self::assertSame(1.1, $result[2]->openingPrice);
+    }
+
+    public function testAddPreviousClosingPriceFallsBackToBoundaryOpeningPrice(): void
+    {
+        $day1 = new UTCDateTime(new DateTimeImmutable('2025-06-27T00:00:00+00:00'));
+        $day2 = new UTCDateTime(new DateTimeImmutable('2025-06-28T00:00:00+00:00'));
+
+        $result = $this->runPipeline(
+            [
+                ['_id' => 1, 'station' => ['_id' => 'stationA'], 'fuel' => 'e5', 'day' => $day1, 'closingPrice' => 1.0, 'boundaryOpeningPrice' => 0.9],
+                ['_id' => 2, 'station' => ['_id' => 'stationA'], 'fuel' => 'e5', 'day' => $day2, 'closingPrice' => 1.1],
+                ['_id' => 3, 'station' => ['_id' => 'stationB'], 'fuel' => 'e5', 'day' => $day1, 'closingPrice' => 2.0],
+            ],
+            PriceReport::addPreviousClosingPrice(),
+            Stage::sort(_id: 1),
+        );
+
+        self::assertCount(3, $result);
+        self::assertSame(0.9, $result[0]->openingPrice);
+        self::assertSame(1.0, $result[1]->openingPrice);
+        self::assertObjectNotHasProperty('openingPrice', $result[2]);
+        self::assertObjectNotHasProperty('boundaryOpeningPrice', $result[0]);
+        self::assertObjectNotHasProperty('previousClosingPrice', $result[1]);
     }
 
     /**

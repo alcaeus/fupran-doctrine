@@ -27,11 +27,11 @@ final class ParallelPriceReportAggregator
     {
     }
 
-    public function aggregate(?string $importCollectionName, string $aggregatedCollectionName, int $jobs): void
+    public function aggregate(?string $importCollectionName, string $aggregatedCollectionName, string $updatedDaysCollectionName, int $jobs): void
     {
         $processes = [];
         for ($index = 0; $index < $jobs; $index++) {
-            $arguments = [$aggregatedCollectionName, (string) $index, (string) $jobs];
+            $arguments = [$aggregatedCollectionName, $updatedDaysCollectionName, (string) $index, (string) $jobs];
             if ($importCollectionName !== null) {
                 $arguments[] = '--import-collection=' . $importCollectionName;
             }

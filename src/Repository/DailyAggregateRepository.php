@@ -13,6 +13,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
 use Doctrine\ODM\MongoDB\Iterator\Iterator;
+use MongoDB\BSON\UTCDateTime;
 use MongoDB\Builder\Pipeline;
 use MongoDB\Builder\Stage;
 
@@ -68,10 +69,11 @@ class DailyAggregateRepository extends AbstractRepository
         return $aggregates[0];
     }
 
-    public function recomputeDailyAggregates(): void
+    /** @param list<UTCDateTime>|null $days Restricts the computation to these days; all days if omitted */
+    public function recomputeDailyAggregates(?array $days = null): void
     {
         $pipeline = new Pipeline(
-            PriceReport::computeDailyAggregates(),
+            PriceReport::computeDailyAggregates($days),
             Stage::merge(
                 $this->getDocumentCollection()->getCollectionName(),
                 on: ['day', 'fuel'],

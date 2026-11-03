@@ -19,22 +19,14 @@ use MongoDB\BSON\UTCDateTime;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 
-use function array_key_exists;
 use function assert;
 use function iterator_to_array;
 
 /**
- * Verifies whether DailyPrice.openingPrice is carried over from the previous day's
- * closingPrice when two price report imports are run one after the other (as happens in
- * production, where each day's report is imported in its own command invocation), rather
- * than in a single import spanning both days.
- *
- * This currently does NOT work: a fix for it (looking up the previous day's closingPrice
- * via a $lookup into DailyPrice) was too slow and has been removed; see git history for the
- * removed implementation. The active path (addOpeningPriceAndMergeIntoPrices() /
- * PriceReport::addPreviousClosingPrice()) only derives openingPrice from other days
- * present in the *same* import batch, so it has no visibility into a day that was merged
- * into DailyPrice by an earlier, separate import.
+ * Verifies that DailyPrice.openingPrice is carried over from the previous day's closingPrice
+ * when price report imports are run one after the other (as happens in production, where
+ * each day's report is imported in its own command invocation), in either order, rather than
+ * in a single import spanning both days.
  */
 class ImportPriceReportsCommandTest extends KernelTestCase
 {
@@ -81,14 +73,6 @@ class ImportPriceReportsCommandTest extends KernelTestCase
         $dayTwoDiesel = $this->findRawDailyPrice(self::OIL_MUNICH_UUID, Fuel::Diesel, '2026-08-16');
         self::assertEqualsWithDelta(2.219, $dayTwoDiesel['closingPrice'], 0.0001);
 
-        if (! array_key_exists('openingPrice', $dayTwoDiesel)) {
-            $this->markTestIncomplete(
-                'openingPrice is not set on the second day\'s DailyPrice document when two '
-                . 'day-by-day imports are run one after the other. See the class docblock '
-                . 'above for details; the fix for this was too slow and has been removed.',
-            );
-        }
-
         self::assertEqualsWithDelta(2.159, $dayTwoDiesel['openingPrice'], 0.0001, 'openingPrice should be day one\'s diesel closingPrice for the Oil! Munich station');
 
         $dayTwoE5 = $this->findRawDailyPrice(self::OIL_MUNICH_UUID, Fuel::E5, '2026-08-16');
@@ -99,6 +83,88 @@ class ImportPriceReportsCommandTest extends KernelTestCase
 
         $bftSchmidtDayTwoDiesel = $this->findRawDailyPrice(self::BFT_SCHMIDT_UUID, Fuel::Diesel, '2026-08-16');
         self::assertEqualsWithDelta(2.219, $bftSchmidtDayTwoDiesel['openingPrice'], 0.0001, 'openingPrice should be day one\'s diesel closingPrice for the Bft Schmidt station');
+    }
+
+    public function testOpeningPriceIsUpdatedWhenAnEarlierDayIsImportedLater(): void
+    {
+        $this->importDaysInSeparateRuns(['prices-day2', 'prices-day1'], []);
+
+        $this->assertDayTwoOpeningPrices();
+    }
+
+    public function testOpeningPriceIsUpdatedWhenAnEarlierDayIsImportedLaterInParallel(): void
+    {
+        $this->importDaysInSeparateRuns(['prices-day2', 'prices-day1'], ['--jobs' => 2]);
+
+        $this->assertDayTwoOpeningPrices();
+    }
+
+    public function testOpeningPriceIsCarriedOverFromThePreviousDaysImportInParallel(): void
+    {
+        $this->importDaysInSeparateRuns(['prices-day1', 'prices-day2'], ['--jobs' => 2]);
+
+        $this->assertDayTwoOpeningPrices();
+    }
+
+    public function testOpeningPriceIsNotSetForTheFirstImportedDay(): void
+    {
+        $this->importDaysInSeparateRuns(['prices-day2', 'prices-day1'], []);
+
+        self::assertArrayNotHasKey('openingPrice', $this->findRawDailyPrice(self::OIL_MUNICH_UUID, Fuel::Diesel, '2026-08-15'));
+    }
+
+    public function testDailyAggregatesAreRecomputedForUpdatedDays(): void
+    {
+        $this->importDaysInSeparateRuns(['prices-day2', 'prices-day1'], []);
+
+        $dayTwo = $this->findRawDailyPrice(self::OIL_MUNICH_UUID, Fuel::Diesel, '2026-08-16');
+        $aggregate = self::getDocumentManager()
+            ->getDocumentCollection(DailyAggregate::class)
+            ->findOne(
+                ['fuel' => Fuel::Diesel->value, 'day' => new UTCDateTime(new DateTimeImmutable('2026-08-16', new DateTimeZone('UTC')))],
+                ['typeMap' => ['root' => 'array', 'document' => 'array', 'array' => 'array']],
+            );
+
+        self::assertIsArray($aggregate);
+        // The aggregate has to include the weighted average that was corrected by the later import
+        self::assertGreaterThanOrEqual($aggregate['lowestPrice'], $dayTwo['weightedAveragePrice']);
+        self::assertLessThanOrEqual($aggregate['highestPrice'], $dayTwo['weightedAveragePrice']);
+        self::assertGreaterThanOrEqual($aggregate['lowestPrice'], $aggregate['weightedAveragePrice']);
+    }
+
+    /**
+     * @param list<string>         $directories
+     * @param array<string, mixed> $options
+     */
+    private function importDaysInSeparateRuns(array $directories, array $options): void
+    {
+        foreach ($directories as $directory) {
+            $tester = new CommandTester(self::getContainer()->get(ImportPriceReportsCommand::class));
+            $tester->execute(['fileOrDirectory' => [__DIR__ . '/../FileImport/Fixtures/' . $directory]] + $options);
+            self::assertSame(0, $tester->getStatusCode(), $tester->getDisplay());
+        }
+    }
+
+    private function assertDayTwoOpeningPrices(): void
+    {
+        $expected = [
+            [self::OIL_MUNICH_UUID, Fuel::Diesel, 2.159],
+            [self::OIL_MUNICH_UUID, Fuel::E5, 2.249],
+            [self::OIL_MUNICH_UUID, Fuel::E10, 2.189],
+            [self::BFT_SCHMIDT_UUID, Fuel::Diesel, 2.219],
+        ];
+
+        foreach ($expected as [$uuid, $fuel, $openingPrice]) {
+            $dayTwo = $this->findRawDailyPrice($uuid, $fuel, '2026-08-16');
+            $prices = $dayTwo['prices'];
+            self::assertIsArray($prices);
+            /** @var array{price: float, previousPrice: float, change: float} $firstPrice */
+            $firstPrice = $prices[0];
+
+            self::assertEqualsWithDelta($openingPrice, $dayTwo['openingPrice'], 0.0001);
+            self::assertEqualsWithDelta($openingPrice, $firstPrice['previousPrice'], 0.0001);
+            self::assertEqualsWithDelta($firstPrice['price'] - $openingPrice, $firstPrice['change'], 0.0001);
+        }
     }
 
     public function testParallelImportMatchesSingleProcessImport(): void
