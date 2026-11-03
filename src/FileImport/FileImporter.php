@@ -86,14 +86,14 @@ abstract class FileImporter
         $bulk = new BulkWrite(['ordered' => false]);
 
         try {
-            $headers = fgetcsv($resource);
+            $headers = fgetcsv($resource, escape: '');
             if ($headers === false || in_array(null, $headers, true)) {
                 throw ImportException::cannotImportFile($file);
             }
 
             [$readTime] = measure(
                 function () use ($resource, $bulk, $headers): void {
-                    while ($row = fgetcsv($resource)) {
+                    while ($row = fgetcsv($resource, escape: '')) {
                         $this->storeDocument($bulk, array_combine($headers, $row));
                     }
                 },
