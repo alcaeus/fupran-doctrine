@@ -25,9 +25,10 @@ class PriceReport
 {
     public const int SECONDS_IN_DAY = 86400;
 
-    public static function aggregatePriceReportsByDay(): Pipeline
+    public static function aggregatePriceReportsByDay(?UuidRange $stationRange = null): Pipeline
     {
         return new Pipeline(
+            self::matchStationRange('station', $stationRange),
             Stage::set(day: Expression::dateTrunc(Expression::dateFieldPath('date'), unit: 'day')),
             self::groupPriceReportsByStationDayFuel(),
             self::reshapeGroupedPriceReports(),
@@ -37,14 +38,28 @@ class PriceReport
         );
     }
 
-    public static function aggregatePriceData(): Pipeline
+    public static function aggregatePriceData(?UuidRange $stationRange = null): Pipeline
     {
         return new Pipeline(
+            self::matchStationRange('station._id', $stationRange),
             self::addPreviousClosingPrice(),
             self::addMissingOpeningPriceToList(),
             self::computeChangeInPriceList(),
             self::computeWeightedAverage(),
         );
+    }
+
+    /**
+     * Restricts a pipeline to a slice of stations, as stations are fully independent of each other
+     * in the stages that follow. Must come first in a pipeline to be able to use an index.
+     */
+    public static function matchStationRange(string $field, ?UuidRange $range): Pipeline
+    {
+        if ($range === null || $range->isUnbounded()) {
+            return new Pipeline();
+        }
+
+        return new Pipeline(Stage::match(...[$field => $range->toFieldQuery()]));
     }
 
     public static function computeWeightedAverage(): Pipeline

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Aggregation\PriceReport;
+use App\Aggregation\UuidRange;
 use App\Codec\MetadataCodecFactory;
 use App\Document\DailyPrice;
 use App\Document\EmbeddedDailyPrice;
@@ -20,6 +21,7 @@ use MongoDB\Builder\Pipeline;
 use MongoDB\Builder\Stage;
 use MongoDB\Builder\Stage\ReplaceWithStage;
 use MongoDB\Builder\Type\ExpressionInterface;
+use MongoDB\Collection;
 use UnexpectedValueException;
 
 use function count;
@@ -33,6 +35,31 @@ class DailyPriceRepository extends AbstractRepository
         private readonly MetadataCodecFactory $codec,
     ) {
         parent::__construct($registry, DailyPrice::class);
+    }
+
+    /**
+     * Groups raw price reports by station, day and fuel, and merges the result into the target collection.
+     */
+    public function aggregatePriceReportsByDay(Collection $importCollection, Collection $into, ?UuidRange $stationRange = null): void
+    {
+        $importCollection->aggregate(new Pipeline(
+            PriceReport::aggregatePriceReportsByDay($stationRange),
+            Stage::merge($into->getCollectionName()),
+        ));
+    }
+
+    /**
+     * Adds opening prices to the pre-aggregated price reports and merges them into the DailyPrice collection.
+     */
+    public function mergeAggregatedPriceReports(Collection $aggregatedPriceReports, ?UuidRange $stationRange = null): void
+    {
+        $aggregatedPriceReports->aggregate(new Pipeline(
+            PriceReport::aggregatePriceData($stationRange),
+            Stage::merge(
+                into: $this->getDocumentCollection()->getCollectionName(),
+                whenMatched: 'keepExisting',
+            ),
+        ));
     }
 
     /** @return Iterator<DailyPrice> */

@@ -119,6 +119,10 @@ class ImportPriceReportsCommandTest extends KernelTestCase
         $dayTwo = $this->findRawDailyPrice(self::OIL_MUNICH_UUID, Fuel::Diesel, '2026-08-16');
         self::assertEqualsWithDelta(2.219, $dayTwo['closingPrice'], 0.0001);
         self::assertEqualsWithDelta(2.159, $dayTwo['openingPrice'], 0.0001);
+
+        // The two stations fall into different slices of the UUID space, so different aggregation workers
+        $otherStationDayTwo = $this->findRawDailyPrice(self::BFT_SCHMIDT_UUID, Fuel::Diesel, '2026-08-16');
+        self::assertEqualsWithDelta(2.219, $otherStationDayTwo['openingPrice'], 0.0001);
     }
 
     private function findDailyPrice(string $stationUuid, Fuel $fuel, string $day): DailyPrice

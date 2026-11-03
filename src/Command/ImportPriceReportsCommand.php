@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Aggregation\ParallelPriceReportAggregator;
 use App\Aggregation\PriceReport;
 use App\Document\Station;
 use App\FileImport\ImportException;
@@ -52,6 +53,7 @@ class ImportPriceReportsCommand extends Command
     public function __construct(
         private readonly PriceReportFileImporter $importer,
         private readonly ParallelFileImporter $parallelImporter,
+        private readonly ParallelPriceReportAggregator $parallelAggregator,
         private readonly DailyPriceRepository $dailyPriceRepository,
         private readonly DailyAggregateRepository $dailyAggregateRepository,
         private readonly StationRepository $stationRepository,
@@ -77,9 +79,11 @@ class ImportPriceReportsCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
+        $jobs = $this->getJobsOption($input);
+
         // Recover from an import that previously failed
         if ($input->getOption('recover')) {
-            $this->attemptRecovery($io);
+            $this->attemptRecovery($jobs, $io);
         } else {
             if ($input->getOption('clear')) {
                 $io->write('Clearing existing price data...');
@@ -88,7 +92,7 @@ class ImportPriceReportsCommand extends Command
             }
 
             try {
-                $this->importDataAndPreAggregate($this->getFileOrDirectoryArgument($input), $this->getJobsOption($input), $io);
+                $this->importDataAndPreAggregate($this->getFileOrDirectoryArgument($input), $jobs, $io);
             } catch (ImportException $e) {
                 $io->error($e->getMessage());
 
@@ -108,14 +112,14 @@ class ImportPriceReportsCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function attemptRecovery(SymfonyStyle $io): void
+    private function attemptRecovery(int $jobs, SymfonyStyle $io): void
     {
         // Check if there is a priceReportImport collection - this means that step 1 was completed, but the
         // pre-aggregation was not.
         $collectionName = $this->selectRecoveryCollection('priceReportImport_', $io);
         if ($collectionName) {
             $io->writeln(sprintf('Recovering existing price import from collection %s.', $collectionName));
-            $this->runPostImportAggregations($this->database->getCollection($collectionName), $io);
+            $this->runPostImportAggregations($this->database->getCollection($collectionName), $jobs, $io);
 
             return;
         }
@@ -127,7 +131,7 @@ class ImportPriceReportsCommand extends Command
         if ($collectionName) {
             $io->writeln(sprintf('Recovering existing pre-aggregation from collection %s...', $collectionName));
             $this->collection = $this->database->getCollection($collectionName);
-            $this->runPostImportAggregations(null, $io);
+            $this->runPostImportAggregations(null, $jobs, $io);
         }
     }
 
@@ -181,20 +185,15 @@ class ImportPriceReportsCommand extends Command
 
         $io->writeln(sprintf('Import took %.5fs: %d inserted, %d updated.', $time, $result->numInserted, $result->numUpdated));
 
-        $this->runPostImportAggregations($this->importer->collection, $io);
+        $this->runPostImportAggregations($this->importer->collection, $jobs, $io);
     }
 
     private function aggregatePriceReportsByDay(Collection $importCollection, SymfonyStyle $io): void
     {
         $io->write('Aggregating imported price reports for further processing...');
 
-        $pipeline = new Pipeline(
-            PriceReport::aggregatePriceReportsByDay(),
-            Stage::merge($this->collection->getCollectionName()),
-        );
-
         [$time] = measure(
-            static fn () => $importCollection->aggregate($pipeline),
+            fn () => $this->dailyPriceRepository->aggregatePriceReportsByDay($importCollection, $this->collection),
         );
 
         $importCollection->drop();
@@ -204,29 +203,26 @@ class ImportPriceReportsCommand extends Command
 
     private function addOpeningPriceAndMergeIntoPrices(SymfonyStyle $io): void
     {
+        $this->createAggregatedIndex($io);
+
+        $io->write('Adding opening price for each day and merge into prices collection...');
+
+        [$time] = measure(
+            fn () => $this->dailyPriceRepository->mergeAggregatedPriceReports($this->collection),
+        );
+
+        $this->collection->drop();
+
+        $io->writeln(sprintf('Done in %.5fs.', $time));
+    }
+
+    private function createAggregatedIndex(SymfonyStyle $io): void
+    {
         $io->write('Checking and potentially creating index on import collection...');
 
         [$time] = measure(
             fn () => $this->collection->createIndex(['station._id' => 1, 'fuel' => 1, 'day' => 1]),
         );
-
-        $io->writeln(sprintf('Done in %.5fs.', $time));
-
-        $io->write('Adding opening price for each day and merge into prices collection...');
-
-        $pipeline = new Pipeline(
-            PriceReport::aggregatePriceData(),
-            Stage::merge(
-                into: $this->dailyPriceRepository->getDocumentCollection()->getCollectionName(),
-                whenMatched: 'keepExisting',
-            ),
-        );
-
-        [$time] = measure(
-            fn () => $this->collection->aggregate($pipeline),
-        );
-
-        $this->collection->drop();
 
         $io->writeln(sprintf('Done in %.5fs.', $time));
     }
@@ -301,12 +297,43 @@ class ImportPriceReportsCommand extends Command
         return $selected;
     }
 
-    private function runPostImportAggregations(?Collection $importCollection, SymfonyStyle $io): void
+    private function runPostImportAggregations(?Collection $importCollection, int $jobs, SymfonyStyle $io): void
     {
+        if ($jobs > 1) {
+            $this->runPostImportAggregationsInParallel($importCollection, $jobs, $io);
+
+            return;
+        }
+
         if ($importCollection) {
             $this->aggregatePriceReportsByDay($importCollection, $io);
         }
 
         $this->addOpeningPriceAndMergeIntoPrices($io);
+    }
+
+    private function runPostImportAggregationsInParallel(?Collection $importCollection, int $jobs, SymfonyStyle $io): void
+    {
+        /* The workers run the second step for their stations as soon as they are done with the first,
+         * so the index it needs has to exist up front. Building it on the (still empty) collection is
+         * cheap, and the workers maintain it as they merge their results.
+         */
+        $this->createAggregatedIndex($io);
+
+        $io->write(sprintf('Aggregating price reports and merging into prices collection using %d worker processes...', $jobs));
+
+        [$time] = measure(
+            fn () => $this->parallelAggregator->aggregate(
+                $importCollection?->getCollectionName(),
+                $this->collection->getCollectionName(),
+                $jobs,
+            ),
+        );
+
+        // Only drop the temporary collections once all workers succeeded, so a failed run can be recovered
+        $importCollection?->drop();
+        $this->collection->drop();
+
+        $io->writeln(sprintf('Done in %.5fs.', $time));
     }
 }

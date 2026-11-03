@@ -7,7 +7,6 @@ namespace App\FileImport;
 use RuntimeException;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Style\SymfonyStyle;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Process\Process;
 
 use function array_fill;
@@ -23,7 +22,6 @@ use function sprintf;
 use function str_contains;
 use function usort;
 
-use const PHP_BINARY;
 use const PHP_EOL;
 
 /**
@@ -36,12 +34,8 @@ use const PHP_EOL;
  */
 final class ParallelFileImporter
 {
-    public function __construct(
-        #[Autowire('%kernel.project_dir%')]
-        private readonly string $projectDir,
-        #[Autowire('%kernel.environment%')]
-        private readonly string $environment,
-    ) {
+    public function __construct(private readonly WorkerProcessFactory $processFactory)
+    {
     }
 
     /** @param list<string> $files */
@@ -59,12 +53,7 @@ final class ParallelFileImporter
 
         foreach ($partitions as $index => $partition) {
             $buffers[$index] = '';
-            $process = new Process(
-                [PHP_BINARY, $this->projectDir . '/bin/console', 'app:import:price-reports-worker', $collectionName, '--env=' . $this->environment, '--no-interaction'],
-                $this->projectDir,
-                input: implode(PHP_EOL, $partition),
-            );
-            $process->setTimeout(null);
+            $process = $this->processFactory->create('app:import:price-reports-worker', [$collectionName], implode(PHP_EOL, $partition));
             $process->start(static function (string $type, string $data) use ($index, &$buffers, &$result, &$errors, $style): void {
                 if ($type === Process::ERR) {
                     $errors[$index] = ($errors[$index] ?? '') . $data;
