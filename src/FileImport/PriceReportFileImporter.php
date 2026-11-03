@@ -10,6 +10,7 @@ use Doctrine\ODM\MongoDB\DocumentManager;
 use Doctrine\ODM\MongoDB\Types\BinaryUuidType;
 use MongoDB\BSON\Binary;
 use MongoDB\BSON\UTCDateTime;
+use MongoDB\Collection;
 use MongoDB\Driver\BulkWrite;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use UnexpectedValueException;
@@ -22,19 +23,29 @@ use function uniqid;
 final class PriceReportFileImporter extends FileImporter
 {
     public function __construct(
-        DocumentManager $documentManager,
+        private readonly DocumentManager $documentManager,
         private readonly BinaryUuidType $binaryUuidType,
         #[Autowire(service: 'doctrine_mongodb.odm.command_logger_registry')]
         CommandLoggerRegistry $commandLoggerRegistry,
     ) {
-        $tempName = uniqid('priceReportImport_');
-
         // Select a temporary collection that we'll be deleting afterwards
-        $collection = $documentManager
-            ->getDocumentDatabase(DailyPrice::class)
-            ->selectCollection($tempName);
+        parent::__construct($this->getTempCollection(uniqid('priceReportImport_')), $commandLoggerRegistry);
+    }
 
-        parent::__construct($collection, $commandLoggerRegistry);
+    /**
+     * Used by parallel import workers to write into the temporary collection selected by
+     * the process that fanned out the import.
+     */
+    public function useCollection(string $name): void
+    {
+        $this->collection = $this->getTempCollection($name);
+    }
+
+    private function getTempCollection(string $name): Collection
+    {
+        return $this->documentManager
+            ->getDocumentDatabase(DailyPrice::class)
+            ->selectCollection($name);
     }
 
     /** @param array<string, string|null> $data */

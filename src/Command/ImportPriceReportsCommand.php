@@ -7,11 +7,13 @@ namespace App\Command;
 use App\Aggregation\PriceReport;
 use App\Document\Station;
 use App\FileImport\ImportException;
+use App\FileImport\ParallelFileImporter;
 use App\FileImport\PriceReportFileImporter;
 use App\Repository\DailyAggregateRepository;
 use App\Repository\DailyPriceRepository;
 use App\Repository\StationRepository;
 use Doctrine\ODM\MongoDB\DocumentManager;
+use InvalidArgumentException;
 use MongoDB\BSON\Regex;
 use MongoDB\Builder\Pipeline;
 use MongoDB\Builder\Stage;
@@ -29,11 +31,14 @@ use UnexpectedValueException;
 use function App\measure;
 use function array_values;
 use function count;
+use function filter_var;
 use function is_array;
 use function is_string;
 use function iterator_to_array;
 use function sprintf;
 use function uniqid;
+
+use const FILTER_VALIDATE_INT;
 
 #[AsCommand(
     name: 'app:import:price-reports',
@@ -46,6 +51,7 @@ class ImportPriceReportsCommand extends Command
 
     public function __construct(
         private readonly PriceReportFileImporter $importer,
+        private readonly ParallelFileImporter $parallelImporter,
         private readonly DailyPriceRepository $dailyPriceRepository,
         private readonly DailyAggregateRepository $dailyAggregateRepository,
         private readonly StationRepository $stationRepository,
@@ -63,6 +69,7 @@ class ImportPriceReportsCommand extends Command
         $this
             ->addArgument(name: 'fileOrDirectory', mode: InputArgument::IS_ARRAY, description: 'Path to the file to be imported')
             ->addOption(name: 'recover', mode: InputOption::VALUE_NONE, description: 'Recover from a failure during a previous import')
+            ->addOption(name: 'jobs', shortcut: 'j', mode: InputOption::VALUE_REQUIRED, description: 'Number of worker processes to import files with', default: 1)
             ->addOption(name: 'clear', mode: InputOption::VALUE_NONE, description: 'Clear all existing prices');
     }
 
@@ -81,7 +88,7 @@ class ImportPriceReportsCommand extends Command
             }
 
             try {
-                $this->importDataAndPreAggregate($this->getFileOrDirectoryArgument($input), $io);
+                $this->importDataAndPreAggregate($this->getFileOrDirectoryArgument($input), $this->getJobsOption($input), $io);
             } catch (ImportException $e) {
                 $io->error($e->getMessage());
 
@@ -124,6 +131,16 @@ class ImportPriceReportsCommand extends Command
         }
     }
 
+    private function getJobsOption(InputInterface $input): int
+    {
+        $jobs = filter_var($input->getOption('jobs'), FILTER_VALIDATE_INT);
+        if ($jobs === false || $jobs < 1) {
+            throw new InvalidArgumentException('Expected "jobs" option to be a positive integer.');
+        }
+
+        return $jobs;
+    }
+
     /** @return list<string> */
     private function getFileOrDirectoryArgument(InputInterface $input): array
     {
@@ -142,7 +159,7 @@ class ImportPriceReportsCommand extends Command
     }
 
     /** @param list<string> $fileOrDirectory */
-    private function importDataAndPreAggregate(array $fileOrDirectory, SymfonyStyle $io): void
+    private function importDataAndPreAggregate(array $fileOrDirectory, int $jobs, SymfonyStyle $io): void
     {
         if (! $fileOrDirectory) {
             $io->writeln('No files specified for import, only recomputing aggregates for existing data.');
@@ -151,9 +168,16 @@ class ImportPriceReportsCommand extends Command
         }
 
         $io->writeln('Importing price reports...');
-        [$time, $result] = measure(
-            fn () => $this->importer->import($fileOrDirectory, $io),
-        );
+        [$time, $result] = measure(function () use ($fileOrDirectory, $jobs, $io) {
+            $files = $this->importer->findFiles($fileOrDirectory);
+
+            // A single file cannot be split up, so there is no point in paying for worker startup
+            if ($jobs === 1 || count($files) < 2) {
+                return $this->importer->import($fileOrDirectory, $io);
+            }
+
+            return $this->parallelImporter->import($files, $this->importer->collection->getCollectionName(), $jobs, $io);
+        });
 
         $io->writeln(sprintf('Import took %.5fs: %d inserted, %d updated.', $time, $result->numInserted, $result->numUpdated));
 

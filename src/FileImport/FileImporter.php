@@ -20,14 +20,14 @@ use function fclose;
 use function fgetcsv;
 use function fopen;
 use function in_array;
+use function is_dir;
 use function is_file;
-use function is_string;
 use function sprintf;
 
 abstract class FileImporter
 {
     public function __construct(
-        public readonly Collection $collection,
+        public protected(set) Collection $collection,
         #[Autowire(service: 'doctrine_mongodb.odm.command_logger_registry')]
         private readonly CommandLoggerRegistry $commandLoggerRegistry,
     ) {
@@ -36,8 +36,64 @@ abstract class FileImporter
     /** @param array<string, string|null> $data */
     abstract protected function storeDocument(BulkWrite $bulk, array $data): void;
 
+    /**
+     * @param string|list<string> $fileOrDirectory
+     *
+     * @return list<string>
+     */
+    final public function findFiles(string|array $fileOrDirectory): array
+    {
+        $files = [];
+
+        foreach ((array) $fileOrDirectory as $path) {
+            if (is_file($path)) {
+                $files[] = $path;
+
+                continue;
+            }
+
+            if (! is_dir($path)) {
+                throw ImportException::fileNotFound($path);
+            }
+
+            $finder = new Finder();
+            $finder
+                ->in($path)
+                ->files()
+                ->name('*.csv');
+
+            foreach ($finder as $file) {
+                $files[] = $file->getRealPath();
+            }
+        }
+
+        return $files;
+    }
+
     /** @param string|list<string> $fileOrDirectory */
     final public function import(string|array $fileOrDirectory, ?SymfonyStyle $style = null): ImportResult
+    {
+        $files = $this->findFiles($fileOrDirectory);
+
+        if (count($files) === 1) {
+            return $this->importFiles($files, $style, verbose: true);
+        }
+
+        $style?->writeln(sprintf('Importing %d files...', count($files)));
+        $style?->progressStart(count($files), ProgressBar::FORMAT_DEBUG);
+
+        $result = $this->importFiles($files, onFileImported: static fn () => $style?->progressAdvance());
+
+        $style?->progressFinish();
+
+        return $result;
+    }
+
+    /**
+     * @param list<string>                                $files
+     * @param (callable(string, ImportResult): void)|null $onFileImported
+     */
+    final public function importFiles(array $files, ?SymfonyStyle $style = null, bool $verbose = false, ?callable $onFileImported = null): ImportResult
     {
         /* The bundle's profiler/APM command logger retains every executed command's full
          * BSON payload for the lifetime of the process - it's only cleared by the HTTP
@@ -47,26 +103,15 @@ abstract class FileImporter
         $this->commandLoggerRegistry->unregister();
 
         try {
-            if (is_string($fileOrDirectory) && is_file($fileOrDirectory)) {
-                return $this->importFile($fileOrDirectory, $style);
-            }
-
-            $finder = new Finder();
-            $finder
-                ->in($fileOrDirectory)
-                ->files()
-                ->name('*.csv');
-
-            $style?->writeln(sprintf('Importing %d files...', $finder->count()));
-            $style?->progressStart($finder->count(), ProgressBar::FORMAT_DEBUG);
-
             $result = new ImportResult();
-            foreach ($finder as $file) {
-                $result = $result->withResult($this->importFile($file->getRealPath()));
-                $style?->progressAdvance();
-            }
+            foreach ($files as $file) {
+                $fileResult = $this->importFile($file, $verbose ? $style : null);
+                $result = $result->withResult($fileResult);
 
-            $style?->progressFinish();
+                if ($onFileImported) {
+                    $onFileImported($file, $fileResult);
+                }
+            }
 
             return $result;
         } finally {

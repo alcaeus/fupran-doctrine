@@ -101,6 +101,26 @@ class ImportPriceReportsCommandTest extends KernelTestCase
         self::assertEqualsWithDelta(2.219, $bftSchmidtDayTwoDiesel['openingPrice'], 0.0001, 'openingPrice should be day one\'s diesel closingPrice for the Bft Schmidt station');
     }
 
+    public function testParallelImportMatchesSingleProcessImport(): void
+    {
+        $tester = new CommandTester(self::getContainer()->get(ImportPriceReportsCommand::class));
+
+        // Two files, so each of the two workers imports one of them
+        $tester->execute([
+            'fileOrDirectory' => [__DIR__ . '/../FileImport/Fixtures/prices-day1', __DIR__ . '/../FileImport/Fixtures/prices-day2'],
+            '--jobs' => 2,
+        ]);
+        self::assertSame(0, $tester->getStatusCode(), $tester->getDisplay());
+
+        $dayOne = $this->findRawDailyPrice(self::OIL_MUNICH_UUID, Fuel::Diesel, '2026-08-15');
+        self::assertEqualsWithDelta(2.159, $dayOne['closingPrice'], 0.0001);
+
+        // Days imported in the same run get their opening price from the previous day
+        $dayTwo = $this->findRawDailyPrice(self::OIL_MUNICH_UUID, Fuel::Diesel, '2026-08-16');
+        self::assertEqualsWithDelta(2.219, $dayTwo['closingPrice'], 0.0001);
+        self::assertEqualsWithDelta(2.159, $dayTwo['openingPrice'], 0.0001);
+    }
+
     private function findDailyPrice(string $stationUuid, Fuel $fuel, string $day): DailyPrice
     {
         $documentManager = self::getDocumentManager();
