@@ -54,7 +54,7 @@ class PriceHistory extends ChartJs
                     'x' => $price->day->getTimestamp() * 1000,
                     'y' => $getPrice($price),
                 ],
-                $this->station->latestPrices->$fuelType->toArray(),
+                $this->station->latestPrices?->$fuelType?->toArray() ?? [],
             ),
         ];
     }

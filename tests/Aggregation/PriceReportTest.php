@@ -405,7 +405,8 @@ class PriceReportTest extends TestCase
 
     private function getClient(): Client
     {
-        return new Client(getenv('MONGODB_URI') ?: null);
+        // Same variable as the application; loaded from .env by tests/bootstrap.php, with the server provided by the Symfony CLI
+        return new Client($_SERVER['MONGODB_URL'] ?? (getenv('MONGODB_URI') ?: null));
     }
 
     private function getTestDatabase(): Database

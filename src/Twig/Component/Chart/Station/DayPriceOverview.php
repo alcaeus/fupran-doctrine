@@ -65,7 +65,7 @@ class DayPriceOverview extends ChartJs
                     'x' => $price->date->getTimestamp() * 1000,
                     'y' => $price->price,
                 ],
-                $dailyPrice->prices->toArray(),
+                $dailyPrice->prices?->toArray() ?? [],
             ),
         ];
     }

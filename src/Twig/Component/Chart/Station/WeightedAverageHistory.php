@@ -50,7 +50,7 @@ class WeightedAverageHistory extends ChartJs
                     'x' => $price->day->getTimestamp() * 1000,
                     'y' => $price->weightedAveragePrice,
                 ],
-                $this->station->latestPrices->$fuelType->toArray(),
+                $this->station->latestPrices?->$fuelType?->toArray() ?? [],
             ),
         ];
     }
