@@ -48,6 +48,10 @@ class ImportPriceReportsCommandTest extends KernelTestCase
         $documentManager->getDocumentCollection(DailyAggregate::class)
             ->createIndex(['day' => 1, 'fuel' => 1], ['unique' => true]);
 
+        // Same for DailyPrice: the unique index is what makes merging price reports of an already imported day fail
+        $documentManager->getDocumentCollection(DailyPrice::class)
+            ->createIndex(['fuel' => 1, 'day' => -1, 'station._id' => 1], ['unique' => true]);
+
         // Stations must exist beforehand: the aggregation pipeline joins price reports
         // against the Station collection and drops any report it cannot match.
         self::getContainer()->get(StationFileImporter::class)
@@ -83,6 +87,19 @@ class ImportPriceReportsCommandTest extends KernelTestCase
 
         $bftSchmidtDayTwoDiesel = $this->findRawDailyPrice(self::BFT_SCHMIDT_UUID, Fuel::Diesel, '2026-08-16');
         self::assertEqualsWithDelta(2.219, $bftSchmidtDayTwoDiesel['openingPrice'], 0.0001, 'openingPrice should be day one\'s diesel closingPrice for the Bft Schmidt station');
+    }
+
+    public function testReimportingAlreadyImportedDaysDoesNotFail(): void
+    {
+        $collection = self::getDocumentManager()->getDocumentCollection(DailyPrice::class);
+
+        $this->importDaysInSeparateRuns(['prices-day1'], []);
+        $count = $collection->countDocuments();
+        self::assertGreaterThan(0, $count);
+
+        // Each run pre-aggregates into a new collection with new document ids, as is the case when recovering an interrupted import
+        $this->importDaysInSeparateRuns(['prices-day1'], []);
+        self::assertSame($count, $collection->countDocuments());
     }
 
     public function testOpeningPriceIsUpdatedWhenAnEarlierDayIsImportedLater(): void

@@ -93,8 +93,11 @@ class DailyPriceRepository extends AbstractRepository
     {
         $aggregatedPriceReports->aggregate(new Pipeline(
             PriceReport::aggregatePriceData($stationRange),
+            // Match on the unique index instead of _id: the _ids of pre-aggregated reports are generated on every
+            // run, so an import that is repeated or recovered would not recognise days that were already merged.
             Stage::merge(
                 into: $this->getDocumentCollection()->getCollectionName(),
+                on: ['fuel', 'day', 'station._id'],
                 whenMatched: 'keepExisting',
             ),
         ));
