@@ -5,19 +5,15 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Aggregation\ParallelPriceReportAggregator;
-use App\Aggregation\PriceReport;
 use App\Document\Station;
 use App\FileImport\ImportException;
 use App\FileImport\ParallelFileImporter;
 use App\FileImport\PriceReportFileImporter;
 use App\Repository\DailyAggregateRepository;
 use App\Repository\DailyPriceRepository;
-use App\Repository\StationRepository;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use InvalidArgumentException;
 use MongoDB\BSON\Regex;
-use MongoDB\Builder\Pipeline;
-use MongoDB\Builder\Stage;
 use MongoDB\Collection;
 use MongoDB\Database;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -49,6 +45,7 @@ class ImportPriceReportsCommand extends Command
 {
     private readonly Database $database;
     private Collection $collection;
+    private bool $latestPricesUpdated = false;
 
     public function __construct(
         private readonly PriceReportFileImporter $importer,
@@ -56,7 +53,6 @@ class ImportPriceReportsCommand extends Command
         private readonly ParallelPriceReportAggregator $parallelAggregator,
         private readonly DailyPriceRepository $dailyPriceRepository,
         private readonly DailyAggregateRepository $dailyAggregateRepository,
-        private readonly StationRepository $stationRepository,
         DocumentManager $documentManager,
     ) {
         parent::__construct(null);
@@ -107,7 +103,10 @@ class ImportPriceReportsCommand extends Command
         // TODO: Get days that were updated to only recompute changed data
         $this->computeDailyAggregates($io);
 
-        $this->updateLatestStationPrices($io);
+        // The aggregation workers already set the latest prices of their stations
+        if (! $this->latestPricesUpdated) {
+            $this->updateLatestStationPrices($io);
+        }
 
         return Command::SUCCESS;
     }
@@ -254,20 +253,7 @@ class ImportPriceReportsCommand extends Command
     {
         $io->write('Setting last price report for stations...');
 
-        $pipeline = new Pipeline(
-            PriceReport::getLatestPriceReportsPerStation(),
-            Stage::merge(
-                into: $this->stationRepository->getDocumentCollection()->getCollectionName(),
-                on: '_id',
-            ),
-        );
-
-        [$time] = measure(
-            fn () => $this
-                ->dailyPriceRepository
-                ->getDocumentCollection()
-                ->aggregate($pipeline),
-        );
+        [$time] = measure($this->dailyPriceRepository->updateLatestStationPrices(...));
 
         $io->writeln(sprintf('Done in %.5fs.', $time));
     }
@@ -320,7 +306,7 @@ class ImportPriceReportsCommand extends Command
          */
         $this->createAggregatedIndex($io);
 
-        $io->write(sprintf('Aggregating price reports and merging into prices collection using %d worker processes...', $jobs));
+        $io->write(sprintf('Aggregating price reports, merging into prices collection and setting latest station prices using %d worker processes...', $jobs));
 
         [$time] = measure(
             fn () => $this->parallelAggregator->aggregate(
@@ -329,6 +315,8 @@ class ImportPriceReportsCommand extends Command
                 $jobs,
             ),
         );
+
+        $this->latestPricesUpdated = true;
 
         // Only drop the temporary collections once all workers succeeded, so a failed run can be recovered
         $importCollection?->drop();

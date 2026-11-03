@@ -27,7 +27,7 @@ use const FILTER_VALIDATE_INT;
  *
  * Runs the pre-aggregation for stations in one slice of the UUID space: optionally groups
  * raw price reports into the aggregated collection, then merges the aggregated price reports
- * into the DailyPrice collection.
+ * into the DailyPrice collection and sets the latest prices on the slice's stations.
  */
 #[AsCommand(
     name: 'app:import:price-reports-aggregate-worker',
@@ -69,6 +69,11 @@ final class AggregatePriceReportsWorkerCommand extends Command
         }
 
         $this->dailyPriceRepository->mergeAggregatedPriceReports($aggregated, $range);
+
+        /* Stations are independent of each other, so once the prices of this slice of stations are merged
+         * their latest prices can be set without waiting for the other workers.
+         */
+        $this->dailyPriceRepository->updateLatestStationPrices($range);
 
         return Command::SUCCESS;
     }

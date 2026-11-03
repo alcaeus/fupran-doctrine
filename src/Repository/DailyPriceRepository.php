@@ -62,6 +62,20 @@ class DailyPriceRepository extends AbstractRepository
         ));
     }
 
+    /**
+     * Sets the latest price and the last 30 prices per fuel on stations, optionally only for a slice of stations.
+     */
+    public function updateLatestStationPrices(?UuidRange $stationRange = null): void
+    {
+        $this->getDocumentCollection()->aggregate(new Pipeline(
+            PriceReport::getLatestPriceReportsPerStation($stationRange),
+            Stage::merge(
+                into: $this->dm->getDocumentCollection(Station::class)->getCollectionName(),
+                on: '_id',
+            ),
+        ));
+    }
+
     /** @return Iterator<DailyPrice> */
     public function getLatestPricesForStation(Station $station): Iterator
     {

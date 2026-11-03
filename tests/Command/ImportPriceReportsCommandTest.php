@@ -123,6 +123,19 @@ class ImportPriceReportsCommandTest extends KernelTestCase
         // The two stations fall into different slices of the UUID space, so different aggregation workers
         $otherStationDayTwo = $this->findRawDailyPrice(self::BFT_SCHMIDT_UUID, Fuel::Diesel, '2026-08-16');
         self::assertEqualsWithDelta(2.219, $otherStationDayTwo['openingPrice'], 0.0001);
+
+        // The aggregation workers also set the latest prices for the stations in their slice
+        $binaryUuidType = Type::getType(Type::UUID);
+        assert($binaryUuidType instanceof BinaryUuidType);
+
+        foreach ([self::OIL_MUNICH_UUID, self::BFT_SCHMIDT_UUID] as $stationUuid) {
+            self::assertSame(1, self::getDocumentManager()->getDocumentCollection(Station::class)->countDocuments([
+                '_id' => $binaryUuidType->convertToDatabaseValue($stationUuid),
+                'latestPrice.diesel.closingPrice' => $this->findRawDailyPrice($stationUuid, Fuel::Diesel, '2026-08-16')['closingPrice'],
+                'latestPrice.diesel.day' => new UTCDateTime(new DateTimeImmutable('2026-08-16', new DateTimeZone('UTC'))),
+                'latestPrices.diesel' => ['$size' => 2],
+            ]));
+        }
     }
 
     private function findDailyPrice(string $stationUuid, Fuel $fuel, string $day): DailyPrice

@@ -437,9 +437,10 @@ class PriceReport
         );
     }
 
-    public static function getLatestPriceReportsPerStation(): Pipeline
+    public static function getLatestPriceReportsPerStation(?UuidRange $stationRange = null): Pipeline
     {
         return new Pipeline(
+            self::matchStationRange('station._id', $stationRange),
             Stage::sort(fuel: 1, day: -1),
             Stage::group(
                 _id: object(
