@@ -11,6 +11,12 @@ abstract class ChartJs
 {
     public const TEMPLATE = 'components/ChartJs.html.twig';
 
+    /** Thin lines and no resting dots keep multi-year daily series readable; dots appear on hover, and the hit radius keeps tooltips easy to trigger. */
+    protected const HISTORY_ELEMENTS = [
+        'line' => ['borderWidth' => 1.5],
+        'point' => ['radius' => 0, 'hoverRadius' => 4, 'hitRadius' => 6],
+    ];
+
     public function __construct(protected readonly ChartBuilderInterface $chartBuilder)
     {
     }

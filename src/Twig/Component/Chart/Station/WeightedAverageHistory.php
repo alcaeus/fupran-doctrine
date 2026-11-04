@@ -28,6 +28,7 @@ class WeightedAverageHistory extends ChartJs
 
         $chart->setOptions([
             'parsing' => false,
+            'elements' => self::HISTORY_ELEMENTS,
             'scales' => [
                 'x' => [
                     'type' => 'time',
