@@ -31,6 +31,9 @@ class StationRepository extends AbstractRepository
                         ->autocomplete('address.city', $query)
                         ->autocomplete('address.postCode', $query)
             ->sort('score', ['$meta' => 'searchScore']);
+        $builder
+            ->match()
+                ->field('visible')->equals(true);
 
         return $builder;
     }
@@ -38,6 +41,7 @@ class StationRepository extends AbstractRepository
     public function listByPostCode(string $postCode): QueryBuilder
     {
         return $this->createQueryBuilder()
+            ->field('visible')->equals(true)
             ->field('address.postCode')->equals($postCode);
     }
 }

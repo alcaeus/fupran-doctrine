@@ -15,11 +15,13 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use Doctrine\ODM\MongoDB\PersistentCollection\PersistentCollectionInterface;
+use MongoDB\BSON\Binary;
 use MongoDB\BSON\Document;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
 use function array_map;
 use function iterator_to_array;
+use function random_bytes;
 
 class DailyPriceRepositoryTest extends KernelTestCase
 {
@@ -190,6 +192,22 @@ JSON;
         $this->assertInstanceOf(Station::class, $station);
         $this->assertNotNull($station->latestPrice);
         $this->assertEquals($dailyPrice->id, $station->latestPrice->diesel->id);
+        $this->assertTrue($station->visible);
+    }
+
+    public function testUpdateLatestStationPricesOnlyMakesStationsWithPricesVisible(): void
+    {
+        self::insertSampleData();
+
+        $documentManager = self::getDocumentManager();
+        $stations = $documentManager->getDocumentCollection(Station::class);
+        $stations->updateOne(['name' => 'Test Station'], ['$unset' => ['visible' => '']]);
+        $stations->insertOne(['_id' => new Binary(random_bytes(16), Binary::TYPE_UUID), 'name' => 'No Prices']);
+
+        self::getContainer()->get(DailyPriceRepository::class)->updateLatestStationPrices();
+
+        $this->assertSame(1, $stations->countDocuments(['visible' => true, 'name' => 'Test Station']));
+        $this->assertSame(0, $stations->countDocuments(['name' => 'No Prices', 'visible' => ['$exists' => true]]));
     }
 
     public function testAddNewLowerPrice(): void

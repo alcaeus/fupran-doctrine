@@ -259,6 +259,29 @@ class StationsControllerTest extends WebTestCase
         self::assertSelectorExists(sprintf('a[href="/stations/%s"]', $matching->id));
     }
 
+    public function testListingsHideStationsWithoutPrices(): void
+    {
+        self::persistStation('Hidden Station', favorite: true, visible: false);
+        self::persistStation('Shown Station', favorite: true);
+
+        foreach (['/stations/1', '/stations/favorites/1', '/stations/postCode/12345/1'] as $url) {
+            $this->client->request('GET', $url);
+
+            self::assertResponseIsSuccessful();
+            self::assertSelectorTextContains('#stations', 'Shown Station');
+            self::assertStringNotContainsString('Hidden Station', (string) $this->client->getResponse()->getContent());
+        }
+    }
+
+    public function testShowStillWorksForStationWithoutPrices(): void
+    {
+        $station = self::persistStation('Hidden Station', visible: false);
+
+        $this->client->request('GET', '/stations/' . $station->id);
+
+        self::assertResponseIsSuccessful();
+    }
+
     public function testPostCodeShowsEmptyStateWithoutMatches(): void
     {
         self::persistStation('Different Post Code', postCode: '54321');
@@ -286,7 +309,7 @@ class StationsControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
-    private static function persistStation(string $name, bool $favorite = false, string $postCode = '12345'): Station
+    private static function persistStation(string $name, bool $favorite = false, string $postCode = '12345', bool $visible = true): Station
     {
         $station = new Station();
         $station->name = $name;
@@ -294,6 +317,7 @@ class StationsControllerTest extends WebTestCase
         $station->address = new Address('Teststraße', '1', $postCode, 'Musterstadt');
         $station->location = new Point([11.4609, 48.1807]);
         $station->favorite = $favorite;
+        $station->visible = $visible;
 
         $documentManager = self::getDocumentManager();
         $documentManager->persist($station);
