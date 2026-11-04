@@ -186,6 +186,15 @@ JSON;
         $this->assertEquals($firstPrice->id, $dailyPrice->lowestPrice->id);
         $this->assertEquals($latestPrice->id, $dailyPrice->highestPrice->id);
 
+        $this->assertNotNull($dailyPrice->changes);
+        $this->assertSame(1, $dailyPrice->changes->increases);
+        $this->assertSame(1, $dailyPrice->changes->decreases);
+        $this->assertSame(2, $dailyPrice->changes->total);
+        $this->assertEqualsWithDelta(0.06, $dailyPrice->changes->largestIncrease, 0.0001);
+        $this->assertEqualsWithDelta(-0.03, $dailyPrice->changes->largestDecrease, 0.0001);
+        $this->assertEqualsWithDelta(0.045, $dailyPrice->changes->averageChange, 0.0001);
+        $this->assertSame(10800, $dailyPrice->changes->shortestInterval);
+
         // TODO: Workaround since we can't refresh documents with readonly properties
         $documentManager->detach($station);
         $station = $documentManager->find(Station::class, $station->id);

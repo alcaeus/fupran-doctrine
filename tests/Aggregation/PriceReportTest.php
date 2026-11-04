@@ -124,6 +124,53 @@ class PriceReportTest extends TestCase
         self::assertSame($expectedWeightedAverage, $result->weightedAveragePrice);
     }
 
+    /** @return Generator<string, array{array<string, mixed>, list<array<string, mixed>>}> */
+    public static function dataComputeChanges(): Generator
+    {
+        $at = static fn (string $time): UTCDateTime => new UTCDateTime(new DateTimeImmutable('2025-06-27T' . $time . '+00:00'));
+
+        yield 'no prices' => [
+            ['increases' => 0, 'decreases' => 0, 'total' => 0, 'largestIncrease' => null, 'largestDecrease' => null, 'averageChange' => null, 'shortestInterval' => null],
+            [],
+        ];
+
+        yield 'single price without change' => [
+            ['increases' => 0, 'decreases' => 0, 'total' => 0, 'largestIncrease' => null, 'largestDecrease' => null, 'averageChange' => null, 'shortestInterval' => null],
+            [['date' => $at('08:00:00'), 'price' => 1.5, 'previousPrice' => null, 'change' => null]],
+        ];
+
+        yield 'repeated price is not a change' => [
+            ['increases' => 0, 'decreases' => 0, 'total' => 0, 'largestIncrease' => null, 'largestDecrease' => null, 'averageChange' => null, 'shortestInterval' => 60],
+            [
+                ['date' => $at('08:00:00'), 'price' => 1.5, 'previousPrice' => 1.5, 'change' => 0.0],
+                ['date' => $at('08:01:00'), 'price' => 1.5, 'previousPrice' => 1.5, 'change' => 0.0],
+            ],
+        ];
+
+        yield 'mixed changes' => [
+            ['increases' => 2, 'decreases' => 1, 'total' => 3, 'largestIncrease' => 0.25, 'largestDecrease' => -0.5, 'averageChange' => 0.3333, 'shortestInterval' => 600],
+            [
+                ['date' => $at('06:00:00'), 'price' => 1.5, 'previousPrice' => null, 'change' => null],
+                ['date' => $at('08:00:00'), 'price' => 1.75, 'previousPrice' => 1.5, 'change' => 0.25],
+                ['date' => $at('08:10:00'), 'price' => 1.25, 'previousPrice' => 1.75, 'change' => -0.5],
+                ['date' => $at('12:00:00'), 'price' => 1.5, 'previousPrice' => 1.25, 'change' => 0.25],
+            ],
+        ];
+    }
+
+    /**
+     * @param array<string, mixed>       $expected
+     * @param list<array<string, mixed>> $prices
+     */
+    #[DataProvider('dataComputeChanges')]
+    public function testComputeChanges(array $expected, array $prices): void
+    {
+        $result = $this->runPipelineForSingleDocument(['prices' => $prices], PriceReport::computeChanges());
+
+        self::assertObjectNotHasProperty('changeValues', $result);
+        self::assertMongoResultEquals($expected, $result->changes);
+    }
+
     public function testGroupPriceReportsByStationDayFuel(): void
     {
         $day = new UTCDateTime(new DateTimeImmutable('2025-06-27T00:00:00+00:00'));

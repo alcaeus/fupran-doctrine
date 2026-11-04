@@ -304,6 +304,7 @@ class DailyPriceRepository extends AbstractRepository
                 highestPrice: self::conditionallyUpdateHighestPrice($priceDocument),
             ),
             PriceReport::computeWeightedAverage(),
+            PriceReport::computeChanges(),
         );
     }
 
@@ -315,6 +316,7 @@ class DailyPriceRepository extends AbstractRepository
                 openingPrice: $closingPrice,
             ),
             PriceReport::computeWeightedAverage(),
+            PriceReport::computeChanges(),
         );
     }
 
