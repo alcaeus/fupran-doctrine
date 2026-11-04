@@ -1,15 +1,15 @@
 <form method="get" action="{{ path(this.routeName, this.routeParams) }}" data-turbo-frame="{{ this.frame }}" data-turbo-action="advance" class="row g-2 align-items-end mb-3">
-    <div class="col-auto">
-        <label for="{{ this.frame }}_from" class="form-label mb-0">From</label>
-        <input type="date" class="form-control form-control-sm" id="{{ this.frame }}_from" name="from" value="{{ this.range.from|date('Y-m-d') }}" required{% if this.min %} min="{{ this.min|date('Y-m-d') }}"{% endif %} max="{{ this.max|date('Y-m-d') }}">
+    <div class="form-field col-auto">
+        <div class="input-group input-group-sm">
+            <label for="{{ this.frame }}_from" class="visually-hidden">From</label>
+            <input type="date" class="form-control" id="{{ this.frame }}_from" name="from" value="{{ this.range.from|date('Y-m-d') }}" required{% if this.min %} min="{{ this.min|date('Y-m-d') }}"{% endif %} max="{{ this.max|date('Y-m-d') }}">
+            <span class="input-group-text" aria-hidden="true">-</span>
+            <label for="{{ this.frame }}_to" class="visually-hidden">To</label>
+            <input type="date" class="form-control" id="{{ this.frame }}_to" name="to" value="{{ this.range.to|date('Y-m-d') }}" required{% if this.min %} min="{{ this.min|date('Y-m-d') }}"{% endif %} max="{{ this.max|date('Y-m-d') }}">
+            <button type="submit" class="btn btn-primary input-group-btn">Show</button>
+        </div>
     </div>
-    <div class="col-auto">
-        <label for="{{ this.frame }}_to" class="form-label mb-0">To</label>
-        <input type="date" class="form-control form-control-sm" id="{{ this.frame }}_to" name="to" value="{{ this.range.to|date('Y-m-d') }}" required{% if this.min %} min="{{ this.min|date('Y-m-d') }}"{% endif %} max="{{ this.max|date('Y-m-d') }}">
-    </div>
-    <div class="col-auto">
-        <button type="submit" class="btn btn-sm btn-primary">Show</button>
-    </div>
+
     <div class="col-auto">
         <div class="btn-group btn-group-sm" role="group" aria-label="Presets">
             {% for label, preset in this.presets %}
