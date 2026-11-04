@@ -12,7 +12,6 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use UnexpectedValueException;
 
@@ -21,10 +20,9 @@ use function is_string;
 /**
  * Internal worker for `app:import:price-reports --jobs=N`; not meant to be run by hand.
  *
- * Runs the pre-aggregation for stations in one slice of the UUID space: optionally groups
- * raw price reports into the aggregated collection, then merges the aggregated price reports
- * into the DailyPrice collection, connects them to previously imported days and sets the latest
- * prices on the slice's stations.
+ * Runs the second step of the pre-aggregation for stations in one slice of the UUID space: merges the
+ * aggregated price reports into the DailyPrice collection, connects them to previously imported days
+ * and sets the latest prices on the slice's stations.
  */
 #[AsCommand(
     name: 'app:import:price-reports-aggregate-worker',
@@ -46,8 +44,7 @@ final class AggregatePriceReportsWorkerCommand extends Command
             ->addArgument('aggregated-collection', InputArgument::REQUIRED, 'Name of the collection for pre-aggregated price reports')
             ->addArgument('updated-days-collection', InputArgument::REQUIRED, 'Name of the collection for previously imported days that had their opening price updated')
             ->addArgument('part', InputArgument::REQUIRED, 'Zero-based index of the slice of stations to process')
-            ->addArgument('parts', InputArgument::REQUIRED, 'Number of slices the stations are split into')
-            ->addOption('import-collection', null, InputOption::VALUE_REQUIRED, 'Name of the collection with raw price reports; if omitted, only the second step is run');
+            ->addArgument('parts', InputArgument::REQUIRED, 'Number of slices the stations are split into');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -57,15 +54,6 @@ final class AggregatePriceReportsWorkerCommand extends Command
         $database = $this->documentManager->getDocumentDatabase(Station::class);
         $aggregated = $database->selectCollection($this->getString($input->getArgument('aggregated-collection')));
         $updatedDays = $database->selectCollection($this->getString($input->getArgument('updated-days-collection')));
-
-        $importCollection = $input->getOption('import-collection');
-        if ($importCollection !== null) {
-            $this->dailyPriceRepository->aggregatePriceReportsByDay(
-                $database->selectCollection($this->getString($importCollection)),
-                $aggregated,
-                $range,
-            );
-        }
 
         $this->dailyPriceRepository->resolveBoundaryOpeningPrices($aggregated, $range);
         $this->dailyPriceRepository->mergeAggregatedPriceReports($aggregated, $range);

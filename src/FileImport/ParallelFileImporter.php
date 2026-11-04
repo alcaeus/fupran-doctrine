@@ -43,7 +43,7 @@ final class ParallelFileImporter
         $partitions = $this->partition($files, $jobs);
 
         $style?->writeln(sprintf('Importing %d files using %d worker processes...', count($files), count($partitions)));
-        $style?->progressStart(count($files), ProgressBar::FORMAT_DEBUG);
+        $style?->progressStart(count($files), ProgressBar::FORMAT_VERY_VERBOSE);
 
         $result = new ImportResult();
         $buffers = [];

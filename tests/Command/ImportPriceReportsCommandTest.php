@@ -18,6 +18,7 @@ use Doctrine\ODM\MongoDB\Types\BinaryUuidType;
 use Doctrine\ODM\MongoDB\Types\Type;
 use InvalidArgumentException;
 use MongoDB\BSON\UTCDateTime;
+use RuntimeException;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\Tester\CommandTester;
 
@@ -232,6 +233,30 @@ class ImportPriceReportsCommandTest extends KernelTestCase
         // Importing the next day in a separate run still connects to the recovered data
         $this->importDaysInSeparateRuns(['prices-day2'], []);
         $this->assertDayTwoOpeningPrices();
+    }
+
+    public function testRecoveryFromAggregatedCollectionWithNonUniqueIndexFailsWithHint(): void
+    {
+        $database = self::getDocumentManager()->getDocumentDatabase(DailyPrice::class);
+        foreach ($database->listCollectionNames() as $name) {
+            if (str_starts_with($name, 'priceReportImport_') || str_starts_with($name, 'aggregatedPriceReports_') || str_starts_with($name, 'updatedDays_')) {
+                $database->dropCollection($name);
+            }
+        }
+
+        // Simulate a leftover collection from before the index became unique
+        $stale = $database->getCollection('aggregatedPriceReports_stale');
+        $stale->createIndex(['station._id' => 1, 'fuel' => 1, 'day' => 1]);
+
+        try {
+            $tester = new CommandTester(self::getContainer()->get(ImportPriceReportsCommand::class));
+
+            $this->expectException(RuntimeException::class);
+            $this->expectExceptionMessage('aggregatedPriceReports_stale was created by an earlier version');
+            $tester->execute(['--recover' => true]);
+        } finally {
+            $stale->drop();
+        }
     }
 
     public function testParallelImportMatchesSingleProcessImport(): void

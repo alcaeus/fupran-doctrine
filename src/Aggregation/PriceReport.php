@@ -27,15 +27,23 @@ class PriceReport
 {
     public const int SECONDS_IN_DAY = 86400;
 
-    public static function aggregatePriceReportsByDay(?UuidRange $stationRange = null): Pipeline
+    /**
+     * Groups the raw price reports of the given stations by station, day and fuel.
+     *
+     * Reports are read in the order of the {station, date} index of the import collection, so no stage has to
+     * sort them and every group receives its prices in the order they were reported.
+     *
+     * @param non-empty-list<stdClass> $stations Station documents (_id, name, brand, location, address.postCode)
+     */
+    public static function aggregatePriceReportsByDay(array $stations): Pipeline
     {
         return new Pipeline(
-            self::matchStationRange('station', $stationRange),
+            self::matchStations($stations),
+            Stage::sort(station: 1, date: 1),
             Stage::set(day: Expression::dateTrunc(Expression::dateFieldPath('date'), unit: 'day')),
             self::groupPriceReportsByStationDayFuel(),
             self::reshapeGroupedPriceReports(),
-            self::addExtremeValues(),
-            self::lookupStation(),
+            self::attachStations($stations),
             self::addPreviousPriceToList(),
         );
     }
@@ -224,17 +232,24 @@ class PriceReport
 
     public static function groupPriceReportsByStationDayFuel(): Stage\GroupStage
     {
+        $price = object(
+            _id: Expression::fieldPath('_id'),
+            date: Expression::fieldPath('date'),
+            price: Expression::fieldPath('price'),
+        );
+
         return Stage::group(
             _id: object(
                 station: Expression::fieldPath('station'),
                 day: Expression::fieldPath('day'),
                 fuel: Expression::fieldPath('fuel'),
             ),
-            prices: Accumulator::push(object(
-                _id: Expression::fieldPath('_id'),
-                date: Expression::fieldPath('date'),
-                price: Expression::fieldPath('price'),
-            )),
+            // Relies on the input being sorted by date
+            prices: Accumulator::push($price),
+            closingPrice: Accumulator::last(Expression::fieldPath('price')),
+            // Ties between equal prices are resolved in favour of the earliest report
+            lowestPrice: Accumulator::top(output: $price, sortBy: object(price: 1, date: 1)),
+            highestPrice: Accumulator::top(output: $price, sortBy: object(price: -1, date: 1)),
         );
     }
 
@@ -244,56 +259,54 @@ class PriceReport
             day: Expression::fieldPath('_id.day'),
             station: Expression::fieldPath('_id.station'),
             fuel: Expression::fieldPath('_id.fuel'),
-            prices: Expression::sortArray(
-                Expression::arrayFieldPath('prices'),
-                object(date: 1),
-            ),
-            pricesByPrice: Expression::sortArray(
-                Expression::arrayFieldPath('prices'),
-                object(price: 1),
-            ),
+            prices: Expression::arrayFieldPath('prices'),
+            closingPrice: Expression::fieldPath('closingPrice'),
+            lowestPrice: Expression::fieldPath('lowestPrice'),
+            highestPrice: Expression::fieldPath('highestPrice'),
         ));
     }
 
-    public static function addExtremeValues(): Stage\SetStage
+    /** @param non-empty-list<stdClass> $stations */
+    public static function matchStations(array $stations): Stage\MatchStage
+    {
+        return Stage::match(station: Query::in(self::getStationIds($stations)));
+    }
+
+    /**
+     * Replaces the station id with the (partial) station document.
+     *
+     * The stations are embedded as literals instead of being looked up from the Station collection: a $lookup
+     * runs once for every output document, whereas a chunk only covers a few hundred stations. Looking
+     * an id up in a literal array is a linear scan over those few hundred ids, which is simpler than building
+     * one pipeline per station and does not depend on binary ids being usable as field names for $getField.
+     *
+     * Every report must belong to one of the given stations: $indexOfArray returns -1 for an unknown id, and
+     * $arrayElemAt with -1 would silently pick the last station. matchStations() called with the same list
+     * guarantees this.
+     *
+     * @param non-empty-list<stdClass> $stations
+     */
+    public static function attachStations(array $stations): Stage\SetStage
     {
         return Stage::set(
-            closingPrice: Expression::getField(
-                'price',
-                Expression::last(Expression::arrayFieldPath('prices')),
+            station: Expression::arrayElemAt(
+                Expression::literal($stations),
+                Expression::indexOfArray(
+                    Expression::literal(self::getStationIds($stations)),
+                    Expression::fieldPath('station'),
+                ),
             ),
-            lowestPrice: Expression::first(Expression::arrayFieldPath('pricesByPrice')),
-            highestPrice: Expression::last(Expression::arrayFieldPath('pricesByPrice')),
-            pricesByPrice: Expression::variable('REMOVE'),
         );
     }
 
-    public static function lookupStation(): Pipeline
+    /**
+     * @param non-empty-list<stdClass> $stations
+     *
+     * @return list<mixed>
+     */
+    private static function getStationIds(array $stations): array
     {
-        return new Pipeline(
-            Stage::lookup(
-                as: 'station',
-                // TODO: Remove hardcoded collection name
-                from: 'Station',
-                localField: 'station',
-                foreignField: '_id',
-                pipeline: new Pipeline(
-                    Stage::project(
-                        _id: true,
-                        name: true,
-                        brand: true,
-                        location: true,
-                        address: object(
-                            postCode: true,
-                        ),
-                    ),
-                ),
-            ),
-            Stage::set(
-                station: Expression::first(Expression::arrayFieldPath('station')),
-            ),
-            Stage::match(station: Query::ne(null)),
-        );
+        return array_map(static fn (stdClass $station): mixed => $station->_id, $stations);
     }
 
     public static function addPreviousPriceToList(): Stage\SetStage

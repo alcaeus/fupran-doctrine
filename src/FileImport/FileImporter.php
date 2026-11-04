@@ -80,7 +80,7 @@ abstract class FileImporter
         }
 
         $style?->writeln(sprintf('Importing %d files...', count($files)));
-        $style?->progressStart(count($files), ProgressBar::FORMAT_DEBUG);
+        $style?->progressStart(count($files), ProgressBar::FORMAT_VERY_VERBOSE);
 
         $result = $this->importFiles($files, onFileImported: static fn () => $style?->progressAdvance());
 

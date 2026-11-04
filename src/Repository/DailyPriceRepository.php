@@ -16,12 +16,14 @@ use Closure;
 use DateTimeImmutable;
 use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
 use Doctrine\ODM\MongoDB\Iterator\Iterator;
+use MongoDB\BSON\Binary;
 use MongoDB\Builder\Expression;
 use MongoDB\Builder\Pipeline;
 use MongoDB\Builder\Stage;
 use MongoDB\Builder\Stage\ReplaceWithStage;
 use MongoDB\Builder\Type\ExpressionInterface;
 use MongoDB\Collection;
+use stdClass;
 use UnexpectedValueException;
 
 use function count;
@@ -38,13 +40,43 @@ class DailyPriceRepository extends AbstractRepository
     }
 
     /**
-     * Groups raw price reports by station, day and fuel, and merges the result into the target collection.
+     * Groups the raw price reports of the given stations by station, day and fuel, and merges the result into the
+     * target collection. Merging on the unique index of the target makes this safe to repeat for the same stations.
+     *
+     * @param list<Binary> $stationIds
      */
-    public function aggregatePriceReportsByDay(Collection $importCollection, Collection $into, ?UuidRange $stationRange = null): void
+    public function aggregatePriceReportsByDay(Collection $importCollection, Collection $into, array $stationIds): void
     {
+        $cursor = $this->dm->getDocumentCollection(Station::class)->find(
+            ['_id' => ['$in' => $stationIds]],
+            [
+                'projection' => ['name' => 1, 'brand' => 1, 'location' => 1, 'address.postCode' => 1],
+                'typeMap' => ['root' => 'object', 'document' => 'object', 'array' => 'array'],
+            ],
+        );
+
+        $stations = [];
+        foreach ($cursor as $station) {
+            if (! $station instanceof stdClass) {
+                throw new UnexpectedValueException('Expected station to be an object.');
+            }
+
+            $stations[] = $station;
+        }
+
+        // Reports of stations that no longer exist cannot be aggregated
+        if ($stations === []) {
+            return;
+        }
+
         $importCollection->aggregate(new Pipeline(
-            PriceReport::aggregatePriceReportsByDay($stationRange),
-            Stage::merge($into->getCollectionName()),
+            PriceReport::aggregatePriceReportsByDay($stations),
+            Stage::merge(
+                into: $into->getCollectionName(),
+                on: ['station._id', 'fuel', 'day'],
+                whenMatched: 'replace',
+                whenNotMatched: 'insert',
+            ),
         ));
     }
 
