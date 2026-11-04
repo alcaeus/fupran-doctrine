@@ -75,6 +75,9 @@ final class PriceReportFileImporter extends FileImporter
 
         $date = new UTCDateTime($timestamp * 1000);
         $stationUUID = $this->binaryUuidType->convertToDatabaseValue($rawData['station_uuid']);
+        if ($stationUUID === null) {
+            throw new UnexpectedValueException('Missing "station_uuid" column in price report row.');
+        }
 
         return array_filter([
             $this->buildDocument($rawData, 'diesel', $date, $stationUUID),
