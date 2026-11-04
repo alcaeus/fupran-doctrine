@@ -73,6 +73,23 @@ for the import to be idempotent, so create the schema **before** importing any
 data. If you only want to (re)create the indexes later, use
 `doctrine:mongodb:schema:update`.
 
+### Upgrading: station visibility
+
+Stations are only listed once they have prices (`Station.visible`, set whenever
+latest prices are written). After updating, run `doctrine:mongodb:schema:update`
+and backfill the flag for stations that already have prices:
+
+```js
+db.Station.updateMany(
+  { $or: [
+    { "latestPrices.diesel.0": { $exists: true } },
+    { "latestPrices.e5.0": { $exists: true } },
+    { "latestPrices.e10.0": { $exists: true } },
+  ] },
+  { $set: { visible: true } }
+);
+```
+
 ## Loading data
 
 ### 1. Stations

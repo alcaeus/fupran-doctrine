@@ -34,6 +34,7 @@ use Symfony\Component\Uid\UuidV4;
         ],
     ],
 )]
+#[Index(keys: ['visible' => 'asc', '_id' => 'asc'])]
 class Station extends AbstractStation
 {
     #[Id(type: Type::UUID, strategy: 'none')]
@@ -51,6 +52,10 @@ class Station extends AbstractStation
     #[Field]
     #[Index]
     public bool $favorite = false;
+
+    /** Set when latest prices are written to the station; stations without prices are left out of listings. */
+    #[Field]
+    public bool $visible = false;
 
     public function __construct(string|UuidV4|null $id = null)
     {

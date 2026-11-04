@@ -568,6 +568,8 @@ class PriceReport
             Stage::set(
                 latestPrice: Expression::arrayToObject(Expression::fieldPath('latestPrice')),
                 latestPrices: Expression::arrayToObject(Expression::fieldPath('latestPrices')),
+                // Only stations with at least one price are output, see Station::$visible
+                visible: true,
             ),
         );
     }
@@ -579,6 +581,7 @@ class PriceReport
 
         return new Pipeline(
             Stage::set(...[
+                'visible' => true,
                 $fieldName => $embeddedDailyPrice,
                 $collectionFieldName => Expression::sortArray(
                     Expression::concatArrays(

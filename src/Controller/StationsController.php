@@ -129,7 +129,7 @@ class StationsController extends AbstractController
 
     private function createStationQueryBuilder(): Builder
     {
-        return $this->dm->createQueryBuilder(Station::class);
+        return $this->dm->createQueryBuilder(Station::class)->field('visible')->equals(true);
     }
 
     /** @return positive-int */
