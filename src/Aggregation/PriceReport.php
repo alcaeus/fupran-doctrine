@@ -280,6 +280,10 @@ class PriceReport
      * an id up in a literal array is a linear scan over those few hundred ids, which is simpler than building
      * one pipeline per station and does not depend on binary ids being usable as field names for $getField.
      *
+     * Every report must belong to one of the given stations: $indexOfArray returns -1 for an unknown id, and
+     * $arrayElemAt with -1 would silently pick the last station. matchStations() called with the same list
+     * guarantees this.
+     *
      * @param non-empty-list<stdClass> $stations
      */
     public static function attachStations(array $stations): Stage\SetStage
