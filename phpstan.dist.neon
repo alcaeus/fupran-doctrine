@@ -24,3 +24,11 @@ parameters:
 		-
 			message: '#Property App\\Document\\Partial\\PartialStation::\$referencedStation is never written, only read\.#'
 			path: src/Document/Partial/PartialStation.php
+
+services:
+	errorFormatter.sarif:
+		class: PHPStanSarifErrorFormatter\SarifErrorFormatter
+		arguments:
+			relativePathHelper: @simpleRelativePathHelper
+			currentWorkingDirectory: %currentWorkingDirectory%
+			pretty: true

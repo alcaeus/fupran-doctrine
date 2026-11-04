@@ -1,0 +1,115 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  # Composer's post-install cache:clear and the PHPStan cache warmup build the Doctrine client, which
+  # needs a parseable URI in every job. Only the PHPUnit job actually connects to a server.
+  MONGODB_URL: mongodb://127.0.0.1:27017
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  phpcs:
+    name: PHPCS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mongodb
+          tools: cs2pr
+          coverage: none
+
+      - uses: ramsey/composer-install@v3
+
+      # cs2pr turns the checkstyle report into inline annotations on the pull request
+      - name: Coding standard
+        run: vendor/bin/phpcs -q --report=checkstyle | cs2pr
+
+  phpstan:
+    name: PHPStan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required to upload SARIF results to code scanning
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mongodb
+          coverage: none
+
+      - uses: ramsey/composer-install@v3
+
+      - name: Warm up the dev cache
+        run: bin/console cache:warmup --env=dev
+
+      # The SARIF report is uploaded below, so don't fail this step; the final step does that
+      - name: Static analysis
+        id: phpstan
+        continue-on-error: true
+        run: vendor/bin/phpstan analyse --no-progress --error-format=sarif > phpstan-results.sarif
+
+      - name: Upload results to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: phpstan-results.sarif
+          category: phpstan
+
+      - name: Fail on PHPStan errors
+        if: steps.phpstan.outcome == 'failure'
+        run: |
+          vendor/bin/phpstan analyse --no-progress --error-format=github
+          exit 1
+
+  phpunit:
+    name: PHPUnit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required by the JUnit report action to create a check run with annotations
+      checks: write
+    services:
+      mongodb:
+        image: mongo:8.2
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand(\"ping\").ok'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mongodb
+          coverage: none
+
+      - uses: ramsey/composer-install@v3
+
+      - name: PHPUnit
+        run: vendor/bin/phpunit --log-junit phpunit-junit.xml
+
+      - name: Publish test report
+        if: ${{ !cancelled() }}
+        uses: mikepenz/action-junit-report@v5
+        with:
+          report_paths: phpunit-junit.xml
+          check_name: PHPUnit results
