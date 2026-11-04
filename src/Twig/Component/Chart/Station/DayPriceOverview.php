@@ -27,11 +27,13 @@ class DayPriceOverview extends ChartJs
 
         $chart->setOptions([
             'parsing' => false,
+            'locale' => self::LOCALE,
             'datasets' => [
                 'line' => ['stepped' => 'before'],
             ],
             'scales' => [
                 'x' => ['type' => 'time'],
+                'y' => self::PRICE_AXIS,
             ],
         ]);
 

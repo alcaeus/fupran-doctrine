@@ -32,9 +32,11 @@ class PriceHistory extends ChartJs
 
         $chart->setOptions([
             'parsing' => false,
+            'locale' => self::LOCALE,
             'elements' => self::HISTORY_ELEMENTS,
             'scales' => [
                 'x' => ['type' => 'time'],
+                'y' => self::PRICE_AXIS,
             ],
         ]);
 
