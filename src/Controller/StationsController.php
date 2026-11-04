@@ -21,6 +21,8 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use UnexpectedValueException;
 
+use function iterator_to_array;
+
 class StationsController extends AbstractController
 {
     public function __construct(private readonly DocumentManager $dm)
@@ -110,18 +112,13 @@ class StationsController extends AbstractController
         );
     }
 
-    #[Route('/stations/postCode/{postCode}/{page}', name: 'app_stations_postCode', requirements: ['postCode' => '\d{5}', 'page' => '\d+'], methods: ['GET'])]
-    public function postCode(
-        StationRepository $stations,
-        string $postCode,
-        int $page = 1,
-    ): Response {
-        $paginator = new QueryPaginator($stations->listByPostCode($postCode), self::requirePositivePage($page));
-
+    #[Route('/stations/postCode/{postCode}', name: 'app_stations_postCode', requirements: ['postCode' => '\d{5}'], methods: ['GET'])]
+    public function postCode(StationRepository $stations, string $postCode): Response
+    {
         return $this->render(
             'stations/postCode.html.twig',
             [
-                'stations' => $paginator,
+                'stations' => iterator_to_array($stations->listByPostCode($postCode)->getQuery()->getIterator(), false),
                 'postCode' => $postCode,
             ],
         );
