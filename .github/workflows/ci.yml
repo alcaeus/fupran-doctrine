@@ -8,6 +8,11 @@ on:
 permissions:
   contents: read
 
+env:
+  # Composer's post-install cache:clear and the PHPStan cache warmup build the Doctrine client, which
+  # needs a parseable URI in every job. Only the PHPUnit job actually connects to a server.
+  MONGODB_URL: mongodb://127.0.0.1:27017
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -39,9 +44,6 @@ jobs:
       contents: read
       # Required to upload SARIF results to code scanning
       security-events: write
-    env:
-      # Cache warmup builds the Doctrine client, which only parses the URI; no server is contacted
-      MONGODB_URL: mongodb://127.0.0.1:27017
     steps:
       - uses: actions/checkout@v4
 
@@ -91,8 +93,6 @@ jobs:
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
-    env:
-      MONGODB_URL: mongodb://127.0.0.1:27017
     steps:
       - uses: actions/checkout@v4
 
