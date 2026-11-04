@@ -21,6 +21,8 @@ use MongoDB\BSON\Regex;
 use MongoDB\BSON\UTCDateTime;
 use MongoDB\Collection;
 use MongoDB\Database;
+use MongoDB\Driver\Exception\CommandException;
+use RuntimeException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Helper\ProgressBar;
@@ -52,6 +54,9 @@ use function uniqid;
 )]
 class ImportPriceReportsCommand extends Command
 {
+    private const int INDEX_OPTIONS_CONFLICT = 85;
+    private const int INDEX_KEY_SPECS_CONFLICT = 86;
+
     private readonly Database $database;
     private Collection $collection;
     private Collection $updatedDays;
@@ -306,9 +311,20 @@ class ImportPriceReportsCommand extends Command
         $io->write('Checking and potentially creating index on aggregated collection...');
 
         // Unique, as chunks are merged into the collection on these fields
-        [$time] = measure(
-            fn () => $this->collection->createIndex(['station._id' => 1, 'fuel' => 1, 'day' => 1], ['unique' => true]),
-        );
+        try {
+            [$time] = measure(
+                fn () => $this->collection->createIndex(['station._id' => 1, 'fuel' => 1, 'day' => 1], ['unique' => true]),
+            );
+        } catch (CommandException $e) {
+            if ($e->getCode() !== self::INDEX_OPTIONS_CONFLICT && $e->getCode() !== self::INDEX_KEY_SPECS_CONFLICT) {
+                throw $e;
+            }
+
+            throw new RuntimeException(sprintf(
+                'Collection %s was created by an earlier version and its index is not unique, so it cannot be recovered. Drop it and recover from the priceReportImport_* collection instead.',
+                $this->collection->getCollectionName(),
+            ), 0, $e);
+        }
 
         $io->writeln(sprintf('Done in %.5fs.', $time));
     }
