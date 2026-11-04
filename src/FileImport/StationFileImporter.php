@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Import;
+namespace App\FileImport;
 
 use App\Repository\StationRepository;
 use Doctrine\Bundle\MongoDBBundle\APM\CommandLoggerRegistry;
@@ -15,7 +15,7 @@ use function mb_strtolower;
 use function sprintf;
 use function ucwords;
 
-final class StationImporter extends Importer
+final class StationFileImporter extends FileImporter
 {
     public function __construct(
         StationRepository $stations,

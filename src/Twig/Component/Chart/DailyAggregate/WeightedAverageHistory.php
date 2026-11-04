@@ -39,6 +39,7 @@ class WeightedAverageHistory extends ChartJs
         return $chart;
     }
 
+    /** @return array{label: string, data: array<array{x: int, y: mixed}>} */
     private function createDataset(Fuel $fuel): array
     {
         $fuelType = $fuel->value;
@@ -50,11 +51,12 @@ class WeightedAverageHistory extends ChartJs
                     'x' => $aggregate->day->getTimestamp() * 1000,
                     'y' => $aggregate->$fuelType->weightedAveragePrice,
                 ],
-                $this->aggregates,
+                [...$this->aggregates],
             ),
         ];
     }
 
+    /** @return list<array{label: string, data: array<array{x: int, y: mixed}>}> */
     private function createDatasets(): array
     {
         return array_map(

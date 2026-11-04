@@ -6,6 +6,7 @@ namespace App\Aggregation;
 
 use App\Fuel;
 use MongoDB\BSON\PackedArray;
+use MongoDB\BSON\UTCDateTime;
 use MongoDB\Builder\Accumulator;
 use MongoDB\Builder\Expression;
 use MongoDB\Builder\Expression\ResolvesToArray;
@@ -18,6 +19,7 @@ use MongoDB\Model\BSONArray;
 use stdClass;
 
 use function array_keys;
+use function array_map;
 use function array_values;
 use function MongoDB\object;
 
@@ -25,9 +27,10 @@ class PriceReport
 {
     public const int SECONDS_IN_DAY = 86400;
 
-    public static function aggregatePriceReportsByDay(): Pipeline
+    public static function aggregatePriceReportsByDay(?UuidRange $stationRange = null): Pipeline
     {
         return new Pipeline(
+            self::matchStationRange('station', $stationRange),
             Stage::set(day: Expression::dateTrunc(Expression::dateFieldPath('date'), unit: 'day')),
             self::groupPriceReportsByStationDayFuel(),
             self::reshapeGroupedPriceReports(),
@@ -37,14 +40,28 @@ class PriceReport
         );
     }
 
-    public static function aggregatePriceData(): Pipeline
+    public static function aggregatePriceData(?UuidRange $stationRange = null): Pipeline
     {
         return new Pipeline(
+            self::matchStationRange('station._id', $stationRange),
             self::addPreviousClosingPrice(),
             self::addMissingOpeningPriceToList(),
             self::computeChangeInPriceList(),
             self::computeWeightedAverage(),
         );
+    }
+
+    /**
+     * Restricts a pipeline to a slice of stations, as stations are fully independent of each other
+     * in the stages that follow. Must come first in a pipeline to be able to use an index.
+     */
+    public static function matchStationRange(string $field, ?UuidRange $range): Pipeline
+    {
+        if ($range === null || $range->isUnbounded()) {
+            return new Pipeline();
+        }
+
+        return new Pipeline(Stage::match(...[$field => $range->toFieldQuery()]));
     }
 
     public static function computeWeightedAverage(): Pipeline
@@ -136,12 +153,26 @@ class PriceReport
         );
     }
 
-    public static function computeDailyAggregates(): Pipeline
+    /** @param list<UTCDateTime>|null $days Restricts the computation to these days; all days if omitted */
+    public static function computeDailyAggregates(?array $days = null): Pipeline
     {
-        return self::computeAggregates(object(
+        $aggregates = self::computeAggregates(object(
             day: Expression::fieldPath('day'),
             fuel: Expression::fieldPath('fuel'),
         ));
+
+        if ($days === null) {
+            return $aggregates;
+        }
+
+        // Including all fuels allows using the index on fuel, day and station
+        return new Pipeline(
+            Stage::match(
+                fuel: Query::in(array_map(static fn (Fuel $fuel): string => $fuel->value, Fuel::cases())),
+                day: Query::in($days),
+            ),
+            $aggregates,
+        );
     }
 
     public static function computeDailyAggregatesPerPostCode(): Pipeline
@@ -302,21 +333,141 @@ class PriceReport
         );
     }
 
-    public static function addPreviousClosingPrice(): Stage\SetWindowFieldsStage
+    /**
+     * Sets the opening price to the previous day's closing price within the batch. The first day of each
+     * station and fuel has no previous day in the batch, so it falls back to the closing price of the last
+     * previously imported day (see boundaryOpeningPrice and resolveBoundaryOpeningPrices()), if any.
+     */
+    public static function addPreviousClosingPrice(): Pipeline
     {
-        return Stage::setWindowFields(
-            sortBy: object(day: 1),
-            output: object(
-                openingPrice: Accumulator::shift(
-                    output: Expression::fieldPath('closingPrice'),
-                    by: -1,
-                    default: Expression::variable('REMOVE'),
+        return new Pipeline(
+            Stage::setWindowFields(
+                sortBy: object(day: 1),
+                output: object(
+                    previousClosingPrice: Accumulator::shift(
+                        output: Expression::fieldPath('closingPrice'),
+                        by: -1,
+                        default: Expression::variable('REMOVE'),
+                    ),
+                ),
+                partitionBy: object(
+                    station: Expression::fieldPath('station._id'),
+                    fuel: Expression::fieldPath('fuel'),
                 ),
             ),
-            partitionBy: object(
-                station: Expression::fieldPath('station._id'),
-                fuel: Expression::fieldPath('fuel'),
+            // A field path that does not exist evaluates to missing, which $set does not write
+            Stage::set(
+                openingPrice: Expression::cond(
+                    if: Expression::eq(Expression::type(Expression::fieldPath('previousClosingPrice')), 'missing'),
+                    then: Expression::fieldPath('boundaryOpeningPrice'),
+                    else: Expression::fieldPath('previousClosingPrice'),
+                ),
             ),
+            Stage::unset('previousClosingPrice', 'boundaryOpeningPrice'),
+        );
+    }
+
+    /**
+     * Groups an aggregated batch by station and fuel to find the first and last day of each, and the ids and
+     * closing price of the respective documents. This is all that is needed to connect a batch to previously
+     * imported data, regardless of how many days the batch spans.
+     */
+    public static function findBatchBoundaries(?UuidRange $stationRange = null): Pipeline
+    {
+        return new Pipeline(
+            self::matchStationRange('station._id', $stationRange),
+            Stage::sort(...['station._id' => 1, 'fuel' => 1, 'day' => 1]),
+            Stage::group(
+                _id: object(
+                    station: Expression::fieldPath('station._id'),
+                    fuel: Expression::fieldPath('fuel'),
+                ),
+                firstId: Accumulator::first(Expression::fieldPath('_id')),
+                firstDay: Accumulator::first(Expression::fieldPath('day')),
+                lastDay: Accumulator::last(Expression::fieldPath('day')),
+                lastClosingPrice: Accumulator::last(Expression::fieldPath('closingPrice')),
+            ),
+        );
+    }
+
+    /**
+     * Finds the closing price of the last previously imported day before each batch's first day, and writes
+     * it to the first day's document as boundaryOpeningPrice. The aggregated collection is expected to be
+     * the pipeline's input and merge target.
+     */
+    public static function resolveBoundaryOpeningPrices(string $dailyPriceCollection, string $into, ?UuidRange $stationRange = null): Pipeline
+    {
+        return new Pipeline(
+            self::findBatchBoundaries($stationRange),
+            Stage::lookup(
+                as: 'previousDay',
+                from: $dailyPriceCollection,
+                localField: '_id.station',
+                foreignField: 'station._id',
+                let: object(
+                    fuel: Expression::fieldPath('_id.fuel'),
+                    day: Expression::fieldPath('firstDay'),
+                ),
+                pipeline: new Pipeline(
+                    Stage::match(
+                        Query::and(
+                            Query::expr(Expression::eq(Expression::fieldPath('fuel'), Expression::variable('fuel'))),
+                            Query::expr(Expression::lt(Expression::fieldPath('day'), Expression::variable('day'))),
+                        ),
+                    ),
+                    Stage::sort(day: -1),
+                    Stage::limit(1),
+                    Stage::project(closingPrice: true),
+                ),
+            ),
+            // Drops stations without any previous day
+            Stage::unwind(Expression::arrayFieldPath('previousDay')),
+            Stage::project(
+                _id: Expression::fieldPath('firstId'),
+                boundaryOpeningPrice: Expression::fieldPath('previousDay.closingPrice'),
+            ),
+            Stage::merge($into, on: '_id', whenMatched: 'merge', whenNotMatched: 'discard'),
+        );
+    }
+
+    /**
+     * Finds the first previously imported day after each batch's last day and outputs it with the batch's
+     * closing price as its new opening price, as the day's opening price is now known to be different. The
+     * output is meant to be merged into a collection of fixes, see updateOpeningPrices().
+     */
+    public static function findDaysFollowingBatch(string $dailyPriceCollection, string $into, ?UuidRange $stationRange = null): Pipeline
+    {
+        return new Pipeline(
+            self::findBatchBoundaries($stationRange),
+            Stage::lookup(
+                as: 'nextDay',
+                from: $dailyPriceCollection,
+                localField: '_id.station',
+                foreignField: 'station._id',
+                let: object(
+                    fuel: Expression::fieldPath('_id.fuel'),
+                    day: Expression::fieldPath('lastDay'),
+                ),
+                pipeline: new Pipeline(
+                    Stage::match(
+                        Query::and(
+                            Query::expr(Expression::eq(Expression::fieldPath('fuel'), Expression::variable('fuel'))),
+                            Query::expr(Expression::gt(Expression::fieldPath('day'), Expression::variable('day'))),
+                        ),
+                    ),
+                    Stage::sort(day: 1),
+                    Stage::limit(1),
+                    Stage::project(day: true),
+                ),
+            ),
+            // Drops stations without any later day
+            Stage::unwind(Expression::arrayFieldPath('nextDay')),
+            Stage::project(
+                _id: Expression::fieldPath('nextDay._id'),
+                day: Expression::fieldPath('nextDay.day'),
+                openingPrice: Expression::fieldPath('lastClosingPrice'),
+            ),
+            Stage::merge($into),
         );
     }
 
@@ -354,55 +505,6 @@ class PriceReport
         );
     }
 
-    public static function matchOnlyDaysWithMissingPrices(): Stage\MatchStage
-    {
-        return Stage::match(
-            openingPrice: Query::exists(false),
-        );
-    }
-
-    public static function lookupPreviousDay(): Stage\LookupStage
-    {
-        return Stage::lookup(
-            as: 'previousDay',
-            from: 'DailyPrice',
-            localField: 'station._id',
-            foreignField: 'station._id',
-            let: object(
-                fuel: Expression::fieldPath('fuel'),
-                day: Expression::fieldPath('day'),
-            ),
-            pipeline: new Pipeline(
-                Stage::match(
-                    Query::and(
-                        Query::expr(
-                            Expression::eq(Expression::fieldPath('fuel'), Expression::variable('fuel')),
-                        ),
-                        Query::expr(
-                            Expression::lt(Expression::fieldPath('day'), Expression::variable('day')),
-                        ),
-                    ),
-                ),
-                Stage::sort(day: -1),
-                Stage::limit(1),
-            ),
-        );
-    }
-
-    public static function extractOpeningPrice(): Stage\SetStage
-    {
-        $previousDayFound = Expression::gt(Expression::size(Expression::arrayFieldPath('previousDay')), 0);
-        $previousDay = Expression::first(Expression::arrayFieldPath('previousDay'));
-
-        return Stage::set(
-            openingPrice: Expression::cond(
-                if: $previousDayFound,
-                then: Expression::getField('closingPrice', $previousDay),
-                else: null,
-            ),
-        );
-    }
-
     /**
      * @param PackedArray|ResolvesToArray|BSONArray|array<mixed> $inputs
      * @param Optional|PackedArray|BSONArray|array<mixed>        $defaults
@@ -422,9 +524,10 @@ class PriceReport
         );
     }
 
-    public static function getLatestPriceReportsPerStation(): Pipeline
+    public static function getLatestPriceReportsPerStation(?UuidRange $stationRange = null): Pipeline
     {
         return new Pipeline(
+            self::matchStationRange('station._id', $stationRange),
             Stage::sort(fuel: 1, day: -1),
             Stage::group(
                 _id: object(

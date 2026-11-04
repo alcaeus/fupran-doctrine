@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Aggregation\PriceReport;
+use App\Aggregation\ParallelPriceReportAggregator;
 use App\Document\Station;
-use App\Import\ImportException;
-use App\Import\PriceReportImporter;
+use App\FileImport\ImportException;
+use App\FileImport\ParallelFileImporter;
+use App\FileImport\PriceReportFileImporter;
 use App\Repository\DailyAggregateRepository;
 use App\Repository\DailyPriceRepository;
-use App\Repository\StationRepository;
 use Doctrine\ODM\MongoDB\DocumentManager;
+use InvalidArgumentException;
 use MongoDB\BSON\Regex;
-use MongoDB\Builder\Pipeline;
-use MongoDB\Builder\Stage;
+use MongoDB\BSON\UTCDateTime;
 use MongoDB\Collection;
 use MongoDB\Database;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -30,6 +30,7 @@ use function App\measure;
 use function array_values;
 use function count;
 use function is_array;
+use function is_numeric;
 use function is_string;
 use function iterator_to_array;
 use function sprintf;
@@ -43,12 +44,17 @@ class ImportPriceReportsCommand extends Command
 {
     private readonly Database $database;
     private Collection $collection;
+    private Collection $updatedDays;
+    /** @var list<UTCDateTime>|null Days with new or updated prices; null if unknown, in which case everything is recomputed */
+    private ?array $affectedDays = null;
+    private bool $latestPricesUpdated = false;
 
     public function __construct(
-        private readonly PriceReportImporter $importer,
+        private readonly PriceReportFileImporter $importer,
+        private readonly ParallelFileImporter $parallelImporter,
+        private readonly ParallelPriceReportAggregator $parallelAggregator,
         private readonly DailyPriceRepository $dailyPriceRepository,
         private readonly DailyAggregateRepository $dailyAggregateRepository,
-        private readonly StationRepository $stationRepository,
         DocumentManager $documentManager,
     ) {
         parent::__construct(null);
@@ -56,6 +62,8 @@ class ImportPriceReportsCommand extends Command
         $this->database = $documentManager->getDocumentDatabase(Station::class);
         $this->collection = $this->database
             ->selectCollection(uniqid('aggregatedPriceReports_'));
+        $this->updatedDays = $this->database
+            ->selectCollection(uniqid('updatedDays_'));
     }
 
     protected function configure(): void
@@ -63,6 +71,9 @@ class ImportPriceReportsCommand extends Command
         $this
             ->addArgument(name: 'fileOrDirectory', mode: InputArgument::IS_ARRAY, description: 'Path to the file to be imported')
             ->addOption(name: 'recover', mode: InputOption::VALUE_NONE, description: 'Recover from a failure during a previous import')
+            ->addOption(name: 'jobs', shortcut: 'j', mode: InputOption::VALUE_REQUIRED, description: 'Number of worker processes to import files and aggregate price reports with', default: 1)
+            ->addOption(name: 'import-jobs', mode: InputOption::VALUE_REQUIRED, description: 'Number of worker processes to import files with (defaults to --jobs)')
+            ->addOption(name: 'aggregation-jobs', mode: InputOption::VALUE_REQUIRED, description: 'Number of worker processes to aggregate price reports with (defaults to --jobs)')
             ->addOption(name: 'clear', mode: InputOption::VALUE_NONE, description: 'Clear all existing prices');
     }
 
@@ -70,9 +81,13 @@ class ImportPriceReportsCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
+        $jobs = $this->getJobsOption($input, 'jobs', 1);
+        $importJobs = $this->getJobsOption($input, 'import-jobs', $jobs);
+        $aggregationJobs = $this->getJobsOption($input, 'aggregation-jobs', $jobs);
+
         // Recover from an import that previously failed
         if ($input->getOption('recover')) {
-            $this->attemptRecovery($io);
+            $this->attemptRecovery($aggregationJobs, $io);
         } else {
             if ($input->getOption('clear')) {
                 $io->write('Clearing existing price data...');
@@ -81,7 +96,7 @@ class ImportPriceReportsCommand extends Command
             }
 
             try {
-                $this->importDataAndPreAggregate($this->getFileOrDirectoryArgument($input), $io);
+                $this->importDataAndPreAggregate($this->getFileOrDirectoryArgument($input), $importJobs, $aggregationJobs, $io);
             } catch (ImportException $e) {
                 $io->error($e->getMessage());
 
@@ -89,26 +104,30 @@ class ImportPriceReportsCommand extends Command
             }
         }
 
-        // TODO: Add openingPrice field where it does not exist (happens when multiple imports are done).
-        // A previous attempt at this (looking up the previous day's closingPrice via a $lookup into
-        // DailyPrice) was too slow and was removed; see git history for the removed implementation.
-
-        // TODO: Get days that were updated to only recompute changed data
         $this->computeDailyAggregates($io);
 
-        $this->updateLatestStationPrices($io);
+        // The aggregation workers already set the latest prices of their stations
+        if (! $this->latestPricesUpdated) {
+            $this->updateLatestStationPrices($io);
+        }
 
         return Command::SUCCESS;
     }
 
-    private function attemptRecovery(SymfonyStyle $io): void
+    private function attemptRecovery(int $jobs, SymfonyStyle $io): void
     {
         // Check if there is a priceReportImport collection - this means that step 1 was completed, but the
         // pre-aggregation was not.
         $collectionName = $this->selectRecoveryCollection('priceReportImport_', $io);
+
+        // Leftovers of a failed run are recreated when the steps are repeated
+        foreach ($this->getCollectionNames('updatedDays_') as $leftover) {
+            $this->database->dropCollection($leftover);
+        }
+
         if ($collectionName) {
             $io->writeln(sprintf('Recovering existing price import from collection %s.', $collectionName));
-            $this->runPostImportAggregations($this->database->getCollection($collectionName), $io);
+            $this->runPostImportAggregations($this->database->getCollection($collectionName), $jobs, $io);
 
             return;
         }
@@ -120,8 +139,22 @@ class ImportPriceReportsCommand extends Command
         if ($collectionName) {
             $io->writeln(sprintf('Recovering existing pre-aggregation from collection %s...', $collectionName));
             $this->collection = $this->database->getCollection($collectionName);
-            $this->runPostImportAggregations(null, $io);
+            $this->runPostImportAggregations(null, $jobs, $io);
         }
+    }
+
+    private function getJobsOption(InputInterface $input, string $name, int $default): int
+    {
+        $value = $input->getOption($name);
+        if ($value === null) {
+            return $default;
+        }
+
+        if (! is_numeric($value) || (int) $value < 1) {
+            throw new InvalidArgumentException(sprintf('Expected "%s" option to be a positive integer.', $name));
+        }
+
+        return (int) $value;
     }
 
     /** @return list<string> */
@@ -142,7 +175,7 @@ class ImportPriceReportsCommand extends Command
     }
 
     /** @param list<string> $fileOrDirectory */
-    private function importDataAndPreAggregate(array $fileOrDirectory, SymfonyStyle $io): void
+    private function importDataAndPreAggregate(array $fileOrDirectory, int $importJobs, int $aggregationJobs, SymfonyStyle $io): void
     {
         if (! $fileOrDirectory) {
             $io->writeln('No files specified for import, only recomputing aggregates for existing data.');
@@ -151,26 +184,28 @@ class ImportPriceReportsCommand extends Command
         }
 
         $io->writeln('Importing price reports...');
-        [$time, $result] = measure(
-            fn () => $this->importer->import($fileOrDirectory, $io),
-        );
+        [$time, $result] = measure(function () use ($fileOrDirectory, $importJobs, $io) {
+            $files = $this->importer->findFiles($fileOrDirectory);
+
+            // A single file cannot be split up, so there is no point in paying for worker startup
+            if ($importJobs === 1 || count($files) < 2) {
+                return $this->importer->import($fileOrDirectory, $io);
+            }
+
+            return $this->parallelImporter->import($files, $this->importer->collection->getCollectionName(), $importJobs, $io);
+        });
 
         $io->writeln(sprintf('Import took %.5fs: %d inserted, %d updated.', $time, $result->numInserted, $result->numUpdated));
 
-        $this->runPostImportAggregations($this->importer->collection, $io);
+        $this->runPostImportAggregations($this->importer->collection, $aggregationJobs, $io);
     }
 
     private function aggregatePriceReportsByDay(Collection $importCollection, SymfonyStyle $io): void
     {
         $io->write('Aggregating imported price reports for further processing...');
 
-        $pipeline = new Pipeline(
-            PriceReport::aggregatePriceReportsByDay(),
-            Stage::merge($this->collection->getCollectionName()),
-        );
-
         [$time] = measure(
-            static fn () => $importCollection->aggregate($pipeline),
+            fn () => $this->dailyPriceRepository->aggregatePriceReportsByDay($importCollection, $this->collection),
         );
 
         $importCollection->drop();
@@ -180,29 +215,30 @@ class ImportPriceReportsCommand extends Command
 
     private function addOpeningPriceAndMergeIntoPrices(SymfonyStyle $io): void
     {
+        $this->createAggregatedIndex($io);
+
+        $io->write('Adding opening price for each day and merge into prices collection...');
+
+        [$time] = measure(function (): void {
+            $this->dailyPriceRepository->resolveBoundaryOpeningPrices($this->collection);
+            $this->dailyPriceRepository->mergeAggregatedPriceReports($this->collection);
+            $this->dailyPriceRepository->updateOpeningPricesFollowingBatch($this->collection, $this->updatedDays);
+        });
+
+        $this->collectAffectedDays();
+        $this->collection->drop();
+        $this->updatedDays->drop();
+
+        $io->writeln(sprintf('Done in %.5fs.', $time));
+    }
+
+    private function createAggregatedIndex(SymfonyStyle $io): void
+    {
         $io->write('Checking and potentially creating index on import collection...');
 
         [$time] = measure(
             fn () => $this->collection->createIndex(['station._id' => 1, 'fuel' => 1, 'day' => 1]),
         );
-
-        $io->writeln(sprintf('Done in %.5fs.', $time));
-
-        $io->write('Adding opening price for each day and merge into prices collection...');
-
-        $pipeline = new Pipeline(
-            PriceReport::aggregatePriceData(),
-            Stage::merge(
-                into: $this->dailyPriceRepository->getDocumentCollection()->getCollectionName(),
-                whenMatched: 'keepExisting',
-            ),
-        );
-
-        [$time] = measure(
-            fn () => $this->collection->aggregate($pipeline),
-        );
-
-        $this->collection->drop();
 
         $io->writeln(sprintf('Done in %.5fs.', $time));
     }
@@ -212,10 +248,32 @@ class ImportPriceReportsCommand extends Command
         $io->write('Recomputing daily aggregates...');
 
         [$time] = measure(
-            $this->dailyAggregateRepository->recomputeDailyAggregates(...),
+            fn () => $this->dailyAggregateRepository->recomputeDailyAggregates($this->affectedDays),
         );
 
         $io->writeln(sprintf('Done in %.5fs.', $time));
+    }
+
+    /**
+     * The days with imported prices, and those previously imported days that had their opening price
+     * updated as a result, are the only ones for which daily aggregates need to be recomputed.
+     */
+    private function collectAffectedDays(): void
+    {
+        // Keyed by timestamp to remove duplicates, as UTCDateTime objects cannot be compared reliably
+        /** @var array<string, UTCDateTime> $days */
+        $days = [];
+        foreach ([$this->collection, $this->updatedDays] as $collection) {
+            foreach ($collection->distinct('day') as $day) {
+                if (! $day instanceof UTCDateTime) {
+                    throw new UnexpectedValueException('Expected day to be a UTCDateTime.');
+                }
+
+                $days[(string) $day] = $day;
+            }
+        }
+
+        $this->affectedDays = array_values($days);
     }
 
     private function clearExistingPriceReports(): void
@@ -234,20 +292,7 @@ class ImportPriceReportsCommand extends Command
     {
         $io->write('Setting last price report for stations...');
 
-        $pipeline = new Pipeline(
-            PriceReport::getLatestPriceReportsPerStation(),
-            Stage::merge(
-                into: $this->stationRepository->getDocumentCollection()->getCollectionName(),
-                on: '_id',
-            ),
-        );
-
-        [$time] = measure(
-            fn () => $this
-                ->dailyPriceRepository
-                ->getDocumentCollection()
-                ->aggregate($pipeline),
-        );
+        [$time] = measure($this->dailyPriceRepository->updateLatestStationPrices(...));
 
         $io->writeln(sprintf('Done in %.5fs.', $time));
     }
@@ -277,12 +322,48 @@ class ImportPriceReportsCommand extends Command
         return $selected;
     }
 
-    private function runPostImportAggregations(?Collection $importCollection, SymfonyStyle $io): void
+    private function runPostImportAggregations(?Collection $importCollection, int $jobs, SymfonyStyle $io): void
     {
+        if ($jobs > 1) {
+            $this->runPostImportAggregationsInParallel($importCollection, $jobs, $io);
+
+            return;
+        }
+
         if ($importCollection) {
             $this->aggregatePriceReportsByDay($importCollection, $io);
         }
 
         $this->addOpeningPriceAndMergeIntoPrices($io);
+    }
+
+    private function runPostImportAggregationsInParallel(?Collection $importCollection, int $jobs, SymfonyStyle $io): void
+    {
+        /* The workers run the second step for their stations as soon as they are done with the first,
+         * so the index it needs has to exist up front. Building it on the (still empty) collection is
+         * cheap, and the workers maintain it as they merge their results.
+         */
+        $this->createAggregatedIndex($io);
+
+        $io->write(sprintf('Aggregating price reports, merging into prices collection and setting latest station prices using %d worker processes...', $jobs));
+
+        [$time] = measure(
+            fn () => $this->parallelAggregator->aggregate(
+                $importCollection?->getCollectionName(),
+                $this->collection->getCollectionName(),
+                $this->updatedDays->getCollectionName(),
+                $jobs,
+            ),
+        );
+
+        $this->latestPricesUpdated = true;
+        $this->collectAffectedDays();
+
+        // Only drop the temporary collections once all workers succeeded, so a failed run can be recovered
+        $importCollection?->drop();
+        $this->collection->drop();
+        $this->updatedDays->drop();
+
+        $io->writeln(sprintf('Done in %.5fs.', $time));
     }
 }

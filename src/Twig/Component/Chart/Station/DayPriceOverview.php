@@ -40,6 +40,7 @@ class DayPriceOverview extends ChartJs
         return $chart;
     }
 
+    /** @return list<array{label: string, data: array<array{x: int, y: mixed}>}> */
     private function createDatasets(): array
     {
         $datasets = [];
@@ -56,6 +57,7 @@ class DayPriceOverview extends ChartJs
         return $datasets;
     }
 
+    /** @return array{label: string, data: array<array{x: int, y: mixed}>} */
     private function createDataset(EmbeddedDailyPrice $dailyPrice, Fuel $fuel): array
     {
         return [
