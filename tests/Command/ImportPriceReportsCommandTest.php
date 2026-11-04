@@ -8,6 +8,7 @@ use App\Command\ImportPriceReportsCommand;
 use App\Document\DailyAggregate;
 use App\Document\DailyPrice;
 use App\Document\Station;
+use App\FileImport\PriceReportFileImporter;
 use App\FileImport\StationFileImporter;
 use App\Fuel;
 use DateTimeImmutable;
@@ -22,6 +23,7 @@ use Symfony\Component\Console\Tester\CommandTester;
 
 use function assert;
 use function iterator_to_array;
+use function str_starts_with;
 
 /**
  * Verifies that DailyPrice.openingPrice is carried over from the previous day's closingPrice
@@ -203,6 +205,33 @@ class ImportPriceReportsCommandTest extends KernelTestCase
             self::assertEqualsWithDelta($openingPrice, $firstPrice['previousPrice'], 0.0001);
             self::assertEqualsWithDelta($firstPrice['price'] - $openingPrice, $firstPrice['change'], 0.0001);
         }
+    }
+
+    public function testRecoveryFromLeftoverImportCollectionInParallel(): void
+    {
+        $database = self::getDocumentManager()->getDocumentDatabase(DailyPrice::class);
+        foreach ($database->listCollectionNames() as $name) {
+            if (str_starts_with($name, 'priceReportImport_') || str_starts_with($name, 'aggregatedPriceReports_') || str_starts_with($name, 'updatedDays_')) {
+                $database->dropCollection($name);
+            }
+        }
+
+        // Simulate a run that crashed after importing the raw price reports
+        $importer = self::getContainer()->get(PriceReportFileImporter::class);
+        $importer->useCollection('priceReportImport_recovery');
+        $importer->import(__DIR__ . '/../FileImport/Fixtures/prices-day1');
+
+        $tester = new CommandTester(self::getContainer()->get(ImportPriceReportsCommand::class));
+        $tester->execute(['--recover' => true, '--jobs' => 2]);
+        self::assertSame(0, $tester->getStatusCode(), $tester->getDisplay());
+
+        $dayOne = $this->findRawDailyPrice(self::OIL_MUNICH_UUID, Fuel::Diesel, '2026-08-15');
+        self::assertEqualsWithDelta(2.159, $dayOne['closingPrice'], 0.0001);
+        self::assertNotContains('priceReportImport_recovery', iterator_to_array($database->listCollectionNames(), false));
+
+        // Importing the next day in a separate run still connects to the recovered data
+        $this->importDaysInSeparateRuns(['prices-day2'], []);
+        $this->assertDayTwoOpeningPrices();
     }
 
     public function testParallelImportMatchesSingleProcessImport(): void
