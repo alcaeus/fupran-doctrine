@@ -76,7 +76,7 @@ class DayPriceOverview extends ChartJs
         $data[] = ['x' => $startOfDay->modify('+1 day')->getTimestamp() * 1000, 'y' => $dailyPrice->closingPrice];
 
         return [
-            'label' => $fuel->value,
+            'label' => $fuel->getDisplayValue(),
             'borderColor' => $fuel->getColor(),
             'backgroundColor' => $fuel->getColor(),
             'data' => $data,

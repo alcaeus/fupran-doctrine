@@ -45,7 +45,7 @@ class WeightedAverageHistory extends ChartJs
         $fuelType = $fuel->value;
 
         return [
-            'label' => $fuelType,
+            'label' => $fuel->getDisplayValue(),
             'borderColor' => $fuel->getColor(),
             'backgroundColor' => $fuel->getColor(),
             'data' => array_map(
