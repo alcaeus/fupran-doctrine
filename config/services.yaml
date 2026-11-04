@@ -6,6 +6,8 @@
 parameters:
     env(MONGODB_URL): ''
     env(MONGODB_DB): ''
+    # Maximum number of days a chart can cover
+    app.chart.max_range_days: 366
 
 services:
     # default configuration for services in *this* file
