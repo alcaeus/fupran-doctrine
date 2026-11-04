@@ -142,6 +142,42 @@ class StationsControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(400);
     }
 
+    public function testShowWithDayLoadsThatDaysPrices(): void
+    {
+        DailyPriceRepositoryTest::insertSampleData();
+
+        $client = $this->client;
+        $client->request('GET', '/stations/' . DailyPriceRepositoryTest::STATION_UUID, ['day' => '2024-11-19']);
+
+        self::assertResponseIsSuccessful();
+        // The sample station has no embedded latest price, so the day chart is only rendered here if it was loaded
+        self::assertSelectorExists('turbo-frame#station-day canvas');
+        self::assertSame('2024-11-19', $client->getCrawler()->filter('turbo-frame#station-day input[name=day]')->attr('value'));
+        self::assertSelectorExists('turbo-frame#station-day a[href*="day=2024-11-18"]');
+        self::assertSelectorExists('turbo-frame#station-day a[href*="day=2024-11-20"]');
+    }
+
+    public function testShowWithDayWithoutPricesShowsMessage(): void
+    {
+        DailyPriceRepositoryTest::insertSampleData();
+
+        $client = $this->client;
+        $client->request('GET', '/stations/' . DailyPriceRepositoryTest::STATION_UUID, ['day' => '2024-11-18']);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('turbo-frame#station-day .alert', 'No price changes recorded on 2024-11-18');
+    }
+
+    public function testShowRejectsInvalidDay(): void
+    {
+        DailyPriceRepositoryTest::insertSampleData();
+
+        $client = $this->client;
+        $client->request('GET', '/stations/' . DailyPriceRepositoryTest::STATION_UUID, ['day' => 'yesterday']);
+
+        self::assertResponseStatusCodeSame(400);
+    }
+
     public function testShowReturns404ForUnknownStation(): void
     {
         $client = $this->client;

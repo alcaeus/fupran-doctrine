@@ -13,7 +13,7 @@
         </div>
 
         <div class="col">
-            <twig:Station:LatestPrices station="{{ station }}" />
+            <twig:Station:LatestPrices station="{{ station }}" requestedDay="{{ day }}" query="{{ app.request.query.all }}" />
         </div>
     </div>
 

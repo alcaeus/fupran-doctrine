@@ -15,6 +15,7 @@ use App\Document\Station;
 use App\Fuel;
 use Closure;
 use DateTimeImmutable;
+use DateTimeZone;
 use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
 use Doctrine\ODM\MongoDB\Iterator\Iterator;
 use MongoDB\BSON\Binary;
@@ -27,7 +28,9 @@ use MongoDB\Collection;
 use stdClass;
 use UnexpectedValueException;
 
+use function array_values;
 use function count;
+use function iterator_to_array;
 use function MongoDB\object;
 
 /** @extends AbstractRepository<DailyPrice> */
@@ -158,6 +161,30 @@ class DailyPriceRepository extends AbstractRepository
             ->equals($station->id)
             ->sort('day', -1)
             ->limit(count(Fuel::cases()))
+            ->getQuery()
+            ->getIterator();
+    }
+
+    /**
+     * The daily prices of all fuels of a station on the given day. Fuels without a price change on that day have
+     * no document, as their opening price carries over from the previous day.
+     *
+     * @return list<DailyPrice>
+     */
+    public function getDayPricesForStation(Station $station, DateTimeImmutable $day): array
+    {
+        return array_values(iterator_to_array($this->findDayPricesForStation($station, $day), false));
+    }
+
+    /** @return Iterator<DailyPrice> */
+    private function findDayPricesForStation(Station $station, DateTimeImmutable $day): Iterator
+    {
+        return $this->createQueryBuilder()
+            ->field('station.referencedStation')
+            ->equals($station)
+            ->field('day')
+            ->equals($day->setTimezone(new DateTimeZone('UTC'))->setTime(0, 0))
+            ->sort('fuel', 1)
             ->getQuery()
             ->getIterator();
     }

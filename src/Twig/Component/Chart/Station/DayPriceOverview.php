@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Twig\Component\Chart\Station;
 
-use App\Document\EmbeddedDailyPrice;
-use App\Document\LatestPrice;
+use App\Document\Partial\AbstractDailyPrice;
 use App\Document\Price;
 use App\Fuel;
 use App\Twig\Component\ChartJs;
@@ -17,7 +16,8 @@ use function array_map;
 #[AsTwigComponent('Chart:Station:DayPriceOverview', template: ChartJs::TEMPLATE)]
 class DayPriceOverview extends ChartJs
 {
-    public LatestPrice $latestPrice;
+    /** @var iterable<AbstractDailyPrice|null> */
+    public iterable $dailyPrices = [];
 
     public function getChart(): Chart
     {
@@ -45,20 +45,19 @@ class DayPriceOverview extends ChartJs
     {
         $datasets = [];
 
-        foreach (Fuel::cases() as $fuel) {
-            $fuelType = $fuel->value;
-            if (! isset($this->latestPrice->$fuelType)) {
+        foreach ($this->dailyPrices as $dailyPrice) {
+            if ($dailyPrice === null) {
                 continue;
             }
 
-            $datasets[] = $this->createDataset($this->latestPrice->$fuelType, $fuel);
+            $datasets[] = $this->createDataset($dailyPrice, $dailyPrice->fuel);
         }
 
         return $datasets;
     }
 
     /** @return array{label: string, data: array<array{x: int, y: mixed}>} */
-    private function createDataset(EmbeddedDailyPrice $dailyPrice, Fuel $fuel): array
+    private function createDataset(AbstractDailyPrice $dailyPrice, Fuel $fuel): array
     {
         return [
             'label' => $fuel->value,

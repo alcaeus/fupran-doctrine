@@ -388,6 +388,46 @@ JSON;
         $this->assertSame([], iterator_to_array($dailyPriceRepository->getPricesForStationAndFuel($station, Fuel::Diesel, $range), false));
     }
 
+    public function testGetDayPricesForStationReturnsAllFuelsOfThatDayOnly(): void
+    {
+        self::insertSampleData();
+
+        $documentManager = self::getDocumentManager();
+        $dailyPriceRepository = self::getContainer()->get(DailyPriceRepository::class);
+
+        $station = $documentManager->getRepository(Station::class)->find(self::STATION_UUID);
+        $this->assertInstanceOf(Station::class, $station);
+
+        $dailyPriceRepository->reportPrice($station, Fuel::E5, 1.729, new DateTimeImmutable('2024-11-19T08:00:00Z'));
+        $dailyPriceRepository->reportPrice($station, Fuel::E5, 1.739, new DateTimeImmutable('2024-11-20T08:00:00Z'));
+
+        $documentManager->clear();
+        $station = $documentManager->find(Station::class, self::STATION_UUID);
+        $this->assertInstanceOf(Station::class, $station);
+
+        $prices = $dailyPriceRepository->getDayPricesForStation($station, new DateTimeImmutable('2024-11-19T13:00:00+02:00'));
+
+        $this->assertSame(
+            ['diesel', 'e5'],
+            array_map(static fn (DailyPrice $price): string => $price->fuel->value, $prices),
+        );
+        $this->assertSame('2024-11-19', $prices[0]->day->format('Y-m-d'));
+        $this->assertCount(1, $prices[0]->prices);
+    }
+
+    public function testGetDayPricesForStationIsEmptyWithoutPriceChanges(): void
+    {
+        self::insertSampleData();
+
+        $documentManager = self::getDocumentManager();
+        $dailyPriceRepository = self::getContainer()->get(DailyPriceRepository::class);
+
+        $station = $documentManager->getRepository(Station::class)->find(self::STATION_UUID);
+        $this->assertInstanceOf(Station::class, $station);
+
+        $this->assertSame([], $dailyPriceRepository->getDayPricesForStation($station, new DateTimeImmutable('2024-11-18')));
+    }
+
     private static function getDocumentManager(): DocumentManager
     {
         return self::getContainer()->get(DocumentManager::class);

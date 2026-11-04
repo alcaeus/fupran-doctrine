@@ -65,7 +65,8 @@ final class DateRange
         return new self($fromDay, $toDay, $maxDays, $today);
     }
 
-    private static function parseDay(string $value, string $name): DateTimeImmutable
+    /** Parses a `Y-m-d` string into midnight UTC of that day. */
+    public static function parseDay(string $value, string $name): DateTimeImmutable
     {
         $day = DateTimeImmutable::createFromFormat('!' . self::FORMAT, $value, new DateTimeZone('UTC'));
         if ($day === false || $day->format(self::FORMAT) !== $value) {
