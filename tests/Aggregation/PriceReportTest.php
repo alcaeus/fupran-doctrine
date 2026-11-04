@@ -17,11 +17,12 @@ use MongoDB\Database;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use stdClass;
+use UnexpectedValueException;
 
 use function array_map;
 use function array_values;
-use function getenv;
 use function is_array;
+use function is_string;
 use function iterator_to_array;
 
 class PriceReportTest extends TestCase
@@ -406,7 +407,12 @@ class PriceReportTest extends TestCase
     private function getClient(): Client
     {
         // Same variable as the application; loaded from .env by tests/bootstrap.php, with the server provided by the Symfony CLI
-        return new Client($_SERVER['MONGODB_URL'] ?? (getenv('MONGODB_URI') ?: null));
+        $uri = $_SERVER['MONGODB_URL'] ?? null;
+        if (! is_string($uri)) {
+            throw new UnexpectedValueException('Expected the MONGODB_URL environment variable to be set.');
+        }
+
+        return new Client($uri);
     }
 
     private function getTestDatabase(): Database
