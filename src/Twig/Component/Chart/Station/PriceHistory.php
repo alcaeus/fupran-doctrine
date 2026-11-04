@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Twig\Component\Chart\Station;
 
 use App\Document\Partial\AbstractDailyPrice;
-use App\Fuel;
 use App\Twig\Component\ChartJs;
 use Closure;
 use Symfony\UX\Chartjs\Model\Chart;
@@ -16,8 +15,6 @@ use function array_map;
 #[AsTwigComponent('Chart:Station:PriceHistory', template: ChartJs::TEMPLATE)]
 class PriceHistory extends ChartJs
 {
-    public Fuel $fuel;
-
     /** @var iterable<AbstractDailyPrice> */
     public iterable $prices;
 
@@ -26,9 +23,9 @@ class PriceHistory extends ChartJs
         $chart = $this->chartBuilder->createChart(Chart::TYPE_LINE);
 
         $datasets = [
-            $this->createDataset('Lowest', static fn (AbstractDailyPrice $price) => $price->lowestPrice->price),
-            $this->createDataset('Average', static fn (AbstractDailyPrice $price) => $price->weightedAveragePrice, false),
-            $this->createDataset('Highest', static fn (AbstractDailyPrice $price) => $price->highestPrice->price),
+            $this->createDataset('Lowest', self::LOWEST_PRICE_COLOR, static fn (AbstractDailyPrice $price) => $price->lowestPrice->price),
+            $this->createDataset('Average', self::AVERAGE_PRICE_COLOR, static fn (AbstractDailyPrice $price) => $price->weightedAveragePrice, false),
+            $this->createDataset('Highest', self::HIGHEST_PRICE_COLOR, static fn (AbstractDailyPrice $price) => $price->highestPrice->price),
         ];
 
         $chart->setData(['datasets' => $datasets]);
@@ -44,10 +41,8 @@ class PriceHistory extends ChartJs
     }
 
     /** @return array{label: string, borderColor: string, backgroundColor: string, borderDash: list<int>, data: array<array{x: int, y: mixed}>} */
-    private function createDataset(string $label, Closure $getPrice, bool $dashed = true): array
+    private function createDataset(string $label, string $color, Closure $getPrice, bool $dashed = true): array
     {
-        $color = $this->fuel->getColor();
-
         return [
             'label' => $label,
             'borderColor' => $color,

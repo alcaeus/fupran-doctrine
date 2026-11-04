@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Twig\Component\Chart\DailyAggregate;
 
 use App\Document\CompoundDailyAggregate;
-use App\Fuel;
 use App\Twig\Component\ChartJs;
 use Symfony\UX\Chartjs\Model\Chart;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
@@ -42,10 +41,8 @@ class PriceHistory extends ChartJs
     }
 
     /** @return array{label: string, borderColor: string, backgroundColor: string, borderDash: list<int>, data: array<array{x: int, y: mixed}>} */
-    private function createDataset(string $label, string $datapoint, bool $dashed = true): array
+    private function createDataset(string $label, string $color, string $datapoint, bool $dashed = true): array
     {
-        $color = Fuel::from($this->fuel)->getColor();
-
         return [
             'label' => $label,
             'borderColor' => $color,
@@ -65,9 +62,9 @@ class PriceHistory extends ChartJs
     private function createDatasets(): array
     {
         return [
-            $this->createDataset('Lowest Price', 'lowestPrice'),
-            $this->createDataset('Weighted Average', 'weightedAveragePrice', false),
-            $this->createDataset('Highest Price', 'highestPrice'),
+            $this->createDataset('Lowest Price', self::LOWEST_PRICE_COLOR, 'lowestPrice'),
+            $this->createDataset('Weighted Average', self::AVERAGE_PRICE_COLOR, 'weightedAveragePrice', false),
+            $this->createDataset('Highest Price', self::HIGHEST_PRICE_COLOR, 'highestPrice'),
         ];
     }
 }
