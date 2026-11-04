@@ -6,16 +6,23 @@ namespace App\Aggregation;
 
 use App\FileImport\WorkerPool;
 use App\FileImport\WorkerProcessFactory;
+use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Process\Process;
+
+use function array_slice;
+use function explode;
+use function max;
+use function min;
+use function str_contains;
+
+use const PHP_EOL;
 
 /**
- * Runs the price report pre-aggregation in a number of worker processes, each handling an equally
- * sized slice of the UUID space. Stations do not depend on each other in these stages, so every
- * worker can run both aggregation steps for its stations without waiting for the others.
+ * Runs the price report aggregation in a number of worker processes.
  *
- * The raw price report collection deliberately has no index on the station: every worker scans it
- * in full and filters by its slice. A benchmark with 3M reports showed that this scan costs well
- * under a second per worker, which is less than building the index serially after the import
- * (about 4.5 s) and about as much as maintaining it during the import would add.
+ * Grouping the raw reports (see aggregateChunks()) is distributed in small chunks of stations that workers
+ * pull from a queue. The following steps run per slice of the UUID space (see aggregate()): stations do not
+ * depend on each other there, so every worker can run them for its stations without waiting for the others.
  */
 final class ParallelPriceReportAggregator
 {
@@ -23,16 +30,67 @@ final class ParallelPriceReportAggregator
     {
     }
 
-    public function aggregate(?string $importCollectionName, string $aggregatedCollectionName, string $updatedDaysCollectionName, int $jobs): void
+    /**
+     * @param int $totalStations Number of stations in the queue, which is the target of the progress bar
+     *
+     * @return list<ChunkResult>
+     */
+    public function aggregateChunks(string $importCollectionName, string $aggregatedCollectionName, ChunkQueue $queue, int $chunks, int $jobs, int $totalStations, ?SymfonyStyle $style = null): array
+    {
+        $style?->progressStart($totalStations);
+
+        $results = [];
+        $buffers = [];
+        $errors = [];
+        $processes = [];
+
+        // There is no point in starting more workers than there are chunks
+        for ($index = 0; $index < max(1, min($jobs, $chunks)); $index++) {
+            $buffers[$index] = '';
+            $process = $this->processFactory->create(
+                'app:import:price-reports-chunk-worker',
+                [$importCollectionName, $aggregatedCollectionName, $queue->getCollectionName()],
+            );
+            $process->start(static function (string $type, string $data) use ($index, &$buffers, &$results, &$errors, $style): void {
+                if ($type === Process::ERR) {
+                    $errors[$index] = ($errors[$index] ?? '') . $data;
+
+                    return;
+                }
+
+                // Output arrives in arbitrary chunks, so only act on complete lines
+                $buffers[$index] .= $data;
+                if (! str_contains($buffers[$index], PHP_EOL)) {
+                    return;
+                }
+
+                $lines = explode(PHP_EOL, $buffers[$index]);
+                $buffers[$index] = array_slice($lines, -1)[0];
+
+                foreach (array_slice($lines, 0, -1) as $line) {
+                    $result = ChunkResult::fromJson($line);
+                    $results[] = $result;
+                    $style?->progressAdvance($result->stations);
+                }
+            });
+            $processes[$index] = $process;
+        }
+
+        WorkerPool::wait($processes, 'Chunk aggregation', 50_000, static fn (int $index): ?string => $errors[$index] ?? null);
+
+        $style?->progressFinish();
+
+        return $results;
+    }
+
+    public function aggregate(string $aggregatedCollectionName, string $updatedDaysCollectionName, int $jobs): void
     {
         $processes = [];
         for ($index = 0; $index < $jobs; $index++) {
-            $arguments = [$aggregatedCollectionName, $updatedDaysCollectionName, (string) $index, (string) $jobs];
-            if ($importCollectionName !== null) {
-                $arguments[] = '--import-collection=' . $importCollectionName;
-            }
-
-            $process = $this->processFactory->create('app:import:price-reports-aggregate-worker', $arguments);
+            $process = $this->processFactory->create(
+                'app:import:price-reports-aggregate-worker',
+                [$aggregatedCollectionName, $updatedDaysCollectionName, (string) $index, (string) $jobs],
+            );
             $process->start();
             $processes[$index] = $process;
         }

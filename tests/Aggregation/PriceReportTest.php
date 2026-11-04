@@ -7,6 +7,7 @@ namespace App\Tests\Aggregation;
 use App\Aggregation\PriceReport;
 use DateTimeImmutable;
 use Generator;
+use MongoDB\BSON\Binary;
 use MongoDB\BSON\UTCDateTime;
 use MongoDB\Builder\Expression;
 use MongoDB\Builder\Pipeline;
@@ -123,42 +124,20 @@ class PriceReportTest extends TestCase
         self::assertSame($expectedWeightedAverage, $result->weightedAveragePrice);
     }
 
-    public function testAddExtremeValues(): void
-    {
-        $price1 = ['_id' => 1, 'price' => 2, 'date' => new UTCDateTime(new DateTimeImmutable('2025-06-27T00:00:00+00:00'))];
-        $price2 = ['_id' => 2, 'price' => 1, 'date' => new UTCDateTime(new DateTimeImmutable('2025-06-27T01:00:00+00:00'))];
-        $price3 = ['_id' => 3, 'price' => 3, 'date' => new UTCDateTime(new DateTimeImmutable('2025-06-27T02:00:00+00:00'))];
-
-        $result = $this->runPipelineForSingleDocument(
-            [
-                'prices' => [$price1, $price2, $price3],
-                'pricesByPrice' => [$price2, $price1, $price3],
-            ],
-            PriceReport::addExtremeValues(),
-        );
-
-        self::assertMongoResultEquals(
-            [
-                'prices' => [$price1, $price2, $price3],
-                'closingPrice' => 3,
-                'lowestPrice' => $price2,
-                'highestPrice' => $price3,
-            ],
-            $result,
-        );
-    }
-
     public function testGroupPriceReportsByStationDayFuel(): void
     {
         $day = new UTCDateTime(new DateTimeImmutable('2025-06-27T00:00:00+00:00'));
         $date1 = new UTCDateTime(new DateTimeImmutable('2025-06-27T01:00:00+00:00'));
         $date2 = new UTCDateTime(new DateTimeImmutable('2025-06-27T02:00:00+00:00'));
+        $date3 = new UTCDateTime(new DateTimeImmutable('2025-06-27T03:00:00+00:00'));
 
+        // Input has to be ordered by date, as it is when read from the {station, date} index
         $result = $this->runPipeline(
             [
                 ['_id' => 1, 'station' => 'stationA', 'day' => $day, 'fuel' => 'e5', 'date' => $date1, 'price' => 1.5],
-                ['_id' => 2, 'station' => 'stationA', 'day' => $day, 'fuel' => 'e5', 'date' => $date2, 'price' => 1.6],
-                ['_id' => 3, 'station' => 'stationB', 'day' => $day, 'fuel' => 'e5', 'date' => $date1, 'price' => 1.7],
+                ['_id' => 2, 'station' => 'stationA', 'day' => $day, 'fuel' => 'e5', 'date' => $date2, 'price' => 1.4],
+                ['_id' => 3, 'station' => 'stationA', 'day' => $day, 'fuel' => 'e5', 'date' => $date3, 'price' => 1.6],
+                ['_id' => 4, 'station' => 'stationB', 'day' => $day, 'fuel' => 'e5', 'date' => $date1, 'price' => 1.7],
             ],
             PriceReport::groupPriceReportsByStationDayFuel(),
             Stage::sort(_id: 1),
@@ -170,30 +149,62 @@ class PriceReportTest extends TestCase
                     '_id' => ['station' => 'stationA', 'day' => $day, 'fuel' => 'e5'],
                     'prices' => [
                         ['_id' => 1, 'date' => $date1, 'price' => 1.5],
-                        ['_id' => 2, 'date' => $date2, 'price' => 1.6],
+                        ['_id' => 2, 'date' => $date2, 'price' => 1.4],
+                        ['_id' => 3, 'date' => $date3, 'price' => 1.6],
                     ],
+                    'closingPrice' => 1.6,
+                    'lowestPrice' => ['_id' => 2, 'date' => $date2, 'price' => 1.4],
+                    'highestPrice' => ['_id' => 3, 'date' => $date3, 'price' => 1.6],
                 ],
                 [
                     '_id' => ['station' => 'stationB', 'day' => $day, 'fuel' => 'e5'],
                     'prices' => [
-                        ['_id' => 3, 'date' => $date1, 'price' => 1.7],
+                        ['_id' => 4, 'date' => $date1, 'price' => 1.7],
                     ],
+                    'closingPrice' => 1.7,
+                    'lowestPrice' => ['_id' => 4, 'date' => $date1, 'price' => 1.7],
+                    'highestPrice' => ['_id' => 4, 'date' => $date1, 'price' => 1.7],
                 ],
             ],
             $result,
         );
     }
 
+    public function testGroupPriceReportsByStationDayFuelResolvesTiesToEarliestReport(): void
+    {
+        $day = new UTCDateTime(new DateTimeImmutable('2025-06-27T00:00:00+00:00'));
+        $date1 = new UTCDateTime(new DateTimeImmutable('2025-06-27T01:00:00+00:00'));
+        $date2 = new UTCDateTime(new DateTimeImmutable('2025-06-27T02:00:00+00:00'));
+        $date3 = new UTCDateTime(new DateTimeImmutable('2025-06-27T03:00:00+00:00'));
+
+        $result = $this->runPipeline(
+            [
+                ['_id' => 1, 'station' => 'stationA', 'day' => $day, 'fuel' => 'e5', 'date' => $date1, 'price' => 1.5],
+                ['_id' => 2, 'station' => 'stationA', 'day' => $day, 'fuel' => 'e5', 'date' => $date2, 'price' => 1.5],
+                ['_id' => 3, 'station' => 'stationA', 'day' => $day, 'fuel' => 'e5', 'date' => $date3, 'price' => 1.5],
+            ],
+            PriceReport::groupPriceReportsByStationDayFuel(),
+        );
+
+        self::assertCount(1, $result);
+        self::assertMongoResultEquals(1, ((array) $result[0]->lowestPrice)['_id']);
+        self::assertMongoResultEquals(1, ((array) $result[0]->highestPrice)['_id']);
+        self::assertSame(1.5, $result[0]->closingPrice);
+    }
+
     public function testReshapeGroupedPriceReports(): void
     {
         $day = new UTCDateTime(new DateTimeImmutable('2025-06-27T00:00:00+00:00'));
-        $price1 = ['_id' => 1, 'price' => 1.6, 'date' => new UTCDateTime(new DateTimeImmutable('2025-06-27T02:00:00+00:00'))];
-        $price2 = ['_id' => 2, 'price' => 1.5, 'date' => new UTCDateTime(new DateTimeImmutable('2025-06-27T01:00:00+00:00'))];
+        $price1 = ['_id' => 1, 'price' => 1.5, 'date' => new UTCDateTime(new DateTimeImmutable('2025-06-27T01:00:00+00:00'))];
+        $price2 = ['_id' => 2, 'price' => 1.6, 'date' => new UTCDateTime(new DateTimeImmutable('2025-06-27T02:00:00+00:00'))];
 
         $result = $this->runPipelineForSingleDocument(
             [
                 '_id' => ['station' => 'stationA', 'day' => $day, 'fuel' => 'e5'],
                 'prices' => [$price1, $price2],
+                'closingPrice' => 1.6,
+                'lowestPrice' => $price1,
+                'highestPrice' => $price2,
             ],
             PriceReport::reshapeGroupedPriceReports(),
         );
@@ -203,8 +214,48 @@ class PriceReportTest extends TestCase
                 'day' => $day,
                 'station' => 'stationA',
                 'fuel' => 'e5',
-                'prices' => [$price2, $price1],
-                'pricesByPrice' => [$price2, $price1],
+                'prices' => [$price1, $price2],
+                'closingPrice' => 1.6,
+                'lowestPrice' => $price1,
+                'highestPrice' => $price2,
+            ],
+            $result,
+        );
+    }
+
+    public function testMatchStations(): void
+    {
+        $result = $this->runPipeline(
+            [
+                ['_id' => 1, 'station' => 'stationA'],
+                ['_id' => 2, 'station' => 'stationB'],
+                ['_id' => 3, 'station' => 'stationC'],
+            ],
+            PriceReport::matchStations([(object) ['_id' => 'stationA'], (object) ['_id' => 'stationC']]),
+            Stage::sort(_id: 1),
+        );
+
+        self::assertMongoResultEquals([1, 3], array_map(static fn (stdClass $document): mixed => $document->_id, $result));
+    }
+
+    public function testAttachStations(): void
+    {
+        $stationA = (object) ['_id' => new Binary('aaaaaaaaaaaaaaaa', Binary::TYPE_UUID), 'name' => 'Station A', 'address' => (object) ['postCode' => '80331']];
+        $stationB = (object) ['_id' => new Binary('bbbbbbbbbbbbbbbb', Binary::TYPE_UUID), 'name' => 'Station B', 'location' => (object) ['type' => 'Point', 'coordinates' => [11.5, 48.1]]];
+
+        $result = $this->runPipeline(
+            [
+                ['_id' => 1, 'station' => $stationB->_id],
+                ['_id' => 2, 'station' => $stationA->_id],
+            ],
+            PriceReport::attachStations([$stationA, $stationB]),
+            Stage::sort(_id: 1),
+        );
+
+        self::assertMongoResultEquals(
+            [
+                ['_id' => 1, 'station' => (array) $stationB],
+                ['_id' => 2, 'station' => (array) $stationA],
             ],
             $result,
         );

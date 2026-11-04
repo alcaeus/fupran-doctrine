@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\Command;
 
+use App\Aggregation\ChunkAggregationRunner;
+use App\Aggregation\ChunkQueue;
+use App\Aggregation\ChunkResult;
 use App\Aggregation\ParallelPriceReportAggregator;
+use App\Aggregation\StationChunker;
 use App\Document\Station;
 use App\FileImport\ImportException;
 use App\FileImport\ParallelFileImporter;
@@ -27,12 +31,17 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 use UnexpectedValueException;
 
 use function App\measure;
+use function array_filter;
+use function array_map;
+use function array_sum;
 use function array_values;
 use function count;
 use function is_array;
 use function is_numeric;
 use function is_string;
 use function iterator_to_array;
+use function max;
+use function min;
 use function sprintf;
 use function uniqid;
 
@@ -45,6 +54,7 @@ class ImportPriceReportsCommand extends Command
     private readonly Database $database;
     private Collection $collection;
     private Collection $updatedDays;
+    private readonly Collection $stationCollection;
     /** @var list<UTCDateTime>|null Days with new or updated prices; null if unknown, in which case everything is recomputed */
     private ?array $affectedDays = null;
     private bool $latestPricesUpdated = false;
@@ -55,6 +65,8 @@ class ImportPriceReportsCommand extends Command
         private readonly ParallelPriceReportAggregator $parallelAggregator,
         private readonly DailyPriceRepository $dailyPriceRepository,
         private readonly DailyAggregateRepository $dailyAggregateRepository,
+        private readonly StationChunker $stationChunker,
+        private readonly ChunkAggregationRunner $chunkRunner,
         DocumentManager $documentManager,
     ) {
         parent::__construct(null);
@@ -64,6 +76,7 @@ class ImportPriceReportsCommand extends Command
             ->selectCollection(uniqid('aggregatedPriceReports_'));
         $this->updatedDays = $this->database
             ->selectCollection(uniqid('updatedDays_'));
+        $this->stationCollection = $documentManager->getDocumentCollection(Station::class);
     }
 
     protected function configure(): void
@@ -121,7 +134,7 @@ class ImportPriceReportsCommand extends Command
         $collectionName = $this->selectRecoveryCollection('priceReportImport_', $io);
 
         // Leftovers of a failed run are recreated when the steps are repeated
-        foreach ($this->getCollectionNames('updatedDays_') as $leftover) {
+        foreach ([...$this->getCollectionNames('updatedDays_'), ...$this->getCollectionNames('aggregationQueue_')] as $leftover) {
             $this->database->dropCollection($leftover);
         }
 
@@ -200,23 +213,78 @@ class ImportPriceReportsCommand extends Command
         $this->runPostImportAggregations($this->importer->collection, $aggregationJobs, $io);
     }
 
-    private function aggregatePriceReportsByDay(Collection $importCollection, SymfonyStyle $io): void
+    private function aggregatePriceReportsByDay(Collection $importCollection, int $jobs, SymfonyStyle $io): void
     {
-        $io->write('Aggregating imported price reports for further processing...');
-
-        [$time] = measure(
-            fn () => $this->dailyPriceRepository->aggregatePriceReportsByDay($importCollection, $this->collection),
-        );
-
-        $importCollection->drop();
-
+        // Lets the chunks read their reports in the order the grouping needs them without sorting
+        $io->write('Checking and potentially creating index on import collection...');
+        [$time] = measure(static fn () => $importCollection->createIndex(['station' => 1, 'date' => 1]));
         $io->writeln(sprintf('Done in %.5fs.', $time));
+
+        $io->write('Splitting stations with price reports into chunks...');
+        [$time, $chunks] = measure(fn () => $this->stationChunker->planChunks($importCollection, $this->stationCollection));
+        $io->writeln(sprintf('Done in %.5fs.', $time));
+
+        if ($chunks === []) {
+            $importCollection->drop();
+
+            return;
+        }
+
+        $queue = new ChunkQueue($this->database->selectCollection(uniqid('aggregationQueue_')));
+        $queue->enqueue($chunks);
+
+        $totalStations = array_sum(array_map(count(...), $chunks));
+        $io->writeln(sprintf('Aggregating imported price reports of %d stations in %d chunks using %d worker processes...', $totalStations, count($chunks), max(1, min($jobs, count($chunks)))));
+
+        [$time, $results] = measure(function () use ($importCollection, $queue, $chunks, $totalStations, $jobs, $io): array {
+            if ($jobs > 1) {
+                return $this->parallelAggregator->aggregateChunks(
+                    $importCollection->getCollectionName(),
+                    $this->collection->getCollectionName(),
+                    $queue,
+                    count($chunks),
+                    $jobs,
+                    $totalStations,
+                    $io,
+                );
+            }
+
+            $results = [];
+            $io->progressStart($totalStations);
+            $this->chunkRunner->run($importCollection, $this->collection, $queue, static function (ChunkResult $result) use (&$results, $io): void {
+                $results[] = $result;
+                $io->progressAdvance($result->stations);
+            });
+            $io->progressFinish();
+
+            return $results;
+        });
+
+        // Only dropped once all chunks succeeded, so a failed run can be recovered
+        $importCollection->drop();
+        $queue->drop();
+
+        $this->printChunkSummary($results, $time, $io);
+    }
+
+    /** @param list<ChunkResult> $results */
+    private function printChunkSummary(array $results, float $time, SymfonyStyle $io): void
+    {
+        $durations = array_map(static fn (ChunkResult $result): float => $result->seconds, $results);
+        $spilled = array_filter($results, static fn (ChunkResult $result): bool => $result->spills !== null && $result->spills > 0);
+
+        $io->definitionList(
+            ['Chunks' => count($results)],
+            ['Stations' => array_sum(array_map(static fn (ChunkResult $result): int => $result->stations, $results))],
+            ['Aggregated documents' => array_sum(array_map(static fn (ChunkResult $result): int => $result->documents, $results))],
+            ['Elapsed time' => sprintf('%.2fs', $time)],
+            ['Time spent in chunks' => sprintf('%.2fs (slowest: %.2fs)', array_sum($durations), $durations === [] ? 0 : max($durations))],
+            ['Chunks during which the server spilled to disk' => sprintf('%d (server-wide counter, includes concurrent chunks)', count($spilled))],
+        );
     }
 
     private function addOpeningPriceAndMergeIntoPrices(SymfonyStyle $io): void
     {
-        $this->createAggregatedIndex($io);
-
         $io->write('Adding opening price for each day and merge into prices collection...');
 
         [$time] = measure(function (): void {
@@ -234,10 +302,11 @@ class ImportPriceReportsCommand extends Command
 
     private function createAggregatedIndex(SymfonyStyle $io): void
     {
-        $io->write('Checking and potentially creating index on import collection...');
+        $io->write('Checking and potentially creating index on aggregated collection...');
 
+        // Unique, as chunks are merged into the collection on these fields
         [$time] = measure(
-            fn () => $this->collection->createIndex(['station._id' => 1, 'fuel' => 1, 'day' => 1]),
+            fn () => $this->collection->createIndex(['station._id' => 1, 'fuel' => 1, 'day' => 1], ['unique' => true]),
         );
 
         $io->writeln(sprintf('Done in %.5fs.', $time));
@@ -324,32 +393,31 @@ class ImportPriceReportsCommand extends Command
 
     private function runPostImportAggregations(?Collection $importCollection, int $jobs, SymfonyStyle $io): void
     {
-        if ($jobs > 1) {
-            $this->runPostImportAggregationsInParallel($importCollection, $jobs, $io);
-
-            return;
-        }
+        /* Chunks are merged into the collection on this index, and the workers of the second step run for
+         * their stations as soon as they start, so it has to exist up front. Building it on the (still empty)
+         * collection is cheap, and it is maintained as results are merged.
+         */
+        $this->createAggregatedIndex($io);
 
         if ($importCollection) {
-            $this->aggregatePriceReportsByDay($importCollection, $io);
+            $this->aggregatePriceReportsByDay($importCollection, $jobs, $io);
+        }
+
+        if ($jobs > 1) {
+            $this->runPostImportAggregationsInParallel($jobs, $io);
+
+            return;
         }
 
         $this->addOpeningPriceAndMergeIntoPrices($io);
     }
 
-    private function runPostImportAggregationsInParallel(?Collection $importCollection, int $jobs, SymfonyStyle $io): void
+    private function runPostImportAggregationsInParallel(int $jobs, SymfonyStyle $io): void
     {
-        /* The workers run the second step for their stations as soon as they are done with the first,
-         * so the index it needs has to exist up front. Building it on the (still empty) collection is
-         * cheap, and the workers maintain it as they merge their results.
-         */
-        $this->createAggregatedIndex($io);
-
-        $io->write(sprintf('Aggregating price reports, merging into prices collection and setting latest station prices using %d worker processes...', $jobs));
+        $io->write(sprintf('Merging into prices collection and setting latest station prices using %d worker processes...', $jobs));
 
         [$time] = measure(
             fn () => $this->parallelAggregator->aggregate(
-                $importCollection?->getCollectionName(),
                 $this->collection->getCollectionName(),
                 $this->updatedDays->getCollectionName(),
                 $jobs,
@@ -360,7 +428,6 @@ class ImportPriceReportsCommand extends Command
         $this->collectAffectedDays();
 
         // Only drop the temporary collections once all workers succeeded, so a failed run can be recovered
-        $importCollection?->drop();
         $this->collection->drop();
         $this->updatedDays->drop();
 
