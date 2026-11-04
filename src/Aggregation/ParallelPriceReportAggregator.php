@@ -14,6 +14,7 @@ use function explode;
 use function max;
 use function min;
 use function str_contains;
+use function str_starts_with;
 
 use const PHP_EOL;
 
@@ -44,6 +45,17 @@ final class ParallelPriceReportAggregator
         $errors = [];
         $processes = [];
 
+        // Workers report results as JSON lines; anything else on stdout (e.g. a PHP notice) is not a result
+        $handleLine = static function (string $line) use (&$results, $style): void {
+            if (! str_starts_with($line, '{')) {
+                return;
+            }
+
+            $result = ChunkResult::fromJson($line);
+            $results[] = $result;
+            $style?->progressAdvance($result->stations);
+        };
+
         // There is no point in starting more workers than there are chunks
         for ($index = 0; $index < max(1, min($jobs, $chunks)); $index++) {
             $buffers[$index] = '';
@@ -51,7 +63,7 @@ final class ParallelPriceReportAggregator
                 'app:import:price-reports-chunk-worker',
                 [$importCollectionName, $aggregatedCollectionName, $queue->getCollectionName()],
             );
-            $process->start(static function (string $type, string $data) use ($index, &$buffers, &$results, &$errors, $style): void {
+            $process->start(static function (string $type, string $data) use ($index, &$buffers, &$errors, $handleLine): void {
                 if ($type === Process::ERR) {
                     $errors[$index] = ($errors[$index] ?? '') . $data;
 
@@ -68,15 +80,18 @@ final class ParallelPriceReportAggregator
                 $buffers[$index] = array_slice($lines, -1)[0];
 
                 foreach (array_slice($lines, 0, -1) as $line) {
-                    $result = ChunkResult::fromJson($line);
-                    $results[] = $result;
-                    $style?->progressAdvance($result->stations);
+                    $handleLine($line);
                 }
             });
             $processes[$index] = $process;
         }
 
         WorkerPool::wait($processes, 'Chunk aggregation', 50_000, static fn (int $index): ?string => $errors[$index] ?? null);
+
+        // A final line without a line break has not been handled yet
+        foreach ($buffers as $buffer) {
+            $handleLine($buffer);
+        }
 
         $style?->progressFinish();
 
