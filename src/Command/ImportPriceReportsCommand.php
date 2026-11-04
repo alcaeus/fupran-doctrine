@@ -23,6 +23,7 @@ use MongoDB\Collection;
 use MongoDB\Database;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -250,7 +251,7 @@ class ImportPriceReportsCommand extends Command
             }
 
             $results = [];
-            $io->progressStart($totalStations);
+            $io->progressStart($totalStations, ProgressBar::FORMAT_VERY_VERBOSE);
             $this->chunkRunner->run($importCollection, $this->collection, $queue, static function (ChunkResult $result) use (&$results, $io): void {
                 $results[] = $result;
                 $io->progressAdvance($result->stations);
