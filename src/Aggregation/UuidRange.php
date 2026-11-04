@@ -69,6 +69,7 @@ final class UuidRange
 
     private static function boundary(int $index, int $parts): Binary
     {
+        // Needs 64-bit integers: the shifted index exceeds 32 bits
         $prefix = intdiv($index << 32, $parts);
 
         return new Binary(pack('N', $prefix) . str_repeat("\0", 12), Binary::TYPE_UUID);
