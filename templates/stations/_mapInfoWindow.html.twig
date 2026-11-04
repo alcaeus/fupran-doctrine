@@ -1,0 +1,13 @@
+<address class="mb-2">
+    {{ station.address.street }} {{ station.address.houseNumber }}<br />
+    {{ station.address.postCode }} {{ station.address.city }}
+</address>
+<dl class="mb-2">
+    {% for dailyPrice in [station.latestPrice.diesel ?? null, station.latestPrice.e5 ?? null, station.latestPrice.e10 ?? null] %}
+        {% if dailyPrice is not null and dailyPrice.latestPrice is not null %}
+            <dt class="d-inline">{{ dailyPrice.fuel.displayValue }}:</dt>
+            <dd class="d-inline"><twig:Price price="{{ dailyPrice.latestPrice.price }}" /></dd><br />
+        {% endif %}
+    {% endfor %}
+</dl>
+<a href="{{ path('app_station_show', {id: station.id}) }}">Station details</a>

@@ -13,6 +13,7 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Uid\Uuid;
 
+use function html_entity_decode;
 use function sprintf;
 
 class StationsControllerTest extends WebTestCase
@@ -250,13 +251,16 @@ class StationsControllerTest extends WebTestCase
         self::persistStation('Different Post Code', postCode: '54321');
 
         $client = $this->client;
-        $client->request('GET', '/stations/postCode/12345/1');
+        $client->request('GET', '/stations/postCode/12345');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('#stations', 'In Post Code');
-        self::assertSelectorNotExists('#stations:contains("Different Post Code")');
-        self::assertCount(1, $client->getCrawler()->filter('#stations > .col'));
-        self::assertSelectorExists(sprintf('a[href="/stations/%s"]', $matching->id));
+        self::assertSelectorNotExists('#stations');
+
+        // Stations are rendered as markers inside the map's data attributes
+        $content = (string) $client->getResponse()->getContent();
+        self::assertStringContainsString('In Post Code', $content);
+        self::assertStringNotContainsString('Different Post Code', $content);
+        self::assertStringContainsString(sprintf('\\/stations\\/%s', $matching->id), html_entity_decode($content));
     }
 
     public function testListingsHideStationsWithoutPrices(): void
@@ -264,13 +268,19 @@ class StationsControllerTest extends WebTestCase
         self::persistStation('Hidden Station', favorite: true, visible: false);
         self::persistStation('Shown Station', favorite: true);
 
-        foreach (['/stations/1', '/stations/favorites/1', '/stations/postCode/12345/1'] as $url) {
+        foreach (['/stations/1', '/stations/favorites/1'] as $url) {
             $this->client->request('GET', $url);
 
             self::assertResponseIsSuccessful();
             self::assertSelectorTextContains('#stations', 'Shown Station');
             self::assertStringNotContainsString('Hidden Station', (string) $this->client->getResponse()->getContent());
         }
+
+        $this->client->request('GET', '/stations/postCode/12345');
+
+        self::assertResponseIsSuccessful();
+        self::assertStringContainsString('Shown Station', (string) $this->client->getResponse()->getContent());
+        self::assertStringNotContainsString('Hidden Station', (string) $this->client->getResponse()->getContent());
     }
 
     public function testShowStillWorksForStationWithoutPrices(): void
@@ -287,7 +297,7 @@ class StationsControllerTest extends WebTestCase
         self::persistStation('Different Post Code', postCode: '54321');
 
         $client = $this->client;
-        $client->request('GET', '/stations/postCode/12345/1');
+        $client->request('GET', '/stations/postCode/12345');
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.alert', 'No stations found');
@@ -296,15 +306,7 @@ class StationsControllerTest extends WebTestCase
     public function testPostCodeRejectsMalformedPostCode(): void
     {
         $client = $this->client;
-        $client->request('GET', '/stations/postCode/abc/1');
-
-        self::assertResponseStatusCodeSame(404);
-    }
-
-    public function testPostCodeRejectsNonNumericPage(): void
-    {
-        $client = $this->client;
-        $client->request('GET', '/stations/postCode/12345/not-a-number');
+        $client->request('GET', '/stations/postCode/abc');
 
         self::assertResponseStatusCodeSame(404);
     }
