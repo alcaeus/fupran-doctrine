@@ -1,0 +1,68 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-analysis:
+    name: PHPStan and PHPCS
+    runs-on: ubuntu-latest
+    env:
+      # Cache warmup builds the Doctrine client, which only parses the URI; no server is contacted
+      MONGODB_URL: mongodb://127.0.0.1:27017
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mongodb
+          tools: composer
+          coverage: none
+
+      - uses: ramsey/composer-install@v3
+
+      - name: Coding standard
+        run: vendor/bin/phpcs
+
+      - name: Static analysis
+        run: composer phpstan
+
+  tests:
+    name: PHPUnit
+    runs-on: ubuntu-latest
+    services:
+      mongodb:
+        image: mongo:8.2
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "mongosh --quiet --eval 'db.adminCommand(\"ping\").ok'"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      MONGODB_URL: mongodb://127.0.0.1:27017
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mongodb
+          tools: composer
+          coverage: none
+
+      - uses: ramsey/composer-install@v3
+
+      - name: PHPUnit
+        run: vendor/bin/phpunit
