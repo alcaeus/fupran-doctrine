@@ -21,6 +21,7 @@ services:
         resource: '../src/'
         exclude:
             - '../src/DependencyInjection/'
+            - '../src/DateRange.php'
             - '../src/Document/'
             - '../src/functions.php'
             - '../src/Kernel.php'

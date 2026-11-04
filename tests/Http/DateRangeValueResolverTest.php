@@ -60,6 +60,20 @@ class DateRangeValueResolverTest extends TestCase
         self::assertSame([], $resolver->resolve(new Request(), new ArgumentMetadata('range', DateRange::class, false, false, null)));
     }
 
+    public function testNullableArgumentWithoutParametersIsNotResolved(): void
+    {
+        $argument = new ArgumentMetadata('range', DateRange::class, false, true, null, true, [new MapDateRange(7)]);
+
+        self::assertSame([], [...(new DateRangeValueResolver(366))->resolve(new Request(), $argument)]);
+    }
+
+    public function testNullableArgumentWithParametersIsResolved(): void
+    {
+        $argument = new ArgumentMetadata('range', DateRange::class, false, true, null, true, [new MapDateRange(7)]);
+
+        self::assertCount(1, [...(new DateRangeValueResolver(366))->resolve(new Request(['to' => '2026-01-10']), $argument)]);
+    }
+
     private function resolve(Request $request): DateRange
     {
         $argument = new ArgumentMetadata('range', DateRange::class, false, false, null, false, [new MapDateRange(7)]);

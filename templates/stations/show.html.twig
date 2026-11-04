@@ -19,7 +19,11 @@
 
     <div class="row row-cols-1 mb-4">
         <div class="col">
-            <twig:Station:ChartTabs station="{{ station }}" />
+            <turbo-frame id="station-charts">
+                <h5>Price history{% if requestedRange %} ({{ requestedRange.from|date('Y-m-d') }} – {{ requestedRange.to|date('Y-m-d') }}){% else %} (recent){% endif %}</h5>
+                <twig:DateRangePicker range="{{ range }}" frame="station-charts" routeName="app_station_show" :routeParams="{id: station.id}" />
+                <twig:Station:ChartTabs station="{{ station }}" range="{{ requestedRange }}" />
+            </turbo-frame>
         </div>
     </div>
 {% endblock %}

@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\DateRange;
 use App\Doctrine\AggregationPaginator;
 use App\Doctrine\QueryPaginator;
 use App\Document\Station;
+use App\Http\MapDateRange;
 use App\Repository\StationRepository;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use Doctrine\ODM\MongoDB\Query\Builder;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
 use Symfony\Component\Routing\Attribute\Route;
@@ -48,11 +51,21 @@ class StationsController extends AbstractController
     }
 
     #[Route('/stations/{id}', name: 'app_station_show', requirements: ['id' => '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'], methods: ['GET'])]
-    public function show(Station $station): Response
-    {
+    public function show(
+        Station $station,
+        #[Autowire('%app.chart.max_range_days%')]
+        int $maxRangeDays,
+        #[MapDateRange(defaultDays: 30)]
+        ?DateRange $range = null,
+    ): Response {
         return $this->render(
             'stations/show.html.twig',
-            ['station' => $station],
+            [
+                'station' => $station,
+                // Without a requested range, charts use the recent prices embedded in the station
+                'requestedRange' => $range,
+                'range' => $range ?? DateRange::last(30, $maxRangeDays),
+            ],
         );
     }
 

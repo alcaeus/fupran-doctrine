@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Twig\Component\Chart\Station;
 
-use App\Document\EmbeddedDailyPrice;
-use App\Document\Station;
+use App\Document\Partial\AbstractDailyPrice;
 use App\Fuel;
 use App\Twig\Component\ChartJs;
 use Closure;
@@ -19,16 +18,17 @@ class PriceHistory extends ChartJs
 {
     public Fuel $fuel;
 
-    public Station $station;
+    /** @var iterable<AbstractDailyPrice> */
+    public iterable $prices;
 
     public function getChart(): Chart
     {
         $chart = $this->chartBuilder->createChart(Chart::TYPE_LINE);
 
         $datasets = [
-            $this->createDataset('Lowest', static fn (EmbeddedDailyPrice $price) => $price->lowestPrice->price),
-            $this->createDataset('Average', static fn (EmbeddedDailyPrice $price) => $price->weightedAveragePrice),
-            $this->createDataset('Highest', static fn (EmbeddedDailyPrice $price) => $price->highestPrice->price),
+            $this->createDataset('Lowest', static fn (AbstractDailyPrice $price) => $price->lowestPrice->price),
+            $this->createDataset('Average', static fn (AbstractDailyPrice $price) => $price->weightedAveragePrice),
+            $this->createDataset('Highest', static fn (AbstractDailyPrice $price) => $price->highestPrice->price),
         ];
 
         $chart->setData(['datasets' => $datasets]);
@@ -46,16 +46,14 @@ class PriceHistory extends ChartJs
     /** @return array{label: string, data: array<array{x: int, y: mixed}>} */
     private function createDataset(string $label, Closure $getPrice): array
     {
-        $fuelType = $this->fuel->value;
-
         return [
             'label' => $label,
             'data' => array_map(
-                static fn (EmbeddedDailyPrice $price) => [
+                static fn (AbstractDailyPrice $price) => [
                     'x' => $price->day->getTimestamp() * 1000,
                     'y' => $getPrice($price),
                 ],
-                $this->station->latestPrices?->$fuelType?->toArray() ?? [],
+                [...$this->prices],
             ),
         ];
     }

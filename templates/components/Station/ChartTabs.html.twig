@@ -1,3 +1,4 @@
+{% if this.hasPrices %}
 <div class="card">
     <div class="card-header">
         <ul class="nav nav-tabs card-header-tabs" id="chartNav" role="tablist">
@@ -14,7 +15,7 @@
     <div class="card-body">
         <div class="tab-content" id="chartContent">
             <twig:Chart:Station:WeightedAverageHistory
-                station="{{ this.station }}"
+                prices="{{ this.prices }}"
                 class="tab-pane fade show active"
                 id="chartContent_overview"
                 role="tabpanel"
@@ -23,7 +24,7 @@
             />
             {% for fuel in this.fuels %}
                 <twig:Chart:Station:PriceHistory
-                    station="{{ this.station }}"
+                    prices="{{ this.prices[fuel.value] }}"
                     fuel="{{ fuel }}"
                     class="tab-pane fade"
                     id="chartContent_{{ fuel.value }}"
@@ -35,3 +36,8 @@
         </div>
     </div>
 </div>
+{% else %}
+<div class="alert alert-info" role="alert">
+    No price data available{% if this.range %} between {{ this.range.from|date('Y-m-d') }} and {{ this.range.to|date('Y-m-d') }}{% endif %}.
+</div>
+{% endif %}

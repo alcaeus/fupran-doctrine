@@ -32,14 +32,15 @@ final class DateRangeValueResolver implements ValueResolverInterface
         }
 
         try {
-            return [
-                DateRange::parse(
-                    self::getDay($request, 'from'),
-                    self::getDay($request, 'to'),
-                    $attribute->defaultDays,
-                    $this->maxDays,
-                ),
-            ];
+            $from = self::getDay($request, 'from');
+            $to = self::getDay($request, 'to');
+
+            // Nullable arguments only get a range if one was requested, so that callers can tell the two apart
+            if ($argument->isNullable() && $from === null && $to === null) {
+                return [];
+            }
+
+            return [DateRange::parse($from, $to, $attribute->defaultDays, $this->maxDays)];
         } catch (InvalidArgumentException $e) {
             throw new BadRequestHttpException($e->getMessage(), $e);
         }
