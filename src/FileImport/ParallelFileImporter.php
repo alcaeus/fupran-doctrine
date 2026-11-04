@@ -4,13 +4,11 @@ declare(strict_types=1);
 
 namespace App\FileImport;
 
-use RuntimeException;
 use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Process\Process;
 
 use function array_fill;
-use function array_filter;
 use function array_search;
 use function array_slice;
 use function count;
@@ -21,7 +19,6 @@ use function max;
 use function min;
 use function sprintf;
 use function str_contains;
-use function usleep;
 use function usort;
 
 use const PHP_EOL;
@@ -80,48 +77,11 @@ final class ParallelFileImporter
             $processes[$index] = $process;
         }
 
-        /* A process only has its output read while it is being polled or waited on. Waiting for the workers
-         * one by one would leave the output of all others unread until the first one is done, so the progress
-         * would only follow the first worker and then jump. Polling all of them keeps it moving, and also
-         * allows to stop early when one of them fails.
-         */
-        while (array_filter($processes, static fn (Process $process): bool => $process->isRunning())) {
-            foreach ($processes as $index => $process) {
-                if (! $process->isRunning() && ! $process->isSuccessful()) {
-                    foreach ($processes as $other) {
-                        $other->stop();
-                    }
-
-                    throw $this->workerFailed($index, $process, $errors);
-                }
-            }
-
-            usleep(50_000);
-        }
-
-        // Read whatever output remains once the workers are done
-        foreach ($processes as $index => $process) {
-            $process->wait();
-
-            if (! $process->isSuccessful()) {
-                throw $this->workerFailed($index, $process, $errors);
-            }
-        }
+        WorkerPool::wait($processes, 'Import', 50_000, static fn (int $index): ?string => $errors[$index] ?? null);
 
         $style?->progressFinish();
 
         return $result;
-    }
-
-    /** @param array<int, string> $errors */
-    private function workerFailed(int $index, Process $process, array $errors): RuntimeException
-    {
-        return new RuntimeException(sprintf(
-            'Import worker %d failed with exit code %d: %s',
-            $index,
-            $process->getExitCode() ?? -1,
-            $errors[$index] ?? $process->getErrorOutput(),
-        ));
     }
 
     /**

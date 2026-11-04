@@ -4,12 +4,8 @@ declare(strict_types=1);
 
 namespace App\Aggregation;
 
+use App\FileImport\WorkerPool;
 use App\FileImport\WorkerProcessFactory;
-use RuntimeException;
-
-use function array_filter;
-use function sprintf;
-use function usleep;
 
 /**
  * Runs the price report pre-aggregation in a number of worker processes, each handling an equally
@@ -41,39 +37,6 @@ final class ParallelPriceReportAggregator
             $processes[$index] = $process;
         }
 
-        while ($running = array_filter($processes, static fn ($process): bool => $process->isRunning())) {
-            foreach ($processes as $index => $process) {
-                if ($process->isRunning() || $process->isSuccessful()) {
-                    continue;
-                }
-
-                // Fail fast: no point in letting the other workers keep going
-                foreach ($running as $other) {
-                    $other->stop();
-                }
-
-                throw new RuntimeException(sprintf(
-                    'Aggregation worker %d of %d failed with exit code %d: %s',
-                    $index + 1,
-                    $jobs,
-                    $process->getExitCode() ?? -1,
-                    $process->getErrorOutput(),
-                ));
-            }
-
-            usleep(100_000);
-        }
-
-        foreach ($processes as $index => $process) {
-            if (! $process->isSuccessful()) {
-                throw new RuntimeException(sprintf(
-                    'Aggregation worker %d of %d failed with exit code %d: %s',
-                    $index + 1,
-                    $jobs,
-                    $process->getExitCode() ?? -1,
-                    $process->getErrorOutput(),
-                ));
-            }
-        }
+        WorkerPool::wait($processes, 'Aggregation');
     }
 }
