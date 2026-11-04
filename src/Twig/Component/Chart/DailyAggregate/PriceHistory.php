@@ -40,6 +40,7 @@ class PriceHistory extends ChartJs
         return $chart;
     }
 
+    /** @return array{label: string, data: array<array{x: int, y: mixed}>} */
     private function createDataset(string $label, string $datapoint): array
     {
         return [
@@ -49,11 +50,12 @@ class PriceHistory extends ChartJs
                     'x' => $aggregate->day->getTimestamp() * 1000,
                     'y' => $aggregate->{$this->fuel}->$datapoint,
                 ],
-                $this->aggregates,
+                [...$this->aggregates],
             ),
         ];
     }
 
+    /** @return list<array{label: string, data: array<array{x: int, y: mixed}>}> */
     private function createDatasets(): array
     {
         return [

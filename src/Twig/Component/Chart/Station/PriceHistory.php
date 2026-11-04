@@ -43,6 +43,7 @@ class PriceHistory extends ChartJs
         return $chart;
     }
 
+    /** @return array{label: string, data: array<array{x: int, y: mixed}>} */
     private function createDataset(string $label, Closure $getPrice): array
     {
         $fuelType = $this->fuel->value;
