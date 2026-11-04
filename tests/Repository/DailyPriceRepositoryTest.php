@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Repository;
 
+use App\DateRange;
 use App\Document\DailyPrice;
 use App\Document\EmbeddedDailyPrice;
 use App\Document\Price;
@@ -11,10 +12,14 @@ use App\Document\Station;
 use App\Fuel;
 use App\Repository\DailyPriceRepository;
 use DateTimeImmutable;
+use DateTimeZone;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use Doctrine\ODM\MongoDB\PersistentCollection\PersistentCollectionInterface;
 use MongoDB\BSON\Document;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+
+use function array_map;
+use function iterator_to_array;
 
 class DailyPriceRepositoryTest extends KernelTestCase
 {
@@ -327,6 +332,60 @@ JSON;
         $this->assertInstanceOf(Station::class, $station);
         $this->assertNotNull($station->latestPrice);
         $this->assertEquals($dailyPrice->id, $station->latestPrice->diesel->id);
+    }
+
+    public function testGetPricesForStationAndFuelReturnsDaysInRangeInAscendingOrder(): void
+    {
+        self::insertSampleData();
+
+        $documentManager = self::getDocumentManager();
+        $dailyPriceRepository = self::getContainer()->get(DailyPriceRepository::class);
+
+        $station = $documentManager->getRepository(Station::class)->find(self::STATION_UUID);
+        $this->assertInstanceOf(Station::class, $station);
+
+        foreach (['2024-11-17', '2024-11-20', '2024-11-21', '2024-11-25'] as $day) {
+            $dailyPriceRepository->reportPrice($station, Fuel::Diesel, 1.529, new DateTimeImmutable($day . 'T06:07:29Z'));
+        }
+
+        // A different fuel on a day in range must not be returned
+        $dailyPriceRepository->reportPrice($station, Fuel::E5, 1.729, new DateTimeImmutable('2024-11-20T06:07:29Z'));
+
+        $documentManager->clear();
+        $station = $documentManager->find(Station::class, self::STATION_UUID);
+        $this->assertInstanceOf(Station::class, $station);
+
+        $range = new DateRange(
+            new DateTimeImmutable('2024-11-19', new DateTimeZone('UTC')),
+            new DateTimeImmutable('2024-11-21', new DateTimeZone('UTC')),
+            366,
+        );
+
+        $days = array_map(
+            static fn (DailyPrice $price): string => $price->day->format('Y-m-d'),
+            iterator_to_array($dailyPriceRepository->getPricesForStationAndFuel($station, Fuel::Diesel, $range), false),
+        );
+
+        $this->assertSame(['2024-11-19', '2024-11-20', '2024-11-21'], $days);
+    }
+
+    public function testGetPricesForStationAndFuelIsEmptyWithoutDataInRange(): void
+    {
+        self::insertSampleData();
+
+        $documentManager = self::getDocumentManager();
+        $dailyPriceRepository = self::getContainer()->get(DailyPriceRepository::class);
+
+        $station = $documentManager->getRepository(Station::class)->find(self::STATION_UUID);
+        $this->assertInstanceOf(Station::class, $station);
+
+        $range = new DateRange(
+            new DateTimeImmutable('2024-01-01', new DateTimeZone('UTC')),
+            new DateTimeImmutable('2024-01-31', new DateTimeZone('UTC')),
+            366,
+        );
+
+        $this->assertSame([], iterator_to_array($dailyPriceRepository->getPricesForStationAndFuel($station, Fuel::Diesel, $range), false));
     }
 
     private static function getDocumentManager(): DocumentManager

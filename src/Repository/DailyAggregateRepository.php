@@ -5,12 +5,10 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Aggregation\PriceReport;
+use App\DateRange;
 use App\Document\CompoundDailyAggregate;
 use App\Document\DailyAggregate;
 use App\Document\Partial\AbstractDailyPrice;
-use DateInterval;
-use DateTimeImmutable;
-use DateTimeZone;
 use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
 use Doctrine\ODM\MongoDB\Iterator\Iterator;
 use MongoDB\BSON\UTCDateTime;
@@ -18,7 +16,6 @@ use MongoDB\Builder\Pipeline;
 use MongoDB\Builder\Stage;
 
 use function iterator_to_array;
-use function sprintf;
 
 /** @extends AbstractRepository<DailyAggregate> */
 class DailyAggregateRepository extends AbstractRepository
@@ -87,17 +84,14 @@ class DailyAggregateRepository extends AbstractRepository
     }
 
     /** @return Iterator<CompoundDailyAggregate> */
-    public function getCompoundDailyAggregates(int $days = 60): Iterator
+    public function getCompoundDailyAggregates(DateRange $range): Iterator
     {
-        $today = new DateTimeImmutable()->setTimezone(new DateTimeZone('UTC'))->setTime(0, 0, 0);
-        $oldestDay = $today->sub(new DateInterval(sprintf('P%dD', $days)));
-
         return $this->createAggregationBuilder()
             ->hydrate(CompoundDailyAggregate::class)
             ->match()
                 ->field('day')
-                    ->lte($today)
-                    ->gte($oldestDay)
+                    ->lte($range->to)
+                    ->gte($range->from)
             ->group()
                 ->field('_id')->expression('$day')
                 ->field('fuels')->push([

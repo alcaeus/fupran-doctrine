@@ -7,6 +7,7 @@ namespace App\Repository;
 use App\Aggregation\PriceReport;
 use App\Aggregation\UuidRange;
 use App\Codec\MetadataCodecFactory;
+use App\DateRange;
 use App\Document\DailyPrice;
 use App\Document\EmbeddedDailyPrice;
 use App\Document\Price;
@@ -162,33 +163,18 @@ class DailyPriceRepository extends AbstractRepository
     }
 
     /** @return Iterator<DailyPrice> */
-    public function getLast30DaysDieselForStation(Station $station): Iterator
-    {
-        return $this->getLast30DaysForStationAndFuel($station, Fuel::Diesel);
-    }
-
-    /** @return Iterator<DailyPrice> */
-    public function getLast30DaysE5ForStation(Station $station): Iterator
-    {
-        return $this->getLast30DaysForStationAndFuel($station, Fuel::E5);
-    }
-
-    /** @return Iterator<DailyPrice> */
-    public function getLast30DaysE10ForStation(Station $station): Iterator
-    {
-        return $this->getLast30DaysForStationAndFuel($station, Fuel::E10);
-    }
-
-    /** @return Iterator<DailyPrice> */
-    private function getLast30DaysForStationAndFuel(Station $station, Fuel $fuel): Iterator
+    public function getPricesForStationAndFuel(Station $station, Fuel $fuel, DateRange $range): Iterator
     {
         return $this->createQueryBuilder()
             ->field('station.referencedStation')
             ->equals($station)
             ->field('fuel')
             ->equals($fuel)
-            ->sort('day', -1)
-            ->limit(30)
+            ->field('day')
+            ->gte($range->from)
+            ->field('day')
+            ->lte($range->to)
+            ->sort('day', 1)
             ->getQuery()
             ->getIterator();
     }
