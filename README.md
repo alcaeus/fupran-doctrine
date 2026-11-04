@@ -115,6 +115,10 @@ Notes:
   fills a gap in the middle of a station's existing history, which is not
   corrected.
 * Use `--jobs=N` to import and aggregate with `N` parallel worker processes.
+  The two steps can be tuned separately with `--import-jobs=N` and
+  `--aggregation-jobs=N`, which override `--jobs`. Importing parses the files
+  in worker processes on the machine running the command, whereas aggregating
+  runs on the database server, so the latter can usually use more workers.
 * Imports of large amounts of data take a long time. If a run crashes midway,
   resume with `--recover`; the command finds the leftover temporary collection
   and asks you which one to use if there are several.

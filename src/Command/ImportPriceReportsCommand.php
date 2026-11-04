@@ -73,7 +73,9 @@ class ImportPriceReportsCommand extends Command
         $this
             ->addArgument(name: 'fileOrDirectory', mode: InputArgument::IS_ARRAY, description: 'Path to the file to be imported')
             ->addOption(name: 'recover', mode: InputOption::VALUE_NONE, description: 'Recover from a failure during a previous import')
-            ->addOption(name: 'jobs', shortcut: 'j', mode: InputOption::VALUE_REQUIRED, description: 'Number of worker processes to import files with', default: 1)
+            ->addOption(name: 'jobs', shortcut: 'j', mode: InputOption::VALUE_REQUIRED, description: 'Number of worker processes to import files and aggregate price reports with', default: 1)
+            ->addOption(name: 'import-jobs', mode: InputOption::VALUE_REQUIRED, description: 'Number of worker processes to import files with (defaults to --jobs)')
+            ->addOption(name: 'aggregation-jobs', mode: InputOption::VALUE_REQUIRED, description: 'Number of worker processes to aggregate price reports with (defaults to --jobs)')
             ->addOption(name: 'clear', mode: InputOption::VALUE_NONE, description: 'Clear all existing prices');
     }
 
@@ -81,11 +83,13 @@ class ImportPriceReportsCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
-        $jobs = $this->getJobsOption($input);
+        $jobs = $this->getJobsOption($input, 'jobs', 1);
+        $importJobs = $this->getJobsOption($input, 'import-jobs', $jobs);
+        $aggregationJobs = $this->getJobsOption($input, 'aggregation-jobs', $jobs);
 
         // Recover from an import that previously failed
         if ($input->getOption('recover')) {
-            $this->attemptRecovery($jobs, $io);
+            $this->attemptRecovery($aggregationJobs, $io);
         } else {
             if ($input->getOption('clear')) {
                 $io->write('Clearing existing price data...');
@@ -94,7 +98,7 @@ class ImportPriceReportsCommand extends Command
             }
 
             try {
-                $this->importDataAndPreAggregate($this->getFileOrDirectoryArgument($input), $jobs, $io);
+                $this->importDataAndPreAggregate($this->getFileOrDirectoryArgument($input), $importJobs, $aggregationJobs, $io);
             } catch (ImportException $e) {
                 $io->error($e->getMessage());
 
@@ -141,11 +145,16 @@ class ImportPriceReportsCommand extends Command
         }
     }
 
-    private function getJobsOption(InputInterface $input): int
+    private function getJobsOption(InputInterface $input, string $name, int $default): int
     {
-        $jobs = filter_var($input->getOption('jobs'), FILTER_VALIDATE_INT);
+        $value = $input->getOption($name);
+        if ($value === null) {
+            return $default;
+        }
+
+        $jobs = filter_var($value, FILTER_VALIDATE_INT);
         if ($jobs === false || $jobs < 1) {
-            throw new InvalidArgumentException('Expected "jobs" option to be a positive integer.');
+            throw new InvalidArgumentException(sprintf('Expected "%s" option to be a positive integer.', $name));
         }
 
         return $jobs;
@@ -169,7 +178,7 @@ class ImportPriceReportsCommand extends Command
     }
 
     /** @param list<string> $fileOrDirectory */
-    private function importDataAndPreAggregate(array $fileOrDirectory, int $jobs, SymfonyStyle $io): void
+    private function importDataAndPreAggregate(array $fileOrDirectory, int $importJobs, int $aggregationJobs, SymfonyStyle $io): void
     {
         if (! $fileOrDirectory) {
             $io->writeln('No files specified for import, only recomputing aggregates for existing data.');
@@ -178,20 +187,20 @@ class ImportPriceReportsCommand extends Command
         }
 
         $io->writeln('Importing price reports...');
-        [$time, $result] = measure(function () use ($fileOrDirectory, $jobs, $io) {
+        [$time, $result] = measure(function () use ($fileOrDirectory, $importJobs, $io) {
             $files = $this->importer->findFiles($fileOrDirectory);
 
             // A single file cannot be split up, so there is no point in paying for worker startup
-            if ($jobs === 1 || count($files) < 2) {
+            if ($importJobs === 1 || count($files) < 2) {
                 return $this->importer->import($fileOrDirectory, $io);
             }
 
-            return $this->parallelImporter->import($files, $this->importer->collection->getCollectionName(), $jobs, $io);
+            return $this->parallelImporter->import($files, $this->importer->collection->getCollectionName(), $importJobs, $io);
         });
 
         $io->writeln(sprintf('Import took %.5fs: %d inserted, %d updated.', $time, $result->numInserted, $result->numUpdated));
 
-        $this->runPostImportAggregations($this->importer->collection, $jobs, $io);
+        $this->runPostImportAggregations($this->importer->collection, $aggregationJobs, $io);
     }
 
     private function aggregatePriceReportsByDay(Collection $importCollection, SymfonyStyle $io): void

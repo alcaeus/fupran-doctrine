@@ -15,6 +15,7 @@ use DateTimeZone;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use Doctrine\ODM\MongoDB\Types\BinaryUuidType;
 use Doctrine\ODM\MongoDB\Types\Type;
+use InvalidArgumentException;
 use MongoDB\BSON\UTCDateTime;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -121,6 +122,26 @@ class ImportPriceReportsCommandTest extends KernelTestCase
         $this->importDaysInSeparateRuns(['prices-day1', 'prices-day2'], ['--jobs' => 2]);
 
         $this->assertDayTwoOpeningPrices();
+    }
+
+    public function testImportAndAggregationJobsCanBeSetSeparately(): void
+    {
+        $this->importDaysInSeparateRuns(['prices-day2', 'prices-day1'], ['--import-jobs' => 1, '--aggregation-jobs' => 2]);
+
+        $this->assertDayTwoOpeningPrices();
+    }
+
+    public function testInvalidAggregationJobsAreRejected(): void
+    {
+        $tester = new CommandTester(self::getContainer()->get(ImportPriceReportsCommand::class));
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Expected "aggregation-jobs" option to be a positive integer.');
+
+        $tester->execute([
+            'fileOrDirectory' => [__DIR__ . '/../FileImport/Fixtures/prices-day1'],
+            '--aggregation-jobs' => 0,
+        ]);
     }
 
     public function testOpeningPriceIsNotSetForTheFirstImportedDay(): void

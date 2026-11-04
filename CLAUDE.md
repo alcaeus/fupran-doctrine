@@ -15,7 +15,7 @@ Run via Symfony CLI wrapper (see memory: `symfony php ...` for PHPUnit, not bare
 - Coding standard: `vendor/bin/phpcs` (config `phpcs.xml.dist`, doctrine/coding-standard based); check `.phpcs-cache` exists so incremental runs are fast
 - Console commands: `bin/console <command>` (or `symfony console ...`)
   - `app:import:stations <fileOrDirectory>...` `[--clear]`
-  - `app:import:price-reports <fileOrDirectory>...` `[--recover] [--clear] [--jobs=N]`
+  - `app:import:price-reports <fileOrDirectory>...` `[--recover] [--clear] [--jobs=N] [--import-jobs=N] [--aggregation-jobs=N]`
   - `app:data:compute:daily-aggregates`
 
 ## Data ingestion
@@ -45,7 +45,7 @@ The command supports `--recover` to resume from a leftover temp collection (`pri
 
 Afterwards the parent recomputes `DailyAggregate` only for the affected days (imported days plus days from `updatedDays_*`; `recomputeDailyAggregates(?array $days)`), or for all days if no batch was imported. Known gap: a batch that fills holes in the middle of existing history is not corrected.
 
-**Parallel import.** `--jobs=N` imports files in parallel worker processes (`ParallelFileImporter`) and aggregates in `N` workers (`ParallelPriceReportAggregator`, hidden `app:import:price-reports-aggregate-worker`), each handling a slice of the station UUID space (`UuidRange`); steps 1–4 above run inside each worker.
+**Parallel import.** `--jobs=N` imports files in parallel worker processes (`ParallelFileImporter`) and aggregates in `N` workers; `--import-jobs` and `--aggregation-jobs` override it per step (importing is CPU-bound on the client, aggregating on the database server). The aggregation workers (`ParallelPriceReportAggregator`, hidden `app:import:price-reports-aggregate-worker`), each handling a slice of the station UUID space (`UuidRange`); steps 1–4 above run inside each worker.
 
 There is also a **live single-price ingestion path** independent of CSV import: `DailyPriceRepository::reportPrice(Station, Fuel, price, date)` does an atomic `findAndUpdate` with a pipeline (upsert-and-append the price, recompute lowest/highest/weighted average in one step), then updates `Station.latestPrice(s)` via `updateLatestDailyPriceInStation()`. This is the path to use for adding one price reading outside of bulk CSV import.
 
