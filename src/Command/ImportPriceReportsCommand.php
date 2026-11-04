@@ -29,14 +29,12 @@ use UnexpectedValueException;
 use function App\measure;
 use function array_values;
 use function count;
-use function filter_var;
 use function is_array;
+use function is_numeric;
 use function is_string;
 use function iterator_to_array;
 use function sprintf;
 use function uniqid;
-
-use const FILTER_VALIDATE_INT;
 
 #[AsCommand(
     name: 'app:import:price-reports',
@@ -152,12 +150,11 @@ class ImportPriceReportsCommand extends Command
             return $default;
         }
 
-        $jobs = filter_var($value, FILTER_VALIDATE_INT);
-        if ($jobs === false || $jobs < 1) {
+        if (! is_numeric($value) || (int) $value < 1) {
             throw new InvalidArgumentException(sprintf('Expected "%s" option to be a positive integer.', $name));
         }
 
-        return $jobs;
+        return (int) $value;
     }
 
     /** @return list<string> */

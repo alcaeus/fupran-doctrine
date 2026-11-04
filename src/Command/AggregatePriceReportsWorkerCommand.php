@@ -16,11 +16,7 @@ use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use UnexpectedValueException;
 
-use function filter_var;
 use function is_string;
-use function sprintf;
-
-use const FILTER_VALIDATE_INT;
 
 /**
  * Internal worker for `app:import:price-reports --jobs=N`; not meant to be run by hand.
@@ -56,17 +52,16 @@ final class AggregatePriceReportsWorkerCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $range = UuidRange::part($this->getIntArgument($input, 'part'), $this->getIntArgument($input, 'parts'));
+        $range = UuidRange::part((int) $this->getString($input->getArgument('part')), (int) $this->getString($input->getArgument('parts')));
 
         $database = $this->documentManager->getDocumentDatabase(Station::class);
-        $aggregated = $database->selectCollection($this->getStringValue($input->getArgument('aggregated-collection')));
-
-        $updatedDays = $database->selectCollection($this->getStringValue($input->getArgument('updated-days-collection')));
+        $aggregated = $database->selectCollection($this->getString($input->getArgument('aggregated-collection')));
+        $updatedDays = $database->selectCollection($this->getString($input->getArgument('updated-days-collection')));
 
         $importCollection = $input->getOption('import-collection');
         if ($importCollection !== null) {
             $this->dailyPriceRepository->aggregatePriceReportsByDay(
-                $database->selectCollection($this->getStringValue($importCollection)),
+                $database->selectCollection($this->getString($importCollection)),
                 $aggregated,
                 $range,
             );
@@ -85,17 +80,7 @@ final class AggregatePriceReportsWorkerCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function getIntArgument(InputInterface $input, string $name): int
-    {
-        $value = filter_var($input->getArgument($name), FILTER_VALIDATE_INT);
-        if ($value === false) {
-            throw new UnexpectedValueException(sprintf('Expected "%s" argument to be an integer.', $name));
-        }
-
-        return $value;
-    }
-
-    private function getStringValue(mixed $value): string
+    private function getString(mixed $value): string
     {
         if (! is_string($value)) {
             throw new UnexpectedValueException('Expected a string value.');
