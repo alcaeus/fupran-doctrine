@@ -31,7 +31,8 @@ final class StationFileImporter extends FileImporter
     {
         $bulk->update(
             $this->buildQuery($data),
-            $this->buildDocument($data),
+            // $set keeps fields not part of the import (favorite, visible, latest prices)
+            ['$set' => $this->buildDocument($data)],
             ['upsert' => true],
         );
     }

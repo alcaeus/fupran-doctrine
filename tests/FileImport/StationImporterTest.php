@@ -7,6 +7,7 @@ namespace App\Tests\FileImport;
 use App\Document\Station;
 use App\FileImport\StationFileImporter;
 use Doctrine\ODM\MongoDB\DocumentManager;
+use Doctrine\ODM\MongoDB\Types\BinaryUuidType;
 use GeoJson\Geometry\Point;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 
@@ -102,6 +103,31 @@ class StationImporterTest extends KernelTestCase
 
         $station = $this->findStation(self::OIL_MUNICH_UUID);
         self::assertSame('Oil! Tankstelle München Zentrum', $station->name);
+    }
+
+    public function testReimportingKeepsFieldsNotPartOfTheImport(): void
+    {
+        $this->getImporter()->import(__DIR__ . '/Fixtures/stations.csv');
+
+        $collection = self::getDocumentManager()->getDocumentCollection(Station::class);
+        $filter = ['_id' => self::getContainer()->get(BinaryUuidType::class)->convertToDatabaseValue(self::OIL_MUNICH_UUID)];
+        $collection->updateOne($filter, [
+            '$set' => [
+                'favorite' => true,
+                'visible' => true,
+                'latestPrice' => ['diesel' => ['closingPrice' => 1.5]],
+                'latestPrices' => ['diesel' => [['closingPrice' => 1.5]]],
+            ],
+        ]);
+
+        $this->getImporter()->import(__DIR__ . '/Fixtures/stations-updated.csv');
+
+        $station = $this->findStation(self::OIL_MUNICH_UUID);
+        self::assertSame('Oil! Tankstelle München Zentrum', $station->name);
+        self::assertTrue($station->favorite);
+        self::assertTrue($station->visible);
+        self::assertNotNull($station->latestPrice);
+        self::assertNotNull($station->latestPrices);
     }
 
     public function testImportFromDirectoryImportsAllFilesInIt(): void
