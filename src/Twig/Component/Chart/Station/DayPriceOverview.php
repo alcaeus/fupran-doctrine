@@ -5,13 +5,11 @@ declare(strict_types=1);
 namespace App\Twig\Component\Chart\Station;
 
 use App\Document\Partial\AbstractDailyPrice;
-use App\Document\Price;
 use App\Fuel;
 use App\Twig\Component\ChartJs;
+use DateTimeZone;
 use Symfony\UX\Chartjs\Model\Chart;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
-
-use function array_map;
 
 #[AsTwigComponent('Chart:Station:DayPriceOverview', template: ChartJs::TEMPLATE)]
 class DayPriceOverview extends ChartJs
@@ -30,7 +28,7 @@ class DayPriceOverview extends ChartJs
         $chart->setOptions([
             'parsing' => false,
             'datasets' => [
-                'line' => ['stepped' => 'before'],
+                'line' => ['stepped' => 'after'],
             ],
             'scales' => [
                 'x' => ['type' => 'time'],
@@ -56,18 +54,31 @@ class DayPriceOverview extends ChartJs
         return $datasets;
     }
 
-    /** @return array{label: string, data: array<array{x: int, y: mixed}>} */
+    /**
+     * The data spans the whole day: it starts with the opening price at midnight (if there is one) and ends with the
+     * closing price at the following midnight. As each price is in effect until the next change, the line is stepped
+     * after each point.
+     *
+     * @return array{label: string, data: list<array{x: int, y: mixed}>}
+     */
     private function createDataset(AbstractDailyPrice $dailyPrice, Fuel $fuel): array
     {
+        $startOfDay = $dailyPrice->day->setTimezone(new DateTimeZone('UTC'))->setTime(0, 0);
+
+        $data = [];
+        if ($dailyPrice->openingPrice !== null) {
+            $data[] = ['x' => $startOfDay->getTimestamp() * 1000, 'y' => $dailyPrice->openingPrice];
+        }
+
+        foreach ($dailyPrice->prices as $price) {
+            $data[] = ['x' => $price->date->getTimestamp() * 1000, 'y' => $price->price];
+        }
+
+        $data[] = ['x' => $startOfDay->modify('+1 day')->getTimestamp() * 1000, 'y' => $dailyPrice->closingPrice];
+
         return [
             'label' => $fuel->value,
-            'data' => array_map(
-                static fn (Price $price) => [
-                    'x' => $price->date->getTimestamp() * 1000,
-                    'y' => $price->price,
-                ],
-                $dailyPrice->prices->toArray(),
-            ),
+            'data' => $data,
         ];
     }
 }
