@@ -13,9 +13,32 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  static-analysis:
-    name: PHPStan and PHPCS
+  phpcs:
+    name: PHPCS
     runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mongodb
+          tools: cs2pr
+          coverage: none
+
+      - uses: ramsey/composer-install@v3
+
+      # cs2pr turns the checkstyle report into inline annotations on the pull request
+      - name: Coding standard
+        run: vendor/bin/phpcs -q --report=checkstyle | cs2pr
+
+  phpstan:
+    name: PHPStan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required to upload SARIF results to code scanning
+      security-events: write
     env:
       # Cache warmup builds the Doctrine client, which only parses the URI; no server is contacted
       MONGODB_URL: mongodb://127.0.0.1:27017
@@ -26,20 +49,38 @@ jobs:
         with:
           php-version: '8.4'
           extensions: mongodb
-          tools: composer
           coverage: none
 
       - uses: ramsey/composer-install@v3
 
-      - name: Coding standard
-        run: vendor/bin/phpcs
+      - name: Warm up the dev cache
+        run: bin/console cache:warmup --env=dev
 
+      # The SARIF report is uploaded below, so don't fail this step; the final step does that
       - name: Static analysis
-        run: composer phpstan
+        id: phpstan
+        continue-on-error: true
+        run: vendor/bin/phpstan analyse --no-progress --error-format=sarif > phpstan-results.sarif
 
-  tests:
+      - name: Upload results to code scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: phpstan-results.sarif
+          category: phpstan
+
+      - name: Fail on PHPStan errors
+        if: steps.phpstan.outcome == 'failure'
+        run: |
+          vendor/bin/phpstan analyse --no-progress --error-format=github
+          exit 1
+
+  phpunit:
     name: PHPUnit
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required by the JUnit report action to create a check run with annotations
+      checks: write
     services:
       mongodb:
         image: mongo:8.2
@@ -59,10 +100,16 @@ jobs:
         with:
           php-version: '8.4'
           extensions: mongodb
-          tools: composer
           coverage: none
 
       - uses: ramsey/composer-install@v3
 
       - name: PHPUnit
-        run: vendor/bin/phpunit
+        run: vendor/bin/phpunit --log-junit phpunit-junit.xml
+
+      - name: Publish test report
+        if: ${{ !cancelled() }}
+        uses: mikepenz/action-junit-report@v5
+        with:
+          report_paths: phpunit-junit.xml
+          check_name: PHPUnit results
