@@ -6,6 +6,7 @@ namespace App\Document\Partial;
 
 use App\Document\DailyAggregate;
 use App\Document\Price;
+use App\Document\PriceChanges;
 use App\Fuel;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -48,6 +49,9 @@ class AbstractDailyPrice
 
     #[Field]
     public float $weightedAveragePrice;
+
+    #[EmbedOne(targetDocument: PriceChanges::class)]
+    public ?PriceChanges $changes = null;
 
     /** @var Collection<int, DailyAggregate> */
     #[ReferenceMany(targetDocument: DailyAggregate::class, repositoryMethod: 'getAggregateForDailyPrice')]

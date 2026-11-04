@@ -29,6 +29,7 @@ class EmbeddedDailyPrice extends AbstractDailyPrice
         $self->aggregates = self::deepClone($dailyPrice->aggregates);
 
         $self->weightedAveragePrice = $dailyPrice->weightedAveragePrice;
+        $self->changes = $dailyPrice->changes ? clone $dailyPrice->changes : null;
 
         return $self;
     }

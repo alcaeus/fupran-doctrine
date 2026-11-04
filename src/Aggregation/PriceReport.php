@@ -56,6 +56,7 @@ class PriceReport
             self::addMissingOpeningPriceToList(),
             self::computeChangeInPriceList(),
             self::computeWeightedAverage(),
+            self::computeChanges(),
         );
     }
 
@@ -157,6 +158,78 @@ class PriceReport
                     3,
                 ),
                 weightedAveragePrices: Expression::variable('REMOVE'),
+            ),
+        );
+    }
+
+    /**
+     * Summarizes the price movements of a day from the `change` and `date` of its prices. Must run after the
+     * `change` of every price has been computed.
+     */
+    public static function computeChanges(): Pipeline
+    {
+        $increases = Expression::filter(
+            input: Expression::arrayFieldPath('changeValues'),
+            cond: Expression::gt(Expression::variable('this'), 0),
+        );
+        $decreases = Expression::filter(
+            input: Expression::arrayFieldPath('changeValues'),
+            cond: Expression::lt(Expression::variable('this'), 0),
+        );
+
+        $actualChanges = Expression::filter(
+            input: Expression::arrayFieldPath('prices'),
+            cond: Expression::and(
+                Expression::isNumber(Expression::variable('this.change')),
+                Expression::ne(Expression::variable('this.change'), 0),
+            ),
+        );
+
+        return new Pipeline(
+            // Only keep actual changes: prices without a known previous price have no (numeric) change, and
+            // repeated prices have a change of zero. Both are excluded.
+            Stage::set(
+                changeValues: Expression::map(input: $actualChanges, in: Expression::variable('this.change')),
+                absoluteChangeValues: Expression::map(
+                    input: $actualChanges,
+                    in: Expression::abs(Expression::variable('this.change')),
+                ),
+            ),
+            Stage::set(
+                changes: object(
+                    increases: Expression::size($increases),
+                    decreases: Expression::size($decreases),
+                    total: Expression::size(Expression::arrayFieldPath('changeValues')),
+                    // $max, $min and $avg of an empty array are null
+                    largestIncrease: Expression::max($increases),
+                    largestDecrease: Expression::min($decreases),
+                    averageChange: Expression::round(Expression::avg('$absoluteChangeValues'), 4),
+                    shortestInterval: Expression::min(
+                        Expression::map(
+                            input: Expression::range(1, Expression::size(Expression::arrayFieldPath('prices'))),
+                            as: 'index',
+                            in: Expression::dateDiff(
+                                startDate: Expression::getField(
+                                    field: 'date',
+                                    input: Expression::arrayElemAt(
+                                        Expression::arrayFieldPath('prices'),
+                                        Expression::subtract(Expression::variable('index'), 1),
+                                    ),
+                                ),
+                                endDate: Expression::getField(
+                                    field: 'date',
+                                    input: Expression::arrayElemAt(
+                                        Expression::arrayFieldPath('prices'),
+                                        Expression::variable('index'),
+                                    ),
+                                ),
+                                unit: 'second',
+                            ),
+                        ),
+                    ),
+                ),
+                changeValues: Expression::variable('REMOVE'),
+                absoluteChangeValues: Expression::variable('REMOVE'),
             ),
         );
     }
