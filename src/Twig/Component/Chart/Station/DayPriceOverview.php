@@ -28,7 +28,7 @@ class DayPriceOverview extends ChartJs
         $chart->setOptions([
             'parsing' => false,
             'datasets' => [
-                'line' => ['stepped' => 'after'],
+                'line' => ['stepped' => 'before'],
             ],
             'scales' => [
                 'x' => ['type' => 'time'],
@@ -56,8 +56,7 @@ class DayPriceOverview extends ChartJs
 
     /**
      * The data spans the whole day: it starts with the opening price at midnight (if there is one) and ends with the
-     * closing price at the following midnight. As each price is in effect until the next change, the line is stepped
-     * after each point.
+     * closing price at the following midnight. The line is stepped before each point (see the `stepped` option).
      *
      * @return array{label: string, data: list<array{x: int, y: mixed}>}
      */
