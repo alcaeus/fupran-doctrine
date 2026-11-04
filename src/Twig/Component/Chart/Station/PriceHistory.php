@@ -24,7 +24,7 @@ class PriceHistory extends ChartJs
 
         $datasets = [
             $this->createDataset('Lowest', self::LOWEST_PRICE_COLOR, static fn (AbstractDailyPrice $price) => $price->lowestPrice->price),
-            $this->createDataset('Average', self::AVERAGE_PRICE_COLOR, static fn (AbstractDailyPrice $price) => $price->weightedAveragePrice, false),
+            $this->createDataset('Average', self::AVERAGE_PRICE_COLOR, static fn (AbstractDailyPrice $price) => $price->weightedAveragePrice),
             $this->createDataset('Highest', self::HIGHEST_PRICE_COLOR, static fn (AbstractDailyPrice $price) => $price->highestPrice->price),
         ];
 
@@ -40,14 +40,13 @@ class PriceHistory extends ChartJs
         return $chart;
     }
 
-    /** @return array{label: string, borderColor: string, backgroundColor: string, borderDash: list<int>, data: array<array{x: int, y: mixed}>} */
-    private function createDataset(string $label, string $color, Closure $getPrice, bool $dashed = true): array
+    /** @return array{label: string, borderColor: string, backgroundColor: string, data: array<array{x: int, y: mixed}>} */
+    private function createDataset(string $label, string $color, Closure $getPrice): array
     {
         return [
             'label' => $label,
             'borderColor' => $color,
             'backgroundColor' => $color,
-            'borderDash' => $dashed ? [6, 4] : [],
             'data' => array_map(
                 static fn (AbstractDailyPrice $price) => [
                     'x' => $price->day->getTimestamp() * 1000,

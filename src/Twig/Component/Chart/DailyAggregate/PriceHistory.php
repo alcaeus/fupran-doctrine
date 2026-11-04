@@ -40,14 +40,13 @@ class PriceHistory extends ChartJs
         return $chart;
     }
 
-    /** @return array{label: string, borderColor: string, backgroundColor: string, borderDash: list<int>, data: array<array{x: int, y: mixed}>} */
-    private function createDataset(string $label, string $color, string $datapoint, bool $dashed = true): array
+    /** @return array{label: string, borderColor: string, backgroundColor: string, data: array<array{x: int, y: mixed}>} */
+    private function createDataset(string $label, string $color, string $datapoint): array
     {
         return [
             'label' => $label,
             'borderColor' => $color,
             'backgroundColor' => $color,
-            'borderDash' => $dashed ? [6, 4] : [],
             'data' => array_map(
                 fn (CompoundDailyAggregate $aggregate): array => [
                     'x' => $aggregate->day->getTimestamp() * 1000,
@@ -58,12 +57,12 @@ class PriceHistory extends ChartJs
         ];
     }
 
-    /** @return list<array{label: string, borderColor: string, backgroundColor: string, borderDash: list<int>, data: array<array{x: int, y: mixed}>}> */
+    /** @return list<array{label: string, borderColor: string, backgroundColor: string, data: array<array{x: int, y: mixed}>}> */
     private function createDatasets(): array
     {
         return [
             $this->createDataset('Lowest Price', self::LOWEST_PRICE_COLOR, 'lowestPrice'),
-            $this->createDataset('Weighted Average', self::AVERAGE_PRICE_COLOR, 'weightedAveragePrice', false),
+            $this->createDataset('Weighted Average', self::AVERAGE_PRICE_COLOR, 'weightedAveragePrice'),
             $this->createDataset('Highest Price', self::HIGHEST_PRICE_COLOR, 'highestPrice'),
         ];
     }
