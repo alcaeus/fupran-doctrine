@@ -8,19 +8,31 @@ use App\Aggregation\StationChunker;
 use DateTimeImmutable;
 use MongoDB\BSON\Binary;
 use MongoDB\BSON\UTCDateTime;
-use MongoDB\Client;
+use MongoDB\Collection;
 use PHPUnit\Framework\TestCase;
-use UnexpectedValueException;
 
 use function array_map;
 use function array_values;
-use function is_string;
 use function str_pad;
 use function substr;
 use function uniqid;
 
 class StationChunkerTest extends TestCase
 {
+    use MongoClientTrait;
+
+    private Collection $collection;
+
+    protected function setUp(): void
+    {
+        $this->collection = $this->getClient()->getDatabase('test')->getCollection(uniqid('stationChunkerTest_'));
+    }
+
+    protected function tearDown(): void
+    {
+        $this->collection->drop();
+    }
+
     public function testCreateChunksFillsChunksUpToLimit(): void
     {
         $stations = self::stations('a', 'b', 'c', 'd');
@@ -69,8 +81,6 @@ class StationChunkerTest extends TestCase
 
     public function testEstimateGroupsIsBoundedByReportsAndDays(): void
     {
-        $collection = $this->getClient()->getDatabase('test')->getCollection(uniqid('stationChunkerTest_'));
-
         $few = new Binary('aaaaaaaaaaaaaaaa', Binary::TYPE_UUID);
         $many = new Binary('bbbbbbbbbbbbbbbb', Binary::TYPE_UUID);
 
@@ -85,11 +95,9 @@ class StationChunkerTest extends TestCase
             $reports[] = ['station' => $many, 'date' => $date('2025-06-27T0' . $i . ':00:00+00:00'), 'fuel' => 'e5', 'price' => 1.5];
         }
 
-        $collection->insertMany($reports);
+        $this->collection->insertMany($reports);
 
-        $estimates = (new StationChunker())->estimateGroups($collection);
-
-        $collection->drop();
+        $estimates = (new StationChunker())->estimateGroups($this->collection);
 
         self::assertEquals([$few->getData() => 2, $many->getData() => 3], $estimates);
     }
@@ -126,16 +134,6 @@ class StationChunkerTest extends TestCase
             static fn (array $chunk): array => array_map(static fn (Binary $station): string => substr($station->getData(), 0, 1), $chunk),
             $chunks,
         );
-    }
-
-    private function getClient(): Client
-    {
-        $uri = $_SERVER['MONGODB_URL'] ?? null;
-        if (! is_string($uri)) {
-            throw new UnexpectedValueException('Expected the MONGODB_URL environment variable to be set.');
-        }
-
-        return new Client($uri);
     }
 
     private static function pad(string $name): string

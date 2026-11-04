@@ -6,16 +6,15 @@ namespace App\Tests\Aggregation;
 
 use App\Aggregation\ChunkQueue;
 use MongoDB\BSON\Binary;
-use MongoDB\Client;
 use MongoDB\Collection;
 use PHPUnit\Framework\TestCase;
-use UnexpectedValueException;
 
-use function is_string;
 use function uniqid;
 
 class ChunkQueueTest extends TestCase
 {
+    use MongoClientTrait;
+
     private Collection $collection;
 
     protected function setUp(): void
@@ -59,15 +58,5 @@ class ChunkQueueTest extends TestCase
         $queue->enqueue([]);
 
         self::assertNull($queue->claim());
-    }
-
-    private function getClient(): Client
-    {
-        $uri = $_SERVER['MONGODB_URL'] ?? null;
-        if (! is_string($uri)) {
-            throw new UnexpectedValueException('Expected the MONGODB_URL environment variable to be set.');
-        }
-
-        return new Client($uri);
     }
 }
