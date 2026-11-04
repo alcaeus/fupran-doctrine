@@ -27,7 +27,7 @@ class PriceHistory extends ChartJs
 
         $datasets = [
             $this->createDataset('Lowest', static fn (AbstractDailyPrice $price) => $price->lowestPrice->price),
-            $this->createDataset('Average', static fn (AbstractDailyPrice $price) => $price->weightedAveragePrice),
+            $this->createDataset('Average', static fn (AbstractDailyPrice $price) => $price->weightedAveragePrice, false),
             $this->createDataset('Highest', static fn (AbstractDailyPrice $price) => $price->highestPrice->price),
         ];
 
@@ -43,11 +43,16 @@ class PriceHistory extends ChartJs
         return $chart;
     }
 
-    /** @return array{label: string, data: array<array{x: int, y: mixed}>} */
-    private function createDataset(string $label, Closure $getPrice): array
+    /** @return array{label: string, borderColor: string, backgroundColor: string, borderDash: list<int>, data: array<array{x: int, y: mixed}>} */
+    private function createDataset(string $label, Closure $getPrice, bool $dashed = true): array
     {
+        $color = $this->fuel->getColor();
+
         return [
             'label' => $label,
+            'borderColor' => $color,
+            'backgroundColor' => $color,
+            'borderDash' => $dashed ? [6, 4] : [],
             'data' => array_map(
                 static fn (AbstractDailyPrice $price) => [
                     'x' => $price->day->getTimestamp() * 1000,

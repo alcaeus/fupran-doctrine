@@ -77,6 +77,8 @@ class DayPriceOverview extends ChartJs
 
         return [
             'label' => $fuel->value,
+            'borderColor' => $fuel->getColor(),
+            'backgroundColor' => $fuel->getColor(),
             'data' => $data,
         ];
     }

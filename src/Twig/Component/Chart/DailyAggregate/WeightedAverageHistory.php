@@ -46,6 +46,8 @@ class WeightedAverageHistory extends ChartJs
 
         return [
             'label' => $fuelType,
+            'borderColor' => $fuel->getColor(),
+            'backgroundColor' => $fuel->getColor(),
             'data' => array_map(
                 static fn (CompoundDailyAggregate $aggregate): array => [
                     'x' => $aggregate->day->getTimestamp() * 1000,

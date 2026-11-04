@@ -48,6 +48,18 @@ class DayPriceOverviewTest extends KernelTestCase
         );
     }
 
+    public function testDatasetUsesFuelColor(): void
+    {
+        $component = $this->mountTwigComponent('Chart:Station:DayPriceOverview', ['dailyPrices' => [self::dailyPrice(1.599, 1.549, [])]]);
+        self::assertInstanceOf(DayPriceOverview::class, $component);
+
+        $datasets = $component->getChart()->getData()['datasets'] ?? null;
+        self::assertIsArray($datasets);
+        self::assertIsArray($datasets[0]);
+        self::assertSame(Fuel::Diesel->getColor(), $datasets[0]['borderColor']);
+        self::assertSame(Fuel::Diesel->getColor(), $datasets[0]['backgroundColor']);
+    }
+
     /** @return array<mixed> */
     private function getData(EmbeddedDailyPrice $dailyPrice): array
     {
