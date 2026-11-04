@@ -6,6 +6,7 @@ namespace App\Aggregation;
 
 use App\FileImport\WorkerPool;
 use App\FileImport\WorkerProcessFactory;
+use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Process\Process;
 
@@ -38,7 +39,7 @@ final class ParallelPriceReportAggregator
      */
     public function aggregateChunks(string $importCollectionName, string $aggregatedCollectionName, ChunkQueue $queue, int $chunks, int $jobs, int $totalStations, ?SymfonyStyle $style = null): array
     {
-        $style?->progressStart($totalStations);
+        $style?->progressStart($totalStations, ProgressBar::FORMAT_VERY_VERBOSE);
 
         $results = [];
         $buffers = [];
