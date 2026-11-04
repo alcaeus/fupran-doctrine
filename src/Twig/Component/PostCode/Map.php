@@ -10,16 +10,20 @@ use Symfony\UX\Map\Map as UxMap;
 use Symfony\UX\Map\Marker;
 use Symfony\UX\Map\Point;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
+use Twig\Environment;
 
 use function is_float;
 use function is_int;
-use function nl2br;
 
 #[AsTwigComponent('PostCode:Map')]
 class Map
 {
     /** @var iterable<Station> */
     public iterable $stations;
+
+    public function __construct(private readonly Environment $twig)
+    {
+    }
 
     public function getMap(): UxMap
     {
@@ -40,7 +44,7 @@ class Map
                     title: $station->name,
                     infoWindow: new InfoWindow(
                         headerContent: $station->name,
-                        content: nl2br((string) $station->address),
+                        content: $this->twig->render('stations/_mapInfoWindow.html.twig', ['station' => $station]),
                     ),
                 ));
         }
