@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Twig\Component\Chart\Station;
 
-use App\Document\EmbeddedDailyPrice;
-use App\Document\Station;
+use App\Document\Partial\AbstractDailyPrice;
 use App\Fuel;
 use App\Twig\Component\ChartJs;
 use Symfony\UX\Chartjs\Model\Chart;
@@ -16,7 +15,8 @@ use function array_map;
 #[AsTwigComponent('Chart:Station:WeightedAverageHistory', template: ChartJs::TEMPLATE)]
 class WeightedAverageHistory extends ChartJs
 {
-    public Station $station;
+    /** @var array<string, iterable<AbstractDailyPrice>> Prices by fuel */
+    public array $prices = [];
 
     public function getChart(): Chart
     {
@@ -28,11 +28,14 @@ class WeightedAverageHistory extends ChartJs
 
         $chart->setOptions([
             'parsing' => false,
+            'locale' => self::LOCALE,
+            'elements' => self::HISTORY_ELEMENTS,
             'scales' => [
                 'x' => [
                     'type' => 'time',
                     'time' => ['unit' => 'day'],
                 ],
+                'y' => self::PRICE_AXIS,
             ],
         ]);
 
@@ -45,13 +48,15 @@ class WeightedAverageHistory extends ChartJs
         $fuelType = $fuel->value;
 
         return [
-            'label' => $fuelType,
+            'label' => $fuel->getDisplayValue(),
+            'borderColor' => $fuel->getColor(),
+            'backgroundColor' => $fuel->getColor(),
             'data' => array_map(
-                static fn (EmbeddedDailyPrice $price): array => [
+                static fn (AbstractDailyPrice $price): array => [
                     'x' => $price->day->getTimestamp() * 1000,
                     'y' => $price->weightedAveragePrice,
                 ],
-                $this->station->latestPrices?->$fuelType?->toArray() ?? [],
+                [...($this->prices[$fuelType] ?? [])],
             ),
         ];
     }

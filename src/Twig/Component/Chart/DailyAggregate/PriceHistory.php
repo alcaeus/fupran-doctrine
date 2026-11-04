@@ -29,22 +29,27 @@ class PriceHistory extends ChartJs
 
         $chart->setOptions([
             'parsing' => false,
+            'locale' => self::LOCALE,
+            'elements' => self::HISTORY_ELEMENTS,
             'scales' => [
                 'x' => [
                     'type' => 'time',
                     'time' => ['unit' => 'day'],
                 ],
+                'y' => self::PRICE_AXIS,
             ],
         ]);
 
         return $chart;
     }
 
-    /** @return array{label: string, data: array<array{x: int, y: mixed}>} */
-    private function createDataset(string $label, string $datapoint): array
+    /** @return array{label: string, borderColor: string, backgroundColor: string, data: array<array{x: int, y: mixed}>} */
+    private function createDataset(string $label, string $color, string $datapoint): array
     {
         return [
             'label' => $label,
+            'borderColor' => $color,
+            'backgroundColor' => $color,
             'data' => array_map(
                 fn (CompoundDailyAggregate $aggregate): array => [
                     'x' => $aggregate->day->getTimestamp() * 1000,
@@ -55,13 +60,13 @@ class PriceHistory extends ChartJs
         ];
     }
 
-    /** @return list<array{label: string, data: array<array{x: int, y: mixed}>}> */
+    /** @return list<array{label: string, borderColor: string, backgroundColor: string, data: array<array{x: int, y: mixed}>}> */
     private function createDatasets(): array
     {
         return [
-            $this->createDataset('Lowest Price', 'lowestPrice'),
-            $this->createDataset('Weighted Average', 'weightedAveragePrice'),
-            $this->createDataset('Highest Price', 'highestPrice'),
+            $this->createDataset('Lowest Price', self::LOWEST_PRICE_COLOR, 'lowestPrice'),
+            $this->createDataset('Weighted Average', self::AVERAGE_PRICE_COLOR, 'weightedAveragePrice'),
+            $this->createDataset('Highest Price', self::HIGHEST_PRICE_COLOR, 'highestPrice'),
         ];
     }
 }

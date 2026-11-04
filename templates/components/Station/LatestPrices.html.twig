@@ -1,16 +1,18 @@
-{% props station %}
+{% props station, requestedDay = null, query = {} %}
 
-{% if station.latestPrice is not null %}
+{% if station.latestPrice is not null or requestedDay is not null %}
     <div class="card">
         <div class="card-body">
             <h5>Latest price data</h5>
+            {% if station.latestPrice is not null %}
             <dl>
                 <twig:Station:LatestPriceData dailyPrice="{{ station.latestPrice.diesel }}" />
                 <twig:Station:LatestPriceData dailyPrice="{{ station.latestPrice.e5 }}" />
                 <twig:Station:LatestPriceData dailyPrice="{{ station.latestPrice.e10 }}" />
             </dl>
+            {% endif %}
 
-            <twig:Chart:Station:DayPriceOverview latestPrice="{{ station.latestPrice }}" />
+            <twig:Station:DayChart station="{{ station }}" requestedDay="{{ requestedDay }}" query="{{ query }}" />
         </div>
     </div>
 {% else %}

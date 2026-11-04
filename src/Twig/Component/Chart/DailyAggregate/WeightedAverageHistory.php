@@ -28,11 +28,14 @@ class WeightedAverageHistory extends ChartJs
 
         $chart->setOptions([
             'parsing' => false,
+            'locale' => self::LOCALE,
+            'elements' => self::HISTORY_ELEMENTS,
             'scales' => [
                 'x' => [
                     'type' => 'time',
                     'time' => ['unit' => 'day'],
                 ],
+                'y' => self::PRICE_AXIS,
             ],
         ]);
 
@@ -45,7 +48,9 @@ class WeightedAverageHistory extends ChartJs
         $fuelType = $fuel->value;
 
         return [
-            'label' => $fuelType,
+            'label' => $fuel->getDisplayValue(),
+            'borderColor' => $fuel->getColor(),
+            'backgroundColor' => $fuel->getColor(),
             'data' => array_map(
                 static fn (CompoundDailyAggregate $aggregate): array => [
                     'x' => $aggregate->day->getTimestamp() * 1000,

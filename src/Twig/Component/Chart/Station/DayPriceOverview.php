@@ -4,20 +4,18 @@ declare(strict_types=1);
 
 namespace App\Twig\Component\Chart\Station;
 
-use App\Document\EmbeddedDailyPrice;
-use App\Document\LatestPrice;
-use App\Document\Price;
+use App\Document\Partial\AbstractDailyPrice;
 use App\Fuel;
 use App\Twig\Component\ChartJs;
+use DateTimeZone;
 use Symfony\UX\Chartjs\Model\Chart;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
-
-use function array_map;
 
 #[AsTwigComponent('Chart:Station:DayPriceOverview', template: ChartJs::TEMPLATE)]
 class DayPriceOverview extends ChartJs
 {
-    public LatestPrice $latestPrice;
+    /** @var iterable<AbstractDailyPrice|null> */
+    public iterable $dailyPrices = [];
 
     public function getChart(): Chart
     {
@@ -29,11 +27,13 @@ class DayPriceOverview extends ChartJs
 
         $chart->setOptions([
             'parsing' => false,
+            'locale' => self::LOCALE,
             'datasets' => [
                 'line' => ['stepped' => 'before'],
             ],
             'scales' => [
                 'x' => ['type' => 'time'],
+                'y' => self::PRICE_AXIS,
             ],
         ]);
 
@@ -45,30 +45,43 @@ class DayPriceOverview extends ChartJs
     {
         $datasets = [];
 
-        foreach (Fuel::cases() as $fuel) {
-            $fuelType = $fuel->value;
-            if (! isset($this->latestPrice->$fuelType)) {
+        foreach ($this->dailyPrices as $dailyPrice) {
+            if ($dailyPrice === null) {
                 continue;
             }
 
-            $datasets[] = $this->createDataset($this->latestPrice->$fuelType, $fuel);
+            $datasets[] = $this->createDataset($dailyPrice, $dailyPrice->fuel);
         }
 
         return $datasets;
     }
 
-    /** @return array{label: string, data: array<array{x: int, y: mixed}>} */
-    private function createDataset(EmbeddedDailyPrice $dailyPrice, Fuel $fuel): array
+    /**
+     * The data spans the whole day: it starts with the opening price at midnight (if there is one) and ends with the
+     * closing price at the following midnight. The line is stepped before each point (see the `stepped` option).
+     *
+     * @return array{label: string, data: list<array{x: int, y: mixed}>}
+     */
+    private function createDataset(AbstractDailyPrice $dailyPrice, Fuel $fuel): array
     {
+        $startOfDay = $dailyPrice->day->setTimezone(new DateTimeZone('UTC'))->setTime(0, 0);
+
+        $data = [];
+        if ($dailyPrice->openingPrice !== null) {
+            $data[] = ['x' => $startOfDay->getTimestamp() * 1000, 'y' => $dailyPrice->openingPrice];
+        }
+
+        foreach ($dailyPrice->prices as $price) {
+            $data[] = ['x' => $price->date->getTimestamp() * 1000, 'y' => $price->price];
+        }
+
+        $data[] = ['x' => $startOfDay->modify('+1 day')->getTimestamp() * 1000, 'y' => $dailyPrice->closingPrice];
+
         return [
-            'label' => $fuel->value,
-            'data' => array_map(
-                static fn (Price $price) => [
-                    'x' => $price->date->getTimestamp() * 1000,
-                    'y' => $price->price,
-                ],
-                $dailyPrice->prices->toArray(),
-            ),
+            'label' => $fuel->getDisplayValue(),
+            'borderColor' => $fuel->getColor(),
+            'backgroundColor' => $fuel->getColor(),
+            'data' => $data,
         ];
     }
 }

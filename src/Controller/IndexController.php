@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\DateRange;
+use App\Http\MapDateRange;
 use App\Repository\DailyAggregateRepository;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Response;
@@ -12,13 +14,15 @@ use Symfony\Component\Routing\Attribute\Route;
 class IndexController extends AbstractController
 {
     #[Route('/', name: 'app_homepage')]
-    public function index(DailyAggregateRepository $dailyAggregates): Response
+    public function index(DailyAggregateRepository $dailyAggregates, #[MapDateRange(defaultDays: 60)]
+    DateRange $range,): Response
     {
         return $this->render(
             'index/index.html.twig',
             [
                 'latestDailyAggregate' => $dailyAggregates->getLatestCompoundAggregate(),
-                'recentDailyAggregates' => $dailyAggregates->getCompoundDailyAggregates()->toArray(),
+                'range' => $range,
+                'recentDailyAggregates' => $dailyAggregates->getCompoundDailyAggregates($range)->toArray(),
             ],
         );
     }

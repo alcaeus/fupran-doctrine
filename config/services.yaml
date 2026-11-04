@@ -6,6 +6,8 @@
 parameters:
     env(MONGODB_URL): ''
     env(MONGODB_DB): ''
+    # Maximum number of days a chart can cover
+    app.chart.max_range_days: 1462
 
 services:
     # default configuration for services in *this* file
@@ -19,6 +21,7 @@ services:
         resource: '../src/'
         exclude:
             - '../src/DependencyInjection/'
+            - '../src/DateRange.php'
             - '../src/Document/'
             - '../src/functions.php'
             - '../src/Kernel.php'

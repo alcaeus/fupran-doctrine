@@ -7,6 +7,7 @@ namespace App\Repository;
 use App\Aggregation\PriceReport;
 use App\Aggregation\UuidRange;
 use App\Codec\MetadataCodecFactory;
+use App\DateRange;
 use App\Document\DailyPrice;
 use App\Document\EmbeddedDailyPrice;
 use App\Document\Price;
@@ -14,6 +15,7 @@ use App\Document\Station;
 use App\Fuel;
 use Closure;
 use DateTimeImmutable;
+use DateTimeZone;
 use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
 use Doctrine\ODM\MongoDB\Iterator\Iterator;
 use MongoDB\BSON\Binary;
@@ -26,7 +28,9 @@ use MongoDB\Collection;
 use stdClass;
 use UnexpectedValueException;
 
+use function array_values;
 use function count;
+use function iterator_to_array;
 use function MongoDB\object;
 
 /** @extends AbstractRepository<DailyPrice> */
@@ -161,34 +165,43 @@ class DailyPriceRepository extends AbstractRepository
             ->getIterator();
     }
 
-    /** @return Iterator<DailyPrice> */
-    public function getLast30DaysDieselForStation(Station $station): Iterator
+    /**
+     * The daily prices of all fuels of a station on the given day. Fuels without a price change on that day have
+     * no document, as their opening price carries over from the previous day.
+     *
+     * @return list<DailyPrice>
+     */
+    public function getDayPricesForStation(Station $station, DateTimeImmutable $day): array
     {
-        return $this->getLast30DaysForStationAndFuel($station, Fuel::Diesel);
+        return array_values(iterator_to_array($this->findDayPricesForStation($station, $day), false));
     }
 
     /** @return Iterator<DailyPrice> */
-    public function getLast30DaysE5ForStation(Station $station): Iterator
+    private function findDayPricesForStation(Station $station, DateTimeImmutable $day): Iterator
     {
-        return $this->getLast30DaysForStationAndFuel($station, Fuel::E5);
+        return $this->createQueryBuilder()
+            ->field('station.referencedStation')
+            ->equals($station)
+            ->field('day')
+            ->equals($day->setTimezone(new DateTimeZone('UTC'))->setTime(0, 0))
+            ->sort('fuel', 1)
+            ->getQuery()
+            ->getIterator();
     }
 
     /** @return Iterator<DailyPrice> */
-    public function getLast30DaysE10ForStation(Station $station): Iterator
-    {
-        return $this->getLast30DaysForStationAndFuel($station, Fuel::E10);
-    }
-
-    /** @return Iterator<DailyPrice> */
-    private function getLast30DaysForStationAndFuel(Station $station, Fuel $fuel): Iterator
+    public function getPricesForStationAndFuel(Station $station, Fuel $fuel, DateRange $range): Iterator
     {
         return $this->createQueryBuilder()
             ->field('station.referencedStation')
             ->equals($station)
             ->field('fuel')
             ->equals($fuel)
-            ->sort('day', -1)
-            ->limit(30)
+            ->field('day')
+            ->gte($range->from)
+            ->field('day')
+            ->lte($range->to)
+            ->sort('day', 1)
             ->getQuery()
             ->getIterator();
     }

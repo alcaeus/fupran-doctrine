@@ -6,6 +6,7 @@ namespace App\Tests\Controller;
 
 use App\Document\Address;
 use App\Document\Station;
+use App\Tests\Repository\DailyPriceRepositoryTest;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use GeoJson\Geometry\Point;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -90,6 +91,91 @@ class StationsControllerTest extends WebTestCase
         self::assertSelectorTextContains('h5', 'Aral Teststraße');
         self::assertSelectorTextContains('address', 'Teststraße 1');
         self::assertSelectorTextContains('address', '12345 Musterstadt');
+    }
+
+    public function testShowWithoutRangeUsesEmbeddedPricesOnly(): void
+    {
+        // The sample station has a daily price, but none embedded in the station
+        DailyPriceRepositoryTest::insertSampleData();
+
+        $client = $this->client;
+        $client->request('GET', '/stations/' . DailyPriceRepositoryTest::STATION_UUID);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('turbo-frame#station-charts form');
+        self::assertSelectorTextContains('turbo-frame#station-charts .alert', 'No price data available.');
+        self::assertSelectorNotExists('turbo-frame#station-charts canvas');
+    }
+
+    public function testShowWithRangeLoadsDailyPrices(): void
+    {
+        DailyPriceRepositoryTest::insertSampleData();
+
+        $client = $this->client;
+        $client->request('GET', '/stations/' . DailyPriceRepositoryTest::STATION_UUID, ['from' => '2024-11-01', 'to' => '2024-11-30']);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('turbo-frame#station-charts canvas');
+        self::assertSelectorNotExists('turbo-frame#station-charts .alert');
+        self::assertSelectorTextContains('turbo-frame#station-charts h5', '2024-11-01 – 2024-11-30');
+        self::assertSame('2024-11-01', $client->getCrawler()->filter('input[name=from]')->attr('value'));
+    }
+
+    public function testShowWithEmptyRangeShowsMessage(): void
+    {
+        DailyPriceRepositoryTest::insertSampleData();
+
+        $client = $this->client;
+        $client->request('GET', '/stations/' . DailyPriceRepositoryTest::STATION_UUID, ['from' => '2024-01-01', 'to' => '2024-01-31']);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('turbo-frame#station-charts .alert', 'between 2024-01-01 and 2024-01-31');
+    }
+
+    public function testShowRejectsInvalidRange(): void
+    {
+        DailyPriceRepositoryTest::insertSampleData();
+
+        $client = $this->client;
+        $client->request('GET', '/stations/' . DailyPriceRepositoryTest::STATION_UUID, ['from' => '2024-02-01', 'to' => '2024-01-01']);
+
+        self::assertResponseStatusCodeSame(400);
+    }
+
+    public function testShowWithDayLoadsThatDaysPrices(): void
+    {
+        DailyPriceRepositoryTest::insertSampleData();
+
+        $client = $this->client;
+        $client->request('GET', '/stations/' . DailyPriceRepositoryTest::STATION_UUID, ['day' => '2024-11-19']);
+
+        self::assertResponseIsSuccessful();
+        // The sample station has no embedded latest price, so the day chart is only rendered here if it was loaded
+        self::assertSelectorExists('turbo-frame#station-day canvas');
+        self::assertSame('2024-11-19', $client->getCrawler()->filter('turbo-frame#station-day input[name=day]')->attr('value'));
+        self::assertSelectorExists('turbo-frame#station-day a[href*="day=2024-11-18"]');
+        self::assertSelectorExists('turbo-frame#station-day a[href*="day=2024-11-20"]');
+    }
+
+    public function testShowWithDayWithoutPricesShowsMessage(): void
+    {
+        DailyPriceRepositoryTest::insertSampleData();
+
+        $client = $this->client;
+        $client->request('GET', '/stations/' . DailyPriceRepositoryTest::STATION_UUID, ['day' => '2024-11-18']);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('turbo-frame#station-day .alert', 'No price changes recorded on 2024-11-18');
+    }
+
+    public function testShowRejectsInvalidDay(): void
+    {
+        DailyPriceRepositoryTest::insertSampleData();
+
+        $client = $this->client;
+        $client->request('GET', '/stations/' . DailyPriceRepositoryTest::STATION_UUID, ['day' => 'yesterday']);
+
+        self::assertResponseStatusCodeSame(400);
     }
 
     public function testShowReturns404ForUnknownStation(): void

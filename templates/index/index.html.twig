@@ -14,7 +14,13 @@
             <twig:DailyAggregateCard aggregate="{{ latestDailyAggregate.e10 }}" />
         </div>
         <div class="col-12">
-            <twig:PriceOverviewCard recentDailyAggregates="{{ recentDailyAggregates }}" />
+            <turbo-frame id="dashboard-charts">
+                <twig:DateRangePicker range="{{ range }}" frame="dashboard-charts" routeName="app_homepage" />
+                <twig:PriceOverviewCard recentDailyAggregates="{{ recentDailyAggregates }}" />
+                {% if recentDailyAggregates is empty %}
+                    <div class="alert alert-info mt-3" role="alert">No price data available for the selected range.</div>
+                {% endif %}
+            </turbo-frame>
         </div>
     </div>
 {% endblock %}
