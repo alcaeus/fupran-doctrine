@@ -5,23 +5,24 @@ declare(strict_types=1);
 namespace App\Document;
 
 use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbeddedDocument;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbedMany;
 
 #[EmbeddedDocument]
 class LatestPrices
 {
-    /** @var ArrayCollection<int, EmbeddedDailyPrice> */
+    /** @var Collection<int, EmbeddedDailyPrice> */
     #[EmbedMany(targetDocument: EmbeddedDailyPrice::class)]
-    public readonly ArrayCollection $diesel;
+    public readonly Collection $diesel;
 
-    /** @var ArrayCollection<int, EmbeddedDailyPrice> */
+    /** @var Collection<int, EmbeddedDailyPrice> */
     #[EmbedMany(targetDocument: EmbeddedDailyPrice::class)]
-    public readonly ArrayCollection $e5;
+    public readonly Collection $e5;
 
-    /** @var ArrayCollection<int, EmbeddedDailyPrice> */
+    /** @var Collection<int, EmbeddedDailyPrice> */
     #[EmbedMany(targetDocument: EmbeddedDailyPrice::class)]
-    public readonly ArrayCollection $e10;
+    public readonly Collection $e10;
 
     public function __construct()
     {
