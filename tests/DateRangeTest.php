@@ -62,6 +62,14 @@ class DateRangeTest extends TestCase
         DateRange::parse('2026-01-01', '2026-01-11', 30, 10, self::today());
     }
 
+    public function testUnlimitedMaximumAllowsAnyLength(): void
+    {
+        $range = DateRange::parse('2000-01-01', '2026-11-04', 30, DateRange::UNLIMITED, self::today());
+
+        self::assertSame('2000-01-01', $range->from->format('Y-m-d'));
+        self::assertSame('2026-11-04', $range->to->format('Y-m-d'));
+    }
+
     #[DataProvider('provideInvalidInput')]
     public function testRejectsInvalidInput(?string $from, ?string $to, string $message): void
     {

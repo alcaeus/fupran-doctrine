@@ -16,6 +16,9 @@ final class DateRange
 {
     public const string FORMAT = 'Y-m-d';
 
+    /** Pass as the maximum number of days to allow ranges of any length. */
+    public const int UNLIMITED = -1;
+
     public readonly DateTimeImmutable $from;
     public readonly DateTimeImmutable $to;
 
@@ -32,7 +35,7 @@ final class DateRange
             throw new InvalidArgumentException('The date range must not end in the future.');
         }
 
-        if ($from->diff($to)->days + 1 > $maxDays) {
+        if ($maxDays !== self::UNLIMITED && $from->diff($to)->days + 1 > $maxDays) {
             throw new InvalidArgumentException(sprintf('The date range must not be longer than %d days.', $maxDays));
         }
 
