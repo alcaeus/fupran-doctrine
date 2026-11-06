@@ -84,7 +84,6 @@ class IndexControllerTest extends WebTestCase
                     ->insertOne([
                         'day' => new UTCDateTime($latest->modify('-' . $daysAgo . ' days')),
                         'fuel' => $fuel->value,
-                        'numChanges' => 1.0,
                         'lowestPrice' => 1.4,
                         'highestPrice' => 1.6,
                         'weightedAveragePrice' => 1.5,

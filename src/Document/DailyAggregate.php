@@ -29,9 +29,6 @@ class DailyAggregate
     public readonly Fuel $fuel;
 
     #[Field]
-    public float $numChanges;
-
-    #[Field]
     public float $lowestPrice;
 
     #[Field]
@@ -42,6 +39,12 @@ class DailyAggregate
 
     #[EmbedOne(targetDocument: Percentiles::class)]
     public Percentiles $percentiles;
+
+    #[EmbedOne(targetDocument: PriceChanges::class)]
+    public PriceChanges $totalChanges;
+
+    #[EmbedOne(targetDocument: AveragePriceChanges::class)]
+    public AveragePriceChanges $averageChanges;
 
     /**
      * Doctrine ODM hydrates this document via reflection, bypassing the

@@ -9,13 +9,16 @@ use App\DateRange;
 use App\Document\CompoundDailyAggregate;
 use App\Document\DailyAggregate;
 use App\Document\Partial\AbstractDailyPrice;
+use DateTimeImmutable;
 use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
 use Doctrine\ODM\MongoDB\Iterator\Iterator;
 use MongoDB\BSON\UTCDateTime;
 use MongoDB\Builder\Pipeline;
 use MongoDB\Builder\Stage;
 
+use function array_values;
 use function iterator_to_array;
+use function usort;
 
 /** @extends AbstractRepository<DailyAggregate> */
 class DailyAggregateRepository extends AbstractRepository
@@ -64,6 +67,31 @@ class DailyAggregateRepository extends AbstractRepository
         $aggregates = iterator_to_array($results);
 
         return $aggregates[0];
+    }
+
+    /**
+     * Days with prices, oldest first, optionally limited to an inclusive range
+     *
+     * @return list<UTCDateTime>
+     */
+    public function getDaysWithPrices(?DateTimeImmutable $from = null, ?DateTimeImmutable $to = null): array
+    {
+        $range = [];
+        if ($from !== null) {
+            $range['$gte'] = new UTCDateTime($from);
+        }
+
+        if ($to !== null) {
+            $range['$lte'] = new UTCDateTime($to);
+        }
+
+        $filter = $range === [] ? [] : ['day' => $range];
+
+        /** @var list<UTCDateTime> $days */
+        $days = array_values($this->dailyPriceRepository->getDocumentCollection()->distinct('day', $filter));
+        usort($days, static fn (UTCDateTime $a, UTCDateTime $b): int => $a->toDateTime() <=> $b->toDateTime());
+
+        return $days;
     }
 
     /** @param list<UTCDateTime>|null $days Restricts the computation to these days; all days if omitted */
