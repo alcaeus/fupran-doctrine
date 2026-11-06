@@ -72,7 +72,6 @@ class DailyAggregateRepositoryTest extends KernelTestCase
             ->insertOne([
                 'day' => new UTCDateTime(self::day($day)),
                 'fuel' => $fuel->value,
-                'numChanges' => 1.0,
                 'lowestPrice' => 1.4,
                 'highestPrice' => 1.6,
                 'weightedAveragePrice' => 1.5,

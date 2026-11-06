@@ -277,7 +277,6 @@ class PriceReport
         return new Pipeline(
             Stage::group(
                 _id: $group,
-                numChanges: Accumulator::avg(Expression::size(Expression::arrayFieldPath('prices'))),
                 lowestPrice: Accumulator::min(Expression::doubleFieldPath('lowestPrice.price')),
                 highestPrice: Accumulator::max(Expression::doubleFieldPath('highestPrice.price')),
                 weightedAveragePrice: Accumulator::avg(Expression::doubleFieldPath('weightedAveragePrice')),
@@ -286,6 +285,12 @@ class PriceReport
                     p: array_values($percentiles),
                     method: 'approximate',
                 ),
+                totalIncreases: Accumulator::sum(Expression::intFieldPath('changes.increases')),
+                totalDecreases: Accumulator::sum(Expression::intFieldPath('changes.decreases')),
+                totalTotal: Accumulator::sum(Expression::intFieldPath('changes.total')),
+                averageIncreases: Accumulator::avg(Expression::intFieldPath('changes.increases')),
+                averageDecreases: Accumulator::avg(Expression::intFieldPath('changes.decreases')),
+                averageTotal: Accumulator::avg(Expression::intFieldPath('changes.total')),
             ),
             Stage::set(
                 percentiles: Expression::arrayToObject(
@@ -294,7 +299,18 @@ class PriceReport
                         Expression::arrayFieldPath('percentiles'),
                     ]),
                 ),
+                totalChanges: object(
+                    increases: Expression::fieldPath('totalIncreases'),
+                    decreases: Expression::fieldPath('totalDecreases'),
+                    total: Expression::fieldPath('totalTotal'),
+                ),
+                averageChanges: object(
+                    increases: Expression::fieldPath('averageIncreases'),
+                    decreases: Expression::fieldPath('averageDecreases'),
+                    total: Expression::fieldPath('averageTotal'),
+                ),
             ),
+            Stage::unset('totalIncreases', 'totalDecreases', 'totalTotal', 'averageIncreases', 'averageDecreases', 'averageTotal'),
             Stage::replaceWith(Expression::mergeObjects(
                 Expression::fieldPath('_id'),
                 Expression::variable('ROOT'),

@@ -444,6 +444,63 @@ class PriceReportTest extends TestCase
         self::assertObjectNotHasProperty('previousClosingPrice', $result[1]);
     }
 
+    public function testComputeDailyAggregatesSumsAndAveragesPriceChanges(): void
+    {
+        $day = new UTCDateTime(new DateTimeImmutable('2025-06-27T00:00:00+00:00'));
+        $dailyPrice = static fn (string $fuel, ?array $changes): array => [
+            'day' => $day,
+            'fuel' => $fuel,
+            'lowestPrice' => ['price' => 1.5],
+            'highestPrice' => ['price' => 1.7],
+            'weightedAveragePrice' => 1.6,
+        ] + ($changes === null ? [] : ['changes' => $changes]);
+
+        $results = $this->runPipeline(
+            [
+                $dailyPrice('diesel', ['increases' => 2, 'decreases' => 1, 'total' => 3]),
+                $dailyPrice('diesel', ['increases' => 4, 'decreases' => 3, 'total' => 7]),
+                $dailyPrice('e5', ['increases' => 1, 'decreases' => 0, 'total' => 1]),
+            ],
+            PriceReport::computeDailyAggregates(),
+            Stage::sort(fuel: 1),
+        );
+
+        self::assertCount(2, $results);
+
+        self::assertSame('diesel', $results[0]->fuel);
+        self::assertObjectNotHasProperty('numChanges', $results[0]);
+        self::assertMongoResultEquals(['increases' => 6, 'decreases' => 4, 'total' => 10], $results[0]->totalChanges);
+        self::assertMongoResultEquals(['increases' => 3.0, 'decreases' => 2.0, 'total' => 5.0], $results[0]->averageChanges);
+
+        self::assertSame('e5', $results[1]->fuel);
+        self::assertMongoResultEquals(['increases' => 1, 'decreases' => 0, 'total' => 1], $results[1]->totalChanges);
+        self::assertMongoResultEquals(['increases' => 1.0, 'decreases' => 0.0, 'total' => 1.0], $results[1]->averageChanges);
+    }
+
+    public function testComputeDailyAggregatesIgnoresPricesWithoutChangesInAverages(): void
+    {
+        $base = [
+            'day' => new UTCDateTime(new DateTimeImmutable('2025-06-27T00:00:00+00:00')),
+            'fuel' => 'diesel',
+            'lowestPrice' => ['price' => 1.5],
+            'highestPrice' => ['price' => 1.7],
+            'weightedAveragePrice' => 1.6,
+        ];
+
+        $results = $this->runPipeline(
+            [
+                $base +
+            ['changes' => ['increases' => 2, 'decreases' => 2, 'total' => 4]],
+                $base,
+            ],
+            PriceReport::computeDailyAggregates(),
+        );
+
+        self::assertCount(1, $results);
+        self::assertMongoResultEquals(['increases' => 2, 'decreases' => 2, 'total' => 4], $results[0]->totalChanges);
+        self::assertMongoResultEquals(['increases' => 2.0, 'decreases' => 2.0, 'total' => 4.0], $results[0]->averageChanges);
+    }
+
     /**
      * Runs the given stages against the provided input documents (via $documents) and
      * returns the decoded results.
