@@ -20,6 +20,12 @@ class LatestPrice
     #[EmbedOne(targetDocument: EmbeddedDailyPrice::class)]
     public ?EmbeddedDailyPrice $e10 = null;
 
+    /** phpcs:disable **/
+    public ?DateTimeImmutable $day {
+        get => $this->diesel->day ?? $this->e5->day ?? $this->e10->day;
+    }
+    /** phpcs:enable **/
+
     /**
      * Doctrine ODM hydrates this document via reflection, bypassing the
      * constructor. It is declared for manual construction and to satisfy
