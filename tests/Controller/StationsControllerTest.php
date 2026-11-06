@@ -26,9 +26,11 @@ class StationsControllerTest extends WebTestCase
 
         $this->client = static::createClient();
 
-        self::getDocumentManager()
-            ->getDocumentDatabase(Station::class)
-            ->drop();
+        $documentManager = self::getDocumentManager();
+        $documentManager->getDocumentDatabase(Station::class)->drop();
+
+        // Dropping the database also drops the 2dsphere index required for finding nearby stations
+        $documentManager->getSchemaManager()->ensureDocumentIndexes(Station::class);
     }
 
     public function testIndexShowsEmptyStateWithoutStations(): void

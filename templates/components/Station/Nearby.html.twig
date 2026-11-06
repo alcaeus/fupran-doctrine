@@ -1,0 +1,18 @@
+{% props station %}
+
+{% if station.nearbyStations|length %}
+<div class="card">
+    <div class="card-header h5">
+        Nearby Stations
+    </div>
+    <ul class="list-group list-group-flush">
+        {% for nearbyStation in station.nearbyStations %}
+            <li class="list-group-item">
+                <a href="{{ path('app_station_show', {id: nearbyStation.id}) }}">{{ nearbyStation.name }}</a>, {{ '%.2f m'|format(nearbyStation.distance) }}<br />
+
+                <twig:Station:LatestPrices station="{{ nearbyStation }}" />
+            </li>
+        {% endfor %}
+    </ul>
+</div>
+{% endif %}
