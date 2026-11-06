@@ -13,9 +13,9 @@ use DateTimeImmutable;
 use DateTimeZone;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
-/** Intra-day chart of a station for a single day, with controls to move to another day. */
-#[AsTwigComponent('Station:DayChart')]
-class DayChart
+/** Price info box of a station for a single day, with controls to move to another day. */
+#[AsTwigComponent('Station:DayPriceOverview')]
+class DayPriceOverview
 {
     public Station $station;
 

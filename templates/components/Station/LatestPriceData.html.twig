@@ -1,10 +1,6 @@
 {% props dailyPrice = null %}
 
 {% if dailyPrice is not null %}
-<dt>{{ dailyPrice.fuel.displayValue }} <span class="text-muted">({{ dailyPrice.latestPrice.date|date }})</span></dt>
-<dd>
-    <twig:Price price="{{ dailyPrice.latestPrice.price }}" />
-    (Average: <twig:Price price="{{ dailyPrice.weightedAveragePrice }}" />)
-{#    {{ dailyPrice.aggregate.getPercentile(dailyPrice.latestPrice.price) }})#}
-</dd>
+<b>{{ dailyPrice.fuel.displayValue }}</b>: <twig:Price price="{{ dailyPrice.latestPrice.price }}" />
+<span class="text-muted">({{ dailyPrice.latestPrice.date|date('H:i') }})</span>
 {% endif %}

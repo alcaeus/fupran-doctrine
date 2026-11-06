@@ -75,6 +75,7 @@ class DayPriceOverview extends ChartJs
             $data[] = ['x' => $price->date->getTimestamp() * 1000, 'y' => $price->price];
         }
 
+        // TODO: show current time at most
         $data[] = ['x' => $startOfDay->modify('+1 day')->getTimestamp() * 1000, 'y' => $dailyPrice->closingPrice];
 
         return [

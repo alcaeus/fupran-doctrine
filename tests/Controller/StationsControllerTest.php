@@ -89,7 +89,7 @@ class StationsControllerTest extends WebTestCase
         $client->request('GET', '/stations/' . $station->id);
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('h5', 'Aral Teststraße');
+        self::assertSelectorTextContains('.card-header', 'Aral Teststraße');
         self::assertSelectorTextContains('address', 'Teststraße 1');
         self::assertSelectorTextContains('address', '12345 Musterstadt');
     }

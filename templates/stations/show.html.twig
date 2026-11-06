@@ -7,13 +7,27 @@
 {% endblock %}
 
 {% block body %}
-    <div class="row row-cols-2 mb-4">
+    <div class="row row-cols-2 mb-4 g-4">
         <div class="col">
-            <twig:Station:Info station="{{ station }}" />
+            <div class="mb-4">
+                <twig:Station:Info station="{{ station }}" />
+            </div>
+
+            <twig:Station:DayPriceOverview station="{{ station }}" requestedDay="{{ day }}" query="{{ app.request.query.all }}" />
         </div>
 
         <div class="col">
-            <twig:Station:LatestPrices station="{{ station }}" requestedDay="{{ day }}" query="{{ app.request.query.all }}" />
+            {% if station.latestPrice %}
+            <div class="card mb-4">
+                <div class="card-header h5">
+                    Latest Price Data: {{ station.latestPrice.day|date('d/m/Y') }}
+                </div>
+
+                <div class="card-body">
+                    <twig:Station:LatestPrices station="{{ station }}" />
+                </div>
+            </div>
+            {% endif %}
         </div>
     </div>
 
