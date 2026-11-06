@@ -22,7 +22,7 @@ class LatestPrice
 
     /** phpcs:disable **/
     public ?DateTimeImmutable $day {
-        get => $this->diesel->day ?? $this->e5->day ?? $this->e10->day;
+        get => $this->diesel->day ?? $this->e5->day ?? $this->e10?->day;
     }
     /** phpcs:enable **/
 

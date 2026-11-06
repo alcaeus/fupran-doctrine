@@ -200,6 +200,7 @@ JSON;
         $station = $documentManager->find(Station::class, $station->id);
         $this->assertInstanceOf(Station::class, $station);
         $this->assertNotNull($station->latestPrice);
+        $this->assertNotNull($station->latestPrice->diesel);
         $this->assertEquals($dailyPrice->id, $station->latestPrice->diesel->id);
         $this->assertTrue($station->visible);
     }
@@ -260,6 +261,7 @@ JSON;
         $station = $documentManager->find(Station::class, $station->id);
         $this->assertInstanceOf(Station::class, $station);
         $this->assertNotNull($station->latestPrice);
+        $this->assertNotNull($station->latestPrice->diesel);
         $this->assertEquals($dailyPrice->id, $station->latestPrice->diesel->id);
     }
 
@@ -305,6 +307,7 @@ JSON;
         $station = $documentManager->find(Station::class, $station->id);
         $this->assertInstanceOf(Station::class, $station);
         $this->assertNotNull($station->latestPrice);
+        $this->assertNotNull($station->latestPrice->diesel);
         $this->assertEquals($dailyPrice->id, $station->latestPrice->diesel->id);
 
         $this->assertNotNull($station->latestPrices);
@@ -358,6 +361,7 @@ JSON;
         $station = $documentManager->find(Station::class, $station->id);
         $this->assertInstanceOf(Station::class, $station);
         $this->assertNotNull($station->latestPrice);
+        $this->assertNotNull($station->latestPrice->diesel);
         $this->assertEquals($dailyPrice->id, $station->latestPrice->diesel->id);
     }
 
