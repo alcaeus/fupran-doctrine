@@ -1,20 +1,15 @@
-{% props station, requestedDay = null, query = {} %}
+{% if station.latestPrice is not null %}
+    {% if station.latestPrice.diesel %}
+        <twig:Station:LatestPriceData dailyPrice="{{ station.latestPrice.diesel }}" /><br>
+    {% endif %}
 
-{% if station.latestPrice is not null or requestedDay is not null %}
-    <div class="card">
-        <div class="card-body">
-            <h5>Latest price data</h5>
-            {% if station.latestPrice is not null %}
-            <dl>
-                <twig:Station:LatestPriceData dailyPrice="{{ station.latestPrice.diesel }}" />
-                <twig:Station:LatestPriceData dailyPrice="{{ station.latestPrice.e5 }}" />
-                <twig:Station:LatestPriceData dailyPrice="{{ station.latestPrice.e10 }}" />
-            </dl>
-            {% endif %}
+    {% if station.latestPrice.e5 %}
+        <twig:Station:LatestPriceData dailyPrice="{{ station.latestPrice.e5 }}" /><br>
+    {% endif %}
 
-            <twig:Station:DayChart station="{{ station }}" requestedDay="{{ requestedDay }}" query="{{ query }}" />
-        </div>
-    </div>
+    {% if station.latestPrice.e10 %}
+        <twig:Station:LatestPriceData dailyPrice="{{ station.latestPrice.e10 }}" /><br>
+    {% endif %}
 {% else %}
     <div class="alert alert-info" role="alert">
         No latest prices available for this station.
