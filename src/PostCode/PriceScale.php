@@ -11,10 +11,10 @@ use function max;
 use function min;
 use function round;
 
-/** Maps prices to colours: cheapest to most expensive, the "oranges" scale also used by the ChartJS map */
+/** Maps prices to colours, from green (cheap) over yellow and orange to red (expensive) */
 final class PriceScale
 {
-    private const array COLORS = ['#fff5eb', '#fee6ce', '#fdd0a2', '#fdae6b', '#fd8d3c', '#f16913', '#d94801', '#8c2d04'];
+    private const array COLORS = ['#1a9850', '#66bd63', '#a6d96a', '#fee08b', '#fdae61', '#f46d43', '#d73027', '#a50026'];
 
     public function __construct(public readonly float $lowest, public readonly float $highest)
     {

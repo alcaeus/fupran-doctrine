@@ -8,6 +8,11 @@ const priceFormat = new Intl.NumberFormat('de-DE', {
     maximumFractionDigits: 3,
 })
 
+// The areas are partly transparent so the streets and place names of the base map stay readable underneath
+function areaStyle(fillColor) {
+    return { color: '#555', weight: 1, fillColor, fillOpacity: 0.4 }
+}
+
 // Enhances a Symfony UX map that draws the regions of Germany as polygons:
 //
 // - Colours the regions with the colour chosen on the server.
@@ -30,12 +35,7 @@ export default class extends Controller {
     fitted = false
 
     style({ detail: { definition } }) {
-        definition.bridgeOptions = {
-            color: '#555',
-            weight: 1,
-            fillColor: definition.extra.fillColor,
-            fillOpacity: 0.85,
-        }
+        definition.bridgeOptions = areaStyle(definition.extra.fillColor)
     }
 
     // Not named connect(), which is Stimulus' own callback
@@ -124,7 +124,7 @@ export default class extends Controller {
         this.#showRegions(false)
         this.postCodes.clearLayers()
         for (const area of areas) {
-            L.polygon(area.polygons, { color: '#555', weight: 1, fillColor: area.color, fillOpacity: 0.85 })
+            L.polygon(area.polygons, areaStyle(area.color))
                 .bindPopup(`<strong>${area.postCode}</strong><p class="mb-0">${this.labelValue}: ${priceFormat.format(area.price)}</p>`)
                 .addTo(this.postCodes)
         }
