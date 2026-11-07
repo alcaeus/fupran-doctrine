@@ -69,6 +69,15 @@ class DailyAggregateRepository extends AbstractRepository
         return $aggregates[0];
     }
 
+    /** The aggregates of all fuels on a day, if there are any */
+    public function findCompoundAggregateForDay(DateTimeImmutable $day): ?CompoundDailyAggregate
+    {
+        /** @var array<int, CompoundDailyAggregate> $aggregates */
+        $aggregates = $this->getCompoundDailyAggregates(new DateRange($day, $day, 1))->toArray();
+
+        return $aggregates[0] ?? null;
+    }
+
     /**
      * Days with prices, oldest first, optionally limited to an inclusive range
      *

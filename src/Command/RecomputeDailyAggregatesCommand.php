@@ -7,12 +7,14 @@ namespace App\Command;
 use App\DateRange;
 use App\FileImport\WorkerProcessFactory;
 use App\Repository\DailyAggregateRepository;
+use App\Repository\PostCodeDailyAggregateRepository;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use MongoDB\BSON\UTCDateTime;
 use RuntimeException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -21,8 +23,14 @@ use Symfony\Component\Process\Process;
 
 use function App\measure;
 use function array_chunk;
+use function array_map;
+use function array_unique;
+use function array_values;
 use function count;
 use function filter_var;
+use function implode;
+use function in_array;
+use function is_array;
 use function is_string;
 use function min;
 use function sprintf;
@@ -39,8 +47,13 @@ class RecomputeDailyAggregatesCommand extends Command
     /** Number of days that are recomputed at once; the progress is updated after each batch */
     private const int BATCH_SIZE = 30;
 
+    private const string TYPE_DAILY = 'daily';
+    private const string TYPE_POST_CODE = 'post-code';
+    private const array TYPES = [self::TYPE_DAILY, self::TYPE_POST_CODE];
+
     public function __construct(
         private readonly DailyAggregateRepository $dailyAggregateRepository,
+        private readonly PostCodeDailyAggregateRepository $postCodeDailyAggregateRepository,
         private readonly WorkerProcessFactory $processFactory,
     ) {
         parent::__construct(null);
@@ -51,6 +64,7 @@ class RecomputeDailyAggregatesCommand extends Command
         $this
             ->addOption(name: 'from', mode: InputOption::VALUE_REQUIRED, description: 'First day to recompute, formatted as ' . DateRange::FORMAT . ' (defaults to the first day with prices)')
             ->addOption(name: 'to', mode: InputOption::VALUE_REQUIRED, description: 'Last day to recompute, formatted as ' . DateRange::FORMAT . ' (defaults to the last day with prices)')
+            ->addOption(name: 'only', mode: InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, description: 'Aggregates to recompute: ' . implode(', ', self::TYPES) . ' (defaults to all)')
             ->addOption(name: 'jobs', shortcut: 'j', mode: InputOption::VALUE_REQUIRED, description: 'Number of worker processes to recompute with', default: 1);
     }
 
@@ -65,6 +79,7 @@ class RecomputeDailyAggregatesCommand extends Command
         }
 
         $jobs = $this->getJobs($input);
+        $types = $this->getTypes($input);
 
         $days = $this->dailyAggregateRepository->getDaysWithPrices($from, $to);
         if ($days === []) {
@@ -77,12 +92,12 @@ class RecomputeDailyAggregatesCommand extends Command
         $jobs = min($jobs, count($batches));
 
         $io->writeln(sprintf('Recomputing daily aggregates of %d days%s...', count($days), $jobs > 1 ? sprintf(' using %d worker processes', $jobs) : ''));
-        $io->progressStart(count($days));
+        $io->progressStart(count($days), ProgressBar::FORMAT_VERY_VERBOSE);
 
         [$time] = measure(
             $jobs > 1
-                ? fn () => $this->recomputeInParallel($batches, $jobs, $io)
-                : fn () => $this->recomputeSequentially($batches, $io),
+                ? fn () => $this->recomputeInParallel($batches, $jobs, $types, $io)
+                : fn () => $this->recomputeSequentially($batches, $types, $io),
         );
 
         $io->progressFinish();
@@ -91,11 +106,21 @@ class RecomputeDailyAggregatesCommand extends Command
         return Command::SUCCESS;
     }
 
-    /** @param list<list<UTCDateTime>> $batches */
-    private function recomputeSequentially(array $batches, SymfonyStyle $io): void
+    /**
+     * @param list<list<UTCDateTime>> $batches
+     * @param list<string>            $types
+     */
+    private function recomputeSequentially(array $batches, array $types, SymfonyStyle $io): void
     {
         foreach ($batches as $batch) {
-            $this->dailyAggregateRepository->recomputeDailyAggregates($batch);
+            if (in_array(self::TYPE_DAILY, $types, true)) {
+                $this->dailyAggregateRepository->recomputeDailyAggregates($batch);
+            }
+
+            if (in_array(self::TYPE_POST_CODE, $types, true)) {
+                $this->postCodeDailyAggregateRepository->recomputeDailyAggregates($batch);
+            }
+
             $io->progressAdvance(count($batch));
         }
     }
@@ -104,8 +129,9 @@ class RecomputeDailyAggregatesCommand extends Command
      * Keeps up to $jobs workers busy with batches of days, so progress can be reported as batches complete
      *
      * @param list<list<UTCDateTime>> $batches Each sorted, oldest first
+     * @param list<string>            $types
      */
-    private function recomputeInParallel(array $batches, int $jobs, SymfonyStyle $io): void
+    private function recomputeInParallel(array $batches, int $jobs, array $types, SymfonyStyle $io): void
     {
         /** @var array<int, Process> $running */
         $running = [];
@@ -118,6 +144,7 @@ class RecomputeDailyAggregatesCommand extends Command
                 $process = $this->processFactory->create($this->getName() ?? '', [
                     '--from=' . $batch[0]->toDateTime()->format(DateRange::FORMAT),
                     '--to=' . $batch[count($batch) - 1]->toDateTime()->format(DateRange::FORMAT),
+                    ...array_map(static fn (string $type): string => '--only=' . $type, $types),
                 ]);
                 $process->start();
                 $running[$next++] = $process;
@@ -160,6 +187,27 @@ class RecomputeDailyAggregatesCommand extends Command
         }
 
         return DateRange::parseDay($value, $name);
+    }
+
+    /** @return list<string> */
+    private function getTypes(InputInterface $input): array
+    {
+        $types = $input->getOption('only');
+        if (! is_array($types)) {
+            throw new InvalidArgumentException('Expected "only" option to be an array.');
+        }
+
+        if ($types === []) {
+            return self::TYPES;
+        }
+
+        foreach ($types as $type) {
+            if (! in_array($type, self::TYPES, true)) {
+                throw new InvalidArgumentException(sprintf('Expected "only" option to be one of: %s.', implode(', ', self::TYPES)));
+            }
+        }
+
+        return array_values(array_unique($types));
     }
 
     private function getJobs(InputInterface $input): int

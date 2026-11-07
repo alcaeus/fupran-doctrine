@@ -20,6 +20,7 @@ use PHPUnit\Framework\TestCase;
 use stdClass;
 use UnexpectedValueException;
 
+use function array_keys;
 use function array_map;
 use function array_values;
 use function is_array;
@@ -468,11 +469,13 @@ class PriceReportTest extends TestCase
         self::assertCount(2, $results);
 
         self::assertSame('diesel', $results[0]->fuel);
+        self::assertSame(2, $results[0]->stationCount);
         self::assertObjectNotHasProperty('numChanges', $results[0]);
         self::assertMongoResultEquals(['increases' => 6, 'decreases' => 4, 'total' => 10], $results[0]->totalChanges);
         self::assertMongoResultEquals(['increases' => 3.0, 'decreases' => 2.0, 'total' => 5.0], $results[0]->averageChanges);
 
         self::assertSame('e5', $results[1]->fuel);
+        self::assertSame(1, $results[1]->stationCount);
         self::assertMongoResultEquals(['increases' => 1, 'decreases' => 0, 'total' => 1], $results[1]->totalChanges);
         self::assertMongoResultEquals(['increases' => 1.0, 'decreases' => 0.0, 'total' => 1.0], $results[1]->averageChanges);
     }
@@ -499,6 +502,89 @@ class PriceReportTest extends TestCase
         self::assertCount(1, $results);
         self::assertMongoResultEquals(['increases' => 2, 'decreases' => 2, 'total' => 4], $results[0]->totalChanges);
         self::assertMongoResultEquals(['increases' => 2.0, 'decreases' => 2.0, 'total' => 4.0], $results[0]->averageChanges);
+    }
+
+    public function testComputeDailyAggregatesPerPostCodeGroupsByPostCode(): void
+    {
+        $day = new UTCDateTime(new DateTimeImmutable('2025-06-27T00:00:00+00:00'));
+        $dailyPrice = static fn (string $postCode, float $price, array $changes): array => [
+            'day' => $day,
+            'fuel' => 'diesel',
+            'station' => ['address' => ['postCode' => $postCode]],
+            'lowestPrice' => ['price' => $price - 0.1],
+            'highestPrice' => ['price' => $price + 0.1],
+            'weightedAveragePrice' => $price,
+            'changes' => $changes,
+        ];
+
+        $results = $this->runPipeline(
+            [
+                $dailyPrice('10115', 1.5, ['increases' => 2, 'decreases' => 1, 'total' => 3]),
+                $dailyPrice('10115', 1.7, ['increases' => 4, 'decreases' => 3, 'total' => 7]),
+                $dailyPrice('80331', 1.9, ['increases' => 1, 'decreases' => 0, 'total' => 1]),
+            ],
+            PriceReport::computeDailyAggregatesPerPostCode(),
+            Stage::sort(postCode: 1),
+        );
+
+        self::assertCount(2, $results);
+
+        self::assertSame('10115', $results[0]->postCode);
+        self::assertSame('diesel', $results[0]->fuel);
+        self::assertSame(2, $results[0]->stationCount);
+        self::assertEqualsWithDelta(1.4, $results[0]->lowestPrice, 0.0001);
+        self::assertEqualsWithDelta(1.8, $results[0]->highestPrice, 0.0001);
+        self::assertEqualsWithDelta(1.6, $results[0]->weightedAveragePrice, 0.0001);
+        self::assertIsArray($results[0]->percentiles);
+        self::assertSame(['p50', 'p90', 'p95', 'p99'], array_keys($results[0]->percentiles));
+        self::assertMongoResultEquals(['increases' => 6, 'decreases' => 4, 'total' => 10], $results[0]->totalChanges);
+        self::assertMongoResultEquals(['increases' => 3.0, 'decreases' => 2.0, 'total' => 5.0], $results[0]->averageChanges);
+        self::assertObjectNotHasProperty('_id', $results[0]);
+
+        self::assertSame('80331', $results[1]->postCode);
+        self::assertSame(1, $results[1]->stationCount);
+        self::assertMongoResultEquals(['increases' => 1, 'decreases' => 0, 'total' => 1], $results[1]->totalChanges);
+    }
+
+    public function testComputeDailyAggregatesPerPostCodeIsRestrictedToDays(): void
+    {
+        $dailyPrice = static fn (string $day): array => [
+            'day' => new UTCDateTime(new DateTimeImmutable($day . 'T00:00:00+00:00')),
+            'fuel' => 'diesel',
+            'station' => ['address' => ['postCode' => '10115']],
+            'lowestPrice' => ['price' => 1.5],
+            'highestPrice' => ['price' => 1.7],
+            'weightedAveragePrice' => 1.6,
+        ];
+
+        $results = $this->runPipeline(
+            [$dailyPrice('2025-06-26'), $dailyPrice('2025-06-27'), $dailyPrice('2025-06-28')],
+            PriceReport::computeDailyAggregatesPerPostCode([new UTCDateTime(new DateTimeImmutable('2025-06-27T00:00:00+00:00'))]),
+        );
+
+        self::assertCount(1, $results);
+        self::assertInstanceOf(UTCDateTime::class, $results[0]->day);
+        self::assertSame('2025-06-27', $results[0]->day->toDateTime()->format('Y-m-d'));
+    }
+
+    public function testComputeDailyAggregatesIsRestrictedToDays(): void
+    {
+        $dailyPrice = static fn (string $day): array => [
+            'day' => new UTCDateTime(new DateTimeImmutable($day . 'T00:00:00+00:00')),
+            'fuel' => 'diesel',
+            'lowestPrice' => ['price' => 1.5],
+            'highestPrice' => ['price' => 1.7],
+            'weightedAveragePrice' => 1.6,
+        ];
+
+        $results = $this->runPipeline(
+            [$dailyPrice('2025-06-26'), $dailyPrice('2025-06-27')],
+            PriceReport::computeDailyAggregates([new UTCDateTime(new DateTimeImmutable('2025-06-26T00:00:00+00:00'))]),
+        );
+
+        self::assertCount(1, $results);
+        self::assertInstanceOf(UTCDateTime::class, $results[0]->day);
+        self::assertSame('2025-06-26', $results[0]->day->toDateTime()->format('Y-m-d'));
     }
 
     /**

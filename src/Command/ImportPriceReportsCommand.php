@@ -15,6 +15,7 @@ use App\FileImport\ParallelFileImporter;
 use App\FileImport\PriceReportFileImporter;
 use App\Repository\DailyAggregateRepository;
 use App\Repository\DailyPriceRepository;
+use App\Repository\PostCodeDailyAggregateRepository;
 use Doctrine\ODM\MongoDB\DocumentManager;
 use InvalidArgumentException;
 use MongoDB\BSON\Regex;
@@ -71,6 +72,7 @@ class ImportPriceReportsCommand extends Command
         private readonly ParallelPriceReportAggregator $parallelAggregator,
         private readonly DailyPriceRepository $dailyPriceRepository,
         private readonly DailyAggregateRepository $dailyAggregateRepository,
+        private readonly PostCodeDailyAggregateRepository $postCodeDailyAggregateRepository,
         private readonly StationChunker $stationChunker,
         private readonly ChunkAggregationRunner $chunkRunner,
         DocumentManager $documentManager,
@@ -334,7 +336,10 @@ class ImportPriceReportsCommand extends Command
         $io->write('Recomputing daily aggregates...');
 
         [$time] = measure(
-            fn () => $this->dailyAggregateRepository->recomputeDailyAggregates($this->affectedDays),
+            function (): void {
+                $this->dailyAggregateRepository->recomputeDailyAggregates($this->affectedDays);
+                $this->postCodeDailyAggregateRepository->recomputeDailyAggregates($this->affectedDays);
+            },
         );
 
         $io->writeln(sprintf('Done in %.5fs.', $time));
@@ -369,6 +374,10 @@ class ImportPriceReportsCommand extends Command
             ->getQuery()
             ->execute();
         $this->dailyAggregateRepository->createQueryBuilder()
+            ->remove()
+            ->getQuery()
+            ->execute();
+        $this->postCodeDailyAggregateRepository->createQueryBuilder()
             ->remove()
             ->getQuery()
             ->execute();

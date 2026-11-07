@@ -7,6 +7,7 @@ namespace App\Tests\Command;
 use App\Command\ImportPriceReportsCommand;
 use App\Document\DailyAggregate;
 use App\Document\DailyPrice;
+use App\Document\PostCodeDailyAggregate;
 use App\Document\Station;
 use App\FileImport\PriceReportFileImporter;
 use App\FileImport\StationFileImporter;
@@ -45,12 +46,15 @@ class ImportPriceReportsCommandTest extends KernelTestCase
         $documentManager->getDocumentCollection(Station::class)->deleteMany([]);
         $documentManager->getDocumentCollection(DailyPrice::class)->deleteMany([]);
         $documentManager->getDocumentCollection(DailyAggregate::class)->deleteMany([]);
+        $documentManager->getDocumentCollection(PostCodeDailyAggregate::class)->deleteMany([]);
 
         // recomputeDailyAggregates() merges into DailyAggregate on ['day', 'fuel']; $merge
         // requires a unique index covering exactly those fields, but DailyAggregate does not
         // declare one (its declared indexes are non-unique), so it has to be created directly.
         $documentManager->getDocumentCollection(DailyAggregate::class)
             ->createIndex(['day' => 1, 'fuel' => 1], ['unique' => true]);
+        $documentManager->getDocumentCollection(PostCodeDailyAggregate::class)
+            ->createIndex(['day' => 1, 'fuel' => 1, 'postCode' => 1], ['unique' => true]);
 
         // Same for DailyPrice: the unique index is what makes merging price reports of an already imported day fail
         $documentManager->getDocumentCollection(DailyPrice::class)
@@ -171,6 +175,32 @@ class ImportPriceReportsCommandTest extends KernelTestCase
         self::assertGreaterThanOrEqual($aggregate['lowestPrice'], $dayTwo['weightedAveragePrice']);
         self::assertLessThanOrEqual($aggregate['highestPrice'], $dayTwo['weightedAveragePrice']);
         self::assertGreaterThanOrEqual($aggregate['lowestPrice'], $aggregate['weightedAveragePrice']);
+    }
+
+    public function testPostCodeAggregatesAreRecomputedForUpdatedDays(): void
+    {
+        $this->importDaysInSeparateRuns(['prices-day2', 'prices-day1'], []);
+
+        $dayTwo = $this->findRawDailyPrice(self::OIL_MUNICH_UUID, Fuel::Diesel, '2026-08-16');
+
+        // The only station in its post code, so the aggregate has to include the weighted average corrected by the later import
+        $aggregate = $this->findRawPostCodeAggregate('80999', Fuel::Diesel, '2026-08-16');
+        self::assertEqualsWithDelta($dayTwo['weightedAveragePrice'], $aggregate['weightedAveragePrice'], 0.0001);
+        // Fails if the aggregates do not exist
+        $this->findRawPostCodeAggregate('80999', Fuel::Diesel, '2026-08-15');
+        $this->findRawPostCodeAggregate('55758', Fuel::Diesel, '2026-08-16');
+    }
+
+    public function testClearRemovesExistingAggregates(): void
+    {
+        $this->importDaysInSeparateRuns(['prices-day1'], []);
+        $this->importDaysInSeparateRuns(['prices-day2'], ['--clear' => true]);
+
+        $documentManager = self::getDocumentManager();
+        $day = new UTCDateTime(new DateTimeImmutable('2026-08-15', new DateTimeZone('UTC')));
+        self::assertSame(0, $documentManager->getDocumentCollection(DailyAggregate::class)->countDocuments(['day' => $day]));
+        self::assertSame(0, $documentManager->getDocumentCollection(PostCodeDailyAggregate::class)->countDocuments(['day' => $day]));
+        self::assertGreaterThan(0, $documentManager->getDocumentCollection(PostCodeDailyAggregate::class)->countDocuments());
     }
 
     /**
@@ -314,6 +344,24 @@ class ImportPriceReportsCommandTest extends KernelTestCase
         self::assertInstanceOf(DailyPrice::class, $dailyPrice);
 
         return $dailyPrice;
+    }
+
+    /** @return array<string, mixed> */
+    private function findRawPostCodeAggregate(string $postCode, Fuel $fuel, string $day): array
+    {
+        $aggregate = self::getDocumentManager()
+            ->getDocumentCollection(PostCodeDailyAggregate::class)
+            ->findOne(
+                ['postCode' => $postCode, 'fuel' => $fuel->value, 'day' => new UTCDateTime(new DateTimeImmutable($day, new DateTimeZone('UTC')))],
+                ['typeMap' => ['root' => 'array', 'document' => 'array', 'array' => 'array']],
+            );
+
+        self::assertIsArray($aggregate);
+
+        /** @var array<string, mixed> $result */
+        $result = $aggregate;
+
+        return $result;
     }
 
     /** @return array<string, mixed> */
