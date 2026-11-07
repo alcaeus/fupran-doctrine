@@ -8,7 +8,7 @@
         <div class="card-header">
             <ul class="nav nav-tabs card-header-tabs">
                 <li class="nav-item">
-                    <a class="nav-link disabled" aria-disabled="true">Prices for {{ dailyAggregate.day|date('m/d/Y') }}</a>
+                    <a class="nav-link disabled" aria-disabled="true">Prices for {{ dailyAggregate.day|date('d/m/Y') }}</a>
                 </li>
                 {% for fuel in fuels %}
                     <li class="nav-item" role="presentation">
