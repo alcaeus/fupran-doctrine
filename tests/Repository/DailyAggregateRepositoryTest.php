@@ -7,6 +7,7 @@ namespace App\Tests\Repository;
 use App\DateRange;
 use App\Document\CompoundDailyAggregate;
 use App\Document\DailyAggregate;
+use App\Document\DailyPrice;
 use App\Fuel;
 use App\Repository\DailyAggregateRepository;
 use DateTimeImmutable;
@@ -27,6 +28,48 @@ class DailyAggregateRepositoryTest extends KernelTestCase
         self::getDocumentManager()
             ->getDocumentCollection(DailyAggregate::class)
             ->drop();
+        self::getDocumentManager()
+            ->getDocumentCollection(DailyPrice::class)
+            ->deleteMany([]);
+    }
+
+    public function testGetDaysWithPricesMergesTheDaysOfAllFuelsOldestFirst(): void
+    {
+        self::insertDailyPrice('2024-11-20', Fuel::Diesel);
+        self::insertDailyPrice('2024-11-18', Fuel::Diesel);
+        self::insertDailyPrice('2024-11-20', Fuel::E5);
+        // Only has prices for a fuel other than diesel
+        self::insertDailyPrice('2024-11-19', Fuel::E10);
+        self::insertDailyPrice('2024-11-20', Fuel::E10);
+
+        $days = self::getContainer()->get(DailyAggregateRepository::class)->getDaysWithPrices();
+
+        self::assertSame(
+            ['2024-11-18', '2024-11-19', '2024-11-20'],
+            array_map(static fn (UTCDateTime $day): string => $day->toDateTime()->format('Y-m-d'), $days),
+        );
+    }
+
+    public function testGetDaysWithPricesIsLimitedToRange(): void
+    {
+        foreach (['2024-11-17', '2024-11-18', '2024-11-19', '2024-11-20'] as $day) {
+            self::insertDailyPrice($day, Fuel::Diesel);
+        }
+
+        self::insertDailyPrice('2024-11-21', Fuel::E5);
+
+        $days = self::getContainer()->get(DailyAggregateRepository::class)
+            ->getDaysWithPrices(self::day('2024-11-18'), self::day('2024-11-21'));
+
+        self::assertSame(
+            ['2024-11-18', '2024-11-19', '2024-11-20', '2024-11-21'],
+            array_map(static fn (UTCDateTime $day): string => $day->toDateTime()->format('Y-m-d'), $days),
+        );
+    }
+
+    public function testGetDaysWithPricesIsEmptyWithoutPrices(): void
+    {
+        self::assertSame([], self::getContainer()->get(DailyAggregateRepository::class)->getDaysWithPrices());
     }
 
     public function testGetCompoundDailyAggregatesReturnsDaysInRangeNewestFirst(): void
@@ -87,6 +130,17 @@ class DailyAggregateRepositoryTest extends KernelTestCase
         self::insertAggregate('2024-11-19', Fuel::Diesel);
 
         self::assertNull(self::getContainer()->get(DailyAggregateRepository::class)->findCompoundAggregateForDay(self::day('2024-11-18')));
+    }
+
+    private static function insertDailyPrice(string $day, Fuel $fuel): void
+    {
+        self::getDocumentManager()
+            ->getDocumentCollection(DailyPrice::class)
+            ->insertOne([
+                'day' => new UTCDateTime(self::day($day)),
+                'fuel' => $fuel->value,
+                'station' => ['_id' => 'station'],
+            ]);
     }
 
     private static function insertAggregate(string $day, Fuel $fuel): void
