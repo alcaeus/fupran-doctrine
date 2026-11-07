@@ -1,6 +1,6 @@
 <turbo-frame id="aggregate-card-{{ fuel.value }}">
-    {% if region is not null %}
-        <twig:PostCode:RegionCard fuel="{{ fuel }}" day="{{ day }}" region="{{ region }}" />
+    {% if area is not null %}
+        <twig:PostCode:AreaCard fuel="{{ fuel }}" day="{{ day }}" area="{{ area }}" />
     {% else %}
         <twig:DailyAggregateCard aggregate="{{ aggregate }}" fuel="{{ fuel }}" />
     {% endif %}

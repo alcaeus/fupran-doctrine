@@ -80,7 +80,7 @@ class PostCodeMapController extends AbstractController
         return $this->json($this->createAreas($fuel, self::parseDay($day), $this->shapes->getPostCodes($region), new PriceScale($lowest, $highest)));
     }
 
-    /** Renders the contents of the turbo frame with the prices next to the map: those of a region, or of Germany without one */
+    /** Renders the contents of the turbo frame with the prices next to the map: those of a post code or a region, or of Germany without one */
     #[Route('/post-codes/card/{fuel}', name: 'app_postcode_card', methods: ['GET'])]
     public function card(
         DailyAggregateRepository $dailyAggregates,
@@ -89,15 +89,20 @@ class PostCodeMapController extends AbstractController
         string $day,
         #[MapQueryParameter(filter: FILTER_VALIDATE_REGEXP, options: ['regexp' => '/^\d{2}$/'])]
         ?string $region = null,
+        #[MapQueryParameter(filter: FILTER_VALIDATE_REGEXP, options: ['regexp' => '/^\d{5}$/'])]
+        ?string $postCode = null,
     ): Response {
         $day = self::parseDay($day);
 
+        // A post code is more specific than its region
+        $area = $postCode ?? $region;
+
         $aggregate = null;
-        if ($region === null) {
+        if ($area === null) {
             $aggregate = $dailyAggregates->findCompoundAggregateForDay($day) ?? throw new NotFoundHttpException('There are no prices on this day.');
         }
 
-        return $this->render('post_code/card.html.twig', ['fuel' => $fuel, 'day' => $day, 'region' => $region, 'aggregate' => $aggregate]);
+        return $this->render('post_code/card.html.twig', ['fuel' => $fuel, 'day' => $day, 'area' => $area, 'aggregate' => $aggregate]);
     }
 
     private static function parseDay(string $day): DateTimeImmutable

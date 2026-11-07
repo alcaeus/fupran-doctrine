@@ -9,15 +9,15 @@ const priceFormat = new Intl.NumberFormat('de-DE', {
 })
 
 // The areas are partly transparent so the streets and place names of the base map stay readable underneath
-function areaStyle(fillColor) {
-    return { color: '#555', weight: 1, fillColor, fillOpacity: 0.4 }
+function areaStyle(fillColor, selected = false) {
+    return { color: selected ? '#000' : '#555', weight: selected ? 3 : 1, fillColor, fillOpacity: 0.4 }
 }
 
 // Enhances a Symfony UX map that draws the regions of Germany as polygons:
 //
 // - Colours the regions with the colour chosen on the server.
-// - Clicking a region zooms to it and shows its prices in the card (a turbo frame) next to the map. The link in that
-//   card leads back to the prices of Germany, which resets the map.
+// - Clicking a region or post code zooms to it and shows its prices in the card (a turbo frame) next to the map. The
+//   links in that card lead back to the region or to the prices of Germany, which the map follows.
 // - From a zoom level on, replaces the regions with the post codes in view. Drawing all 8,000 post code areas at once
 //   is far too slow, so they are loaded from the server for the visible part of the map only, whenever it moves.
 //   Below that zoom level, a selected region shows its own post codes.
@@ -41,6 +41,8 @@ export default class extends Controller {
     request = null
     fitted = false
     selectedRegion = null
+    selectedPostCode = null
+    postCodeLayers = new Map()
     // What the post code layer shows, to not load the post codes of a region again when the map moves
     shownRegion = null
 
@@ -77,11 +79,18 @@ export default class extends Controller {
         })
         this.observer.observe(this.element)
 
-        // The card leads back to Germany with a link, which the map has to follow
+        // The card leads back to the region or to Germany with links, which the map has to follow
         this.frame = document.getElementById(this.cardFrameValue)
         this.onFrameLoad = () => {
-            if (this.selectedRegion !== null && this.frame.querySelector('[data-region]') === null) {
+            const area = this.frame.querySelector('[data-area]')?.dataset.area ?? null
+            if (area === (this.selectedPostCode ?? this.selectedRegion)) {
+                return
+            }
+
+            if (area === null) {
                 this.#showOverview()
+            } else if (area.length === 2) {
+                this.#showRegion(area)
             }
         }
         this.frame?.addEventListener('turbo:frame-load', this.onFrameLoad)
@@ -101,11 +110,37 @@ export default class extends Controller {
     }
 
     #selectRegion(region) {
-        this.selectedRegion = region
+        this.#loadCard({ region })
+        this.#showRegion(region)
+    }
 
-        if (this.frame) {
-            this.frame.src = `${this.cardUrlValue}?${new URLSearchParams({ day: this.dayValue, region })}`
+    #selectPostCode(postCode) {
+        const layer = this.postCodeLayers.get(postCode)
+        if (!layer) {
+            return
         }
+
+        this.#loadCard({ postCode })
+        this.selectedPostCode = postCode
+        // Below the zoom level for loading post codes by viewport, its region is shown
+        this.selectedRegion = postCode.slice(0, 2)
+        this.#highlightSelectedPostCode()
+
+        this.map.fitBounds(layer.getBounds())
+        // The map does not move if it already shows the post code
+        this.#update()
+    }
+
+    #loadCard(query) {
+        if (this.frame) {
+            this.frame.src = `${this.cardUrlValue}?${new URLSearchParams({ day: this.dayValue, ...query })}`
+        }
+    }
+
+    #showRegion(region) {
+        this.selectedRegion = region
+        this.selectedPostCode = null
+        this.#highlightSelectedPostCode()
 
         this.map.fitBounds(L.featureGroup(this.regionLayers.get(region)).getBounds())
         // The map does not move if it already shows the region
@@ -114,8 +149,18 @@ export default class extends Controller {
 
     #showOverview() {
         this.selectedRegion = null
+        this.selectedPostCode = null
         this.#fitToRegions()
         this.#update()
+    }
+
+    #highlightSelectedPostCode() {
+        for (const [postCode, layer] of this.postCodeLayers) {
+            layer.setStyle(areaStyle(layer.options.fillColor, postCode === this.selectedPostCode))
+            if (postCode === this.selectedPostCode) {
+                layer.bringToFront()
+            }
+        }
     }
 
     #update() {
@@ -130,6 +175,7 @@ export default class extends Controller {
             this.shownRegion = null
             this.#showRegions(true)
             this.postCodes.clearLayers()
+            this.postCodeLayers.clear()
         }
     }
 
@@ -181,11 +227,14 @@ export default class extends Controller {
         // The regions are only hidden once there is something to replace them with
         this.#showRegions(false)
         this.postCodes.clearLayers()
+        this.postCodeLayers.clear()
         this.shownRegion = region
         for (const area of areas) {
-            L.polygon(area.polygons, areaStyle(area.color))
-                .bindPopup(`<strong>${area.postCode}</strong><p class="mb-0">${this.labelValue}: ${priceFormat.format(area.price)}</p>`)
+            const layer = L.polygon(area.polygons, areaStyle(area.color, area.postCode === this.selectedPostCode))
+                .bindTooltip(`${area.postCode}: ${priceFormat.format(area.price)}`, { sticky: true })
+                .on('click', () => this.#selectPostCode(area.postCode))
                 .addTo(this.postCodes)
+            this.postCodeLayers.set(area.postCode, layer)
         }
         this.postCodes.addTo(this.map)
     }

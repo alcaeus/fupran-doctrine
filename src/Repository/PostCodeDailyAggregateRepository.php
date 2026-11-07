@@ -113,19 +113,20 @@ class PostCodeDailyAggregateRepository extends AbstractRepository
     }
 
     /**
-     * Combines the post codes of a region like {@see getRegionalWeightedAveragePrices()}, with the lowest and highest
-     * price of any of them. Aggregates without a station count are ignored.
+     * Combines the post codes starting with the same digits (a region, or a single post code if all digits are given)
+     * like {@see getRegionalWeightedAveragePrices()}, with the lowest and highest price of any of them. Aggregates
+     * without a station count are ignored.
      *
-     * @return array{weightedAveragePrice: float, lowestPrice: float, highestPrice: float, stationCount: int}|null Null if no post code in the region has prices
+     * @return array{weightedAveragePrice: float, lowestPrice: float, highestPrice: float, stationCount: int}|null Null if no matching post code has prices
      */
-    public function getRegionAggregate(Fuel $fuel, DateTimeImmutable $day, string $region): ?array
+    public function getAggregate(Fuel $fuel, DateTimeImmutable $day, string $postCodePrefix): ?array
     {
         $aggregates = $this->getDocumentCollection()->aggregate(
             new Pipeline(
                 Stage::match(
                     fuel: $fuel->value,
                     day: new UTCDateTime($day),
-                    postCode: new Regex('^' . preg_quote($region, '/')),
+                    postCode: new Regex('^' . preg_quote($postCodePrefix, '/')),
                     stationCount: Query::gt(0),
                 ),
                 Stage::group(

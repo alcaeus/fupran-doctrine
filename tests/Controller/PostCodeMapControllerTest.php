@@ -85,12 +85,32 @@ class PostCodeMapControllerTest extends WebTestCase
         $this->client->request('GET', '/post-codes/card/diesel', ['day' => '2026-01-15', 'region' => '10']);
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('turbo-frame#aggregate-card-diesel [data-region="10"]');
+        self::assertSelectorExists('turbo-frame#aggregate-card-diesel [data-area="10"]');
         self::assertSelectorTextContains('turbo-frame#aggregate-card-diesel', 'Post codes 10xxx');
         // (1 * 1.5 + 1 * 2.0) / 2
         self::assertSelectorTextContains('turbo-frame#aggregate-card-diesel dl', '1.750 €');
         // Leads back to the card of Germany
         self::assertSelectorExists('turbo-frame#aggregate-card-diesel a[href="/post-codes/card/diesel?day=2026-01-15"]');
+    }
+
+    public function testCardShowsPricesOfPostCode(): void
+    {
+        $this->client->request('GET', '/post-codes/card/diesel', ['day' => '2026-01-15', 'postCode' => '10117', 'region' => '80']);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('turbo-frame#aggregate-card-diesel [data-area="10117"]');
+        self::assertSelectorTextContains('turbo-frame#aggregate-card-diesel', 'Post code 10117');
+        self::assertSelectorTextContains('turbo-frame#aggregate-card-diesel dl', '2.000 €');
+        // Leads back to its region and to Germany
+        self::assertSelectorExists('turbo-frame#aggregate-card-diesel a[href="/post-codes/card/diesel?day=2026-01-15&region=10"]');
+        self::assertSelectorExists('turbo-frame#aggregate-card-diesel a[href="/post-codes/card/diesel?day=2026-01-15"]');
+    }
+
+    public function testCardRejectsInvalidPostCode(): void
+    {
+        $this->client->request('GET', '/post-codes/card/diesel', ['day' => '2026-01-15', 'postCode' => '101']);
+
+        self::assertResponseStatusCodeSame(404);
     }
 
     public function testCardShowsPricesOfGermanyWithoutRegion(): void
@@ -108,7 +128,7 @@ class PostCodeMapControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorExists('turbo-frame#aggregate-card-diesel');
-        self::assertSelectorNotExists('[data-region]');
+        self::assertSelectorNotExists('[data-area]');
         self::assertSelectorTextContains('turbo-frame#aggregate-card-diesel dl', '1.800 €');
     }
 

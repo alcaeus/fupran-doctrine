@@ -98,7 +98,7 @@ class PostCodeDailyAggregateRepositoryTest extends KernelTestCase
         );
     }
 
-    public function testGetRegionAggregateCombinesPostCodesOfRegion(): void
+    public function testGetAggregateCombinesPostCodesOfRegion(): void
     {
         self::insertAggregate('2024-11-19', Fuel::Diesel, '10115', 1.5, 1);
         self::insertAggregate('2024-11-19', Fuel::Diesel, '10117', 2.0, 3);
@@ -109,7 +109,7 @@ class PostCodeDailyAggregateRepositoryTest extends KernelTestCase
         self::insertAggregate('2024-11-19', Fuel::Diesel, '81010', 9.0, 1);
 
         $aggregate = self::getContainer()->get(PostCodeDailyAggregateRepository::class)
-            ->getRegionAggregate(Fuel::Diesel, self::day('2024-11-19'), '10');
+            ->getAggregate(Fuel::Diesel, self::day('2024-11-19'), '10');
 
         self::assertNotNull($aggregate);
         // Weighted by station count: (1 * 1.5 + 3 * 2.0) / 4
@@ -119,13 +119,13 @@ class PostCodeDailyAggregateRepositoryTest extends KernelTestCase
         self::assertSame(4, $aggregate['stationCount']);
     }
 
-    public function testGetRegionAggregateIsNullWithoutDataForRegion(): void
+    public function testGetAggregateIsNullWithoutDataForRegion(): void
     {
         self::insertAggregate('2024-11-19', Fuel::Diesel, '80331', 1.9, 1);
 
         self::assertNull(
             self::getContainer()->get(PostCodeDailyAggregateRepository::class)
-                ->getRegionAggregate(Fuel::Diesel, self::day('2024-11-19'), '10'),
+                ->getAggregate(Fuel::Diesel, self::day('2024-11-19'), '10'),
         );
     }
 
