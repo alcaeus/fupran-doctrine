@@ -1,13 +1,8 @@
-<div class="card">
-    <h5 class="card-header">{{ this.aggregate.fuel.displayValue }} on {{ this.aggregate.day|date('d.m.Y') }}</h5>
-    <div class="card-body">
-        <dl>
-            <dt>Average Price</dt>
-            <dd><twig:Price price="{{ this.aggregate.weightedAveragePrice }}" /></dd>
-            <dt>Lowest Price</dt>
-            <dd><twig:Price price="{{ this.aggregate.lowestPrice }}" /></dd>
-            <dt>Highest Price</dt>
-            <dd><twig:Price price="{{ this.aggregate.highestPrice }}" /></dd>
-        </dl>
-    </div>
-</div>
+    <dl>
+        <dt>Average Price</dt>
+        <dd><twig:Price price="{{ this.data.weightedAveragePrice }}" /></dd>
+        <dt>Lowest Price</dt>
+        <dd><twig:Price price="{{ this.data.lowestPrice }}" /></dd>
+        <dt>Highest Price</dt>
+        <dd><twig:Price price="{{ this.data.highestPrice }}" /></dd>
+    </dl>

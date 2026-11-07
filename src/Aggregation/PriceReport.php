@@ -287,6 +287,7 @@ class PriceReport
                 lowestPrice: Accumulator::min(Expression::doubleFieldPath('lowestPrice.price')),
                 highestPrice: Accumulator::max(Expression::doubleFieldPath('highestPrice.price')),
                 weightedAveragePrice: Accumulator::avg(Expression::doubleFieldPath('weightedAveragePrice')),
+                stationCount: Accumulator::sum(1),
                 percentiles: Accumulator::percentile(
                     input: Expression::doubleFieldPath('weightedAveragePrice'),
                     p: array_values($percentiles),

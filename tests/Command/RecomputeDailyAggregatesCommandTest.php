@@ -54,6 +54,7 @@ class RecomputeDailyAggregatesCommandTest extends KernelTestCase
 
         $aggregate = $this->findAggregate('2026-08-15');
         self::assertSame(['increases' => 4, 'decreases' => 2, 'total' => 6], $aggregate['totalChanges']);
+        self::assertSame(2, $aggregate['stationCount']);
         self::assertEquals(['increases' => 2.0, 'decreases' => 1.0, 'total' => 3.0], $aggregate['averageChanges']);
         self::assertArrayNotHasKey('numChanges', $aggregate);
     }
@@ -66,6 +67,7 @@ class RecomputeDailyAggregatesCommandTest extends KernelTestCase
 
         self::assertCount(2, $aggregates);
         self::assertSame('10115', $aggregates[0]->postCode);
+        self::assertSame(1, $aggregates[0]->stationCount);
         self::assertSame(1, $aggregates[0]->totalChanges->increases);
         self::assertSame(1.0, $aggregates[0]->averageChanges->increases);
         self::assertSame('80331', $aggregates[1]->postCode);
@@ -226,7 +228,7 @@ class RecomputeDailyAggregatesCommandTest extends KernelTestCase
         return $days;
     }
 
-    /** @return array{totalChanges: array<string, int>, averageChanges: array<string, float>} */
+    /** @return array{stationCount: int, totalChanges: array<string, int>, averageChanges: array<string, float>} */
     private function findAggregate(string $day): array
     {
         $aggregate = self::getDocumentManager()
@@ -238,7 +240,7 @@ class RecomputeDailyAggregatesCommandTest extends KernelTestCase
 
         self::assertIsArray($aggregate);
 
-        /** @var array{totalChanges: array<string, int>, averageChanges: array<string, float>} $aggregate */
+        /** @var array{stationCount: int, totalChanges: array<string, int>, averageChanges: array<string, float>} $aggregate */
         $aggregate = $aggregate;
 
         return $aggregate;

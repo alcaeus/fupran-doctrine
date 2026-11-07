@@ -36,6 +36,10 @@ abstract class AbstractDailyAggregate
     #[Field]
     public float $weightedAveragePrice;
 
+    /** Number of stations the aggregate is made of, which is what allows combining the averages of several aggregates */
+    #[Field]
+    public int $stationCount;
+
     #[EmbedOne(targetDocument: Percentiles::class)]
     public Percentiles $percentiles;
 

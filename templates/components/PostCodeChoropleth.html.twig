@@ -1,0 +1,24 @@
+{% props fuel, day, prices, regionPrices %}
+
+<div data-controller="postcode-choropleth"
+     data-postcode-choropleth-regions-url-value="{{ asset('data/postcode-regions.topojson') }}"
+     data-postcode-choropleth-post-codes-url-value="{{ asset('data/postcodes.topojson') }}"
+     data-postcode-choropleth-region-prices-value="{{ regionPrices|json_encode(constant('JSON_FORCE_OBJECT')) }}"
+     data-postcode-choropleth-prices-value="{{ prices|json_encode(constant('JSON_FORCE_OBJECT')) }}"
+     data-postcode-choropleth-label-value="{{ fuel.displayValue }}"
+     {# TODO: don't show attributes used as props #}
+     {{ attributes }}
+>
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <strong data-postcode-choropleth-target="title"></strong>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-postcode-choropleth-target="back" data-action="postcode-choropleth#showRegions" hidden>All regions</button>
+    </div>
+
+    <div style="height: 700px">
+        <canvas data-postcode-choropleth-target="canvas"></canvas>
+    </div>
+
+    <div class="text-muted small">
+        Click a region to see its post codes. Post code areas &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL), via <a href="https://github.com/yetzt/postleitzahlen">yetzt/postleitzahlen</a>
+    </div>
+</div>

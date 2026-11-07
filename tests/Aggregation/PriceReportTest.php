@@ -469,11 +469,13 @@ class PriceReportTest extends TestCase
         self::assertCount(2, $results);
 
         self::assertSame('diesel', $results[0]->fuel);
+        self::assertSame(2, $results[0]->stationCount);
         self::assertObjectNotHasProperty('numChanges', $results[0]);
         self::assertMongoResultEquals(['increases' => 6, 'decreases' => 4, 'total' => 10], $results[0]->totalChanges);
         self::assertMongoResultEquals(['increases' => 3.0, 'decreases' => 2.0, 'total' => 5.0], $results[0]->averageChanges);
 
         self::assertSame('e5', $results[1]->fuel);
+        self::assertSame(1, $results[1]->stationCount);
         self::assertMongoResultEquals(['increases' => 1, 'decreases' => 0, 'total' => 1], $results[1]->totalChanges);
         self::assertMongoResultEquals(['increases' => 1.0, 'decreases' => 0.0, 'total' => 1.0], $results[1]->averageChanges);
     }
@@ -529,6 +531,7 @@ class PriceReportTest extends TestCase
 
         self::assertSame('10115', $results[0]->postCode);
         self::assertSame('diesel', $results[0]->fuel);
+        self::assertSame(2, $results[0]->stationCount);
         self::assertEqualsWithDelta(1.4, $results[0]->lowestPrice, 0.0001);
         self::assertEqualsWithDelta(1.8, $results[0]->highestPrice, 0.0001);
         self::assertEqualsWithDelta(1.6, $results[0]->weightedAveragePrice, 0.0001);
@@ -539,6 +542,7 @@ class PriceReportTest extends TestCase
         self::assertObjectNotHasProperty('_id', $results[0]);
 
         self::assertSame('80331', $results[1]->postCode);
+        self::assertSame(1, $results[1]->stationCount);
         self::assertMongoResultEquals(['increases' => 1, 'decreases' => 0, 'total' => 1], $results[1]->totalChanges);
     }
 
