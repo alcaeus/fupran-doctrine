@@ -9,6 +9,7 @@ use App\DateRange;
 use App\Document\CompoundDailyAggregate;
 use App\Document\DailyAggregate;
 use App\Document\Partial\AbstractDailyPrice;
+use App\Fuel;
 use DateTimeImmutable;
 use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
 use Doctrine\ODM\MongoDB\Iterator\Iterator;
@@ -94,10 +95,21 @@ class DailyAggregateRepository extends AbstractRepository
             $range['$lte'] = new UTCDateTime($to);
         }
 
-        $filter = $range === [] ? [] : ['day' => $range];
+        $collection = $this->dailyPriceRepository->getDocumentCollection();
 
-        /** @var list<UTCDateTime> $days */
-        $days = array_values($this->dailyPriceRepository->getDocumentCollection()->distinct('day', $filter));
+        // The index on fuel, day and station can only be used to find the distinct days of a single fuel, as the
+        // fuel is its first key. Without it, all prices would be read. The days of the fuels are then merged.
+        /** @var array<string, UTCDateTime> $days Keyed by timestamp to remove duplicates, as UTCDateTime objects cannot be compared reliably */
+        $days = [];
+        foreach (Fuel::cases() as $fuel) {
+            /** @var list<UTCDateTime> $fuelDays */
+            $fuelDays = $collection->distinct('day', ['fuel' => $fuel->value] + ($range === [] ? [] : ['day' => $range]));
+            foreach ($fuelDays as $day) {
+                $days[(string) $day] = $day;
+            }
+        }
+
+        $days = array_values($days);
         usort($days, static fn (UTCDateTime $a, UTCDateTime $b): int => $a->toDateTime() <=> $b->toDateTime());
 
         return $days;
