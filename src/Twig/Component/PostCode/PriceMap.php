@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Twig\Component\PostCode;
 
 use App\Fuel;
+use App\Map\MapFactory;
 use App\PostCode\PostCodeShapes;
 use App\PostCode\PriceScale;
 use App\Repository\PostCodeDailyAggregateRepository;
@@ -45,12 +46,13 @@ class PriceMap
         private readonly PostCodeShapes $shapes,
         private readonly PostCodeDailyAggregateRepository $aggregates,
         private readonly Environment $twig,
+        private readonly MapFactory $mapFactory,
     ) {
     }
 
     public function getMap(): UxMap
     {
-        $map = new UxMap();
+        $map = $this->mapFactory->create();
         $map
             ->center(new Point(51.1657, 10.4515))
             ->zoom(6);

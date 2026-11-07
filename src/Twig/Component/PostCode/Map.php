@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Twig\Component\PostCode;
 
 use App\Document\Station;
+use App\Map\MapFactory;
 use Symfony\UX\Map\InfoWindow;
 use Symfony\UX\Map\Map as UxMap;
 use Symfony\UX\Map\Marker;
@@ -21,13 +22,13 @@ class Map
     /** @var iterable<Station> */
     public iterable $stations;
 
-    public function __construct(private readonly Environment $twig)
+    public function __construct(private readonly Environment $twig, private readonly MapFactory $mapFactory)
     {
     }
 
     public function getMap(): UxMap
     {
-        $map = new UxMap();
+        $map = $this->mapFactory->create();
         $map->fitBoundsToMarkers();
 
         foreach ($this->stations as $station) {
