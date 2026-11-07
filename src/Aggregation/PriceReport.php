@@ -237,10 +237,26 @@ class PriceReport
     /** @param list<UTCDateTime>|null $days Restricts the computation to these days; all days if omitted */
     public static function computeDailyAggregates(?array $days = null): Pipeline
     {
-        $aggregates = self::computeAggregates(object(
+        return self::computeAggregatesForDays($days, object(
             day: Expression::fieldPath('day'),
             fuel: Expression::fieldPath('fuel'),
         ));
+    }
+
+    /** @param list<UTCDateTime>|null $days Restricts the computation to these days; all days if omitted */
+    public static function computeDailyAggregatesPerPostCode(?array $days = null): Pipeline
+    {
+        return self::computeAggregatesForDays($days, object(
+            day: Expression::fieldPath('day'),
+            fuel: Expression::fieldPath('fuel'),
+            postCode: Expression::fieldPath('station.address.postCode'),
+        ));
+    }
+
+    /** @param list<UTCDateTime>|null $days */
+    private static function computeAggregatesForDays(?array $days, stdClass $group): Pipeline
+    {
+        $aggregates = self::computeAggregates($group);
 
         if ($days === null) {
             return $aggregates;
@@ -254,15 +270,6 @@ class PriceReport
             ),
             $aggregates,
         );
-    }
-
-    public static function computeDailyAggregatesPerPostCode(): Pipeline
-    {
-        return self::computeAggregates(object(
-            day: Expression::fieldPath('day'),
-            fuel: Expression::fieldPath('fuel'),
-            postCode: Expression::fieldPath('station.address.postCode'),
-        ));
     }
 
     public static function computeAggregates(stdClass $group): Pipeline

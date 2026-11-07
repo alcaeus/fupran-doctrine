@@ -7,6 +7,7 @@ namespace App\Tests\Command;
 use App\Command\RecomputeDailyAggregatesCommand;
 use App\Document\DailyAggregate;
 use App\Document\DailyPrice;
+use App\Document\PostCodeDailyAggregate;
 use App\Fuel;
 use DateTimeImmutable;
 use DateTimeZone;
@@ -30,15 +31,18 @@ class RecomputeDailyAggregatesCommandTest extends KernelTestCase
         $documentManager = self::getDocumentManager();
         $documentManager->getDocumentCollection(DailyPrice::class)->deleteMany([]);
         $documentManager->getDocumentCollection(DailyAggregate::class)->deleteMany([]);
+        $documentManager->getDocumentCollection(PostCodeDailyAggregate::class)->deleteMany([]);
 
         // $merge on ['day', 'fuel'] requires a unique index covering exactly those fields
         $documentManager->getDocumentCollection(DailyAggregate::class)
             ->createIndex(['day' => 1, 'fuel' => 1], ['unique' => true]);
+        $documentManager->getDocumentCollection(PostCodeDailyAggregate::class)
+            ->createIndex(['day' => 1, 'fuel' => 1, 'postCode' => 1], ['unique' => true]);
 
         // Two stations per day: 1 + 3 increases, 0 + 2 decreases
         foreach (self::DAYS as $day) {
-            self::insertDailyPrice($day, 'station-a', ['increases' => 1, 'decreases' => 0, 'total' => 1]);
-            self::insertDailyPrice($day, 'station-b', ['increases' => 3, 'decreases' => 2, 'total' => 5]);
+            self::insertDailyPrice($day, 'station-a', ['increases' => 1, 'decreases' => 0, 'total' => 1], '10115');
+            self::insertDailyPrice($day, 'station-b', ['increases' => 3, 'decreases' => 2, 'total' => 5], '80331');
         }
     }
 
@@ -52,6 +56,21 @@ class RecomputeDailyAggregatesCommandTest extends KernelTestCase
         self::assertSame(['increases' => 4, 'decreases' => 2, 'total' => 6], $aggregate['totalChanges']);
         self::assertEquals(['increases' => 2.0, 'decreases' => 1.0, 'total' => 3.0], $aggregate['averageChanges']);
         self::assertArrayNotHasKey('numChanges', $aggregate);
+    }
+
+    public function testRecomputesAggregatesPerPostCode(): void
+    {
+        $this->recompute(['--from' => '2026-08-15', '--to' => '2026-08-15']);
+
+        $aggregates = self::getDocumentManager()->getRepository(PostCodeDailyAggregate::class)->findBy([], ['postCode' => 'asc']);
+
+        self::assertCount(2, $aggregates);
+        self::assertSame('10115', $aggregates[0]->postCode);
+        self::assertSame(1, $aggregates[0]->totalChanges->increases);
+        self::assertSame(1.0, $aggregates[0]->averageChanges->increases);
+        self::assertSame('80331', $aggregates[1]->postCode);
+        self::assertSame(3, $aggregates[1]->totalChanges->increases);
+        self::assertSame(3.0, $aggregates[1]->averageChanges->increases);
     }
 
     public function testRecomputedAggregatesCanBeHydrated(): void
@@ -128,6 +147,38 @@ class RecomputeDailyAggregatesCommandTest extends KernelTestCase
         self::assertStringContainsString('no days with prices', $tester->getDisplay());
     }
 
+    public function testOnlyPostCodeAggregates(): void
+    {
+        $this->recompute(['--only' => ['post-code']]);
+
+        self::assertSame([], $this->getAggregatedDays());
+        self::assertSame(8, self::getDocumentManager()->getDocumentCollection(PostCodeDailyAggregate::class)->countDocuments());
+    }
+
+    public function testOnlyDailyAggregates(): void
+    {
+        $this->recompute(['--only' => ['daily']]);
+
+        self::assertSame(self::DAYS, $this->getAggregatedDays());
+        self::assertSame(0, self::getDocumentManager()->getDocumentCollection(PostCodeDailyAggregate::class)->countDocuments());
+    }
+
+    public function testOnlyIsPassedToParallelWorkers(): void
+    {
+        $this->recompute(['--only' => ['post-code'], '--jobs' => 2]);
+
+        self::assertSame([], $this->getAggregatedDays());
+        self::assertSame(8, self::getDocumentManager()->getDocumentCollection(PostCodeDailyAggregate::class)->countDocuments());
+    }
+
+    public function testUnknownOnlyIsRejected(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Expected "only" option to be one of: daily, post-code.');
+
+        $this->recompute(['--only' => ['weekly']]);
+    }
+
     public function testInvalidJobsAreRejected(): void
     {
         $this->expectException(InvalidArgumentException::class);
@@ -194,12 +245,12 @@ class RecomputeDailyAggregatesCommandTest extends KernelTestCase
     }
 
     /** @param array<string, int> $changes */
-    private static function insertDailyPrice(string $day, string $station, array $changes): void
+    private static function insertDailyPrice(string $day, string $station, array $changes, string $postCode): void
     {
         self::getDocumentManager()->getDocumentCollection(DailyPrice::class)->insertOne([
             'day' => new UTCDateTime(new DateTimeImmutable($day, new DateTimeZone('UTC'))),
             'fuel' => Fuel::Diesel->value,
-            'station' => ['_id' => $station],
+            'station' => ['_id' => $station, 'address' => ['postCode' => $postCode]],
             'lowestPrice' => ['price' => 1.5],
             'highestPrice' => ['price' => 1.7],
             'weightedAveragePrice' => 1.6,
