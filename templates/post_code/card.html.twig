@@ -1,0 +1,7 @@
+<turbo-frame id="aggregate-card-{{ fuel.value }}">
+    {% if area is not null %}
+        <twig:PostCode:AreaCard fuel="{{ fuel }}" day="{{ day }}" area="{{ area }}" />
+    {% else %}
+        <twig:DailyAggregateCard aggregate="{{ aggregate }}" fuel="{{ fuel }}" />
+    {% endif %}
+</turbo-frame>

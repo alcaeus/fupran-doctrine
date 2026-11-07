@@ -98,6 +98,37 @@ class PostCodeDailyAggregateRepositoryTest extends KernelTestCase
         );
     }
 
+    public function testGetAggregateCombinesPostCodesOfRegion(): void
+    {
+        self::insertAggregate('2024-11-19', Fuel::Diesel, '10115', 1.5, 1);
+        self::insertAggregate('2024-11-19', Fuel::Diesel, '10117', 2.0, 3);
+        self::insertAggregate('2024-11-19', Fuel::Diesel, '80331', 1.9, 2);
+        self::insertAggregate('2024-11-19', Fuel::E5, '10115', 9.0, 1);
+        self::insertAggregate('2024-11-20', Fuel::Diesel, '10115', 9.0, 1);
+        // Not in the region, although it contains its digits
+        self::insertAggregate('2024-11-19', Fuel::Diesel, '81010', 9.0, 1);
+
+        $aggregate = self::getContainer()->get(PostCodeDailyAggregateRepository::class)
+            ->getAggregate(Fuel::Diesel, self::day('2024-11-19'), '10');
+
+        self::assertNotNull($aggregate);
+        // Weighted by station count: (1 * 1.5 + 3 * 2.0) / 4
+        self::assertEqualsWithDelta(1.875, $aggregate['weightedAveragePrice'], 0.0001);
+        self::assertEqualsWithDelta(1.4, $aggregate['lowestPrice'], 0.0001);
+        self::assertEqualsWithDelta(2.1, $aggregate['highestPrice'], 0.0001);
+        self::assertSame(4, $aggregate['stationCount']);
+    }
+
+    public function testGetAggregateIsNullWithoutDataForRegion(): void
+    {
+        self::insertAggregate('2024-11-19', Fuel::Diesel, '80331', 1.9, 1);
+
+        self::assertNull(
+            self::getContainer()->get(PostCodeDailyAggregateRepository::class)
+                ->getAggregate(Fuel::Diesel, self::day('2024-11-19'), '10'),
+        );
+    }
+
     private static function insertAggregate(string $day, Fuel $fuel, string $postCode, float $weightedAveragePrice, ?int $stationCount = 1): void
     {
         self::getDocumentManager()

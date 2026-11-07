@@ -1,0 +1,27 @@
+{% set scale = this.scale %}
+<div>
+    {{ ux_map(this.map, {
+        style: 'height: 700px',
+        'data-controller': 'postcode-map',
+        'data-action': 'ux:map:polygon:before-create->postcode-map#style ux:map:polygon:after-create->postcode-map#decorate ux:map:connect->postcode-map#connectMap',
+        'data-postcode-map-url-value': path('app_postcode_areas', {fuel: fuel.value}),
+        'data-postcode-map-region-url-value': path('app_postcode_region_areas', {fuel: fuel.value, region: '00'}),
+        'data-postcode-map-card-url-value': path('app_postcode_card', {fuel: fuel.value}),
+        'data-postcode-map-card-frame-value': 'aggregate-card-' ~ fuel.value,
+        'data-postcode-map-day-value': day|date('Y-m-d'),
+        'data-postcode-map-label-value': fuel.displayValue,
+        'data-postcode-map-lowest-value': scale.lowest,
+        'data-postcode-map-highest-value': scale.highest,
+        'data-postcode-map-zoom-value': constant('App\\Twig\\Component\\PostCode\\PriceMap::POST_CODE_ZOOM'),
+    }) }}
+
+    <div class="d-flex align-items-center gap-1 small mt-2">
+        {% for step in scale.legend %}
+            <span class="d-inline-block border" style="width: 1.5rem; height: 1rem; background: {{ step.color }}" title="{{ step.price|number_format(3, ',', '.') }} €"></span>
+        {% endfor %}
+        <span class="ms-1">{{ scale.lowest|number_format(3, ',', '.') }} € &ndash; {{ scale.highest|number_format(3, ',', '.') }} €</span>
+    </div>
+    <div class="text-muted small">
+        Click a region for its prices. Zoom in to see post codes. Post code areas &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL), via <a href="https://github.com/yetzt/postleitzahlen">yetzt/postleitzahlen</a>
+    </div>
+</div>

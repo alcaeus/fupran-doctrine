@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Twig\Component\Station;
 
 use App\Document\Station;
+use App\Map\MapFactory;
 use Symfony\UX\Map\InfoWindow;
 use Symfony\UX\Map\Map as UxMap;
 use Symfony\UX\Map\Marker;
@@ -21,6 +22,10 @@ class Map
 {
     public Station $station;
 
+    public function __construct(private readonly MapFactory $mapFactory)
+    {
+    }
+
     public function getMap(): UxMap
     {
         [$longitude, $latitude] = $this->station->location->getCoordinates();
@@ -30,7 +35,7 @@ class Map
 
         $location = new Point((float) $latitude, (float) $longitude);
 
-        $map = new UxMap();
+        $map = $this->mapFactory->create();
         $map
             ->center($location)
             ->zoom(13)
