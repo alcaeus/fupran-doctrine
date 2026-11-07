@@ -15,6 +15,9 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
 
+use function array_map;
+use function array_unique;
+use function array_values;
 use function json_decode;
 
 use const JSON_THROW_ON_ERROR;
@@ -102,8 +105,9 @@ class IndexControllerTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('turbo-frame#prices-day .nav-link.disabled', 'Prices for ' . $requested->format('m/d/Y'));
-        $chart = $this->client->getCrawler()->filter('[data-postcode-choropleth-label-value="Diesel"]');
-        self::assertEquals(['10115' => 9.0], json_decode((string) $chart->attr('data-postcode-choropleth-prices-value'), true, flags: JSON_THROW_ON_ERROR));
+        // Only the region of the post code with a price on the requested day (its price is 9.0, not 1.875)
+        self::assertEquals(['10xxx'], array_unique(self::getPolygonIds($this->client->getCrawler()->filter('#postCodeChartContent_diesel'))));
+        self::assertStringContainsString('9.000', $this->client->getCrawler()->filter('#postCodeChartContent_diesel')->html());
         // The range is independent of the requested day
         self::assertSame($today->format('Y-m-d'), $this->client->getCrawler()->filter('input[name=to]')->attr('value'));
     }
@@ -142,7 +146,7 @@ class IndexControllerTest extends WebTestCase
         });
     }
 
-    public function testIndexEmbedsPostCodePricesOfEachFuelForLatestDay(): void
+    public function testIndexShowsRegionMapOfEachFuelForLatestDay(): void
     {
         $today = new DateTimeImmutable('today', new DateTimeZone('UTC'));
         self::insertAggregates($today);
@@ -151,36 +155,33 @@ class IndexControllerTest extends WebTestCase
         $this->client->request('GET', '/');
 
         self::assertResponseIsSuccessful();
-        $charts = $this->client->getCrawler()->filter('[data-controller="postcode-choropleth"]');
-        self::assertCount(3, $charts);
+        self::assertCount(3, $this->client->getCrawler()->filter('[data-controller~="postcode-map"]'));
 
-        $diesel = $this->client->getCrawler()->filter('[data-postcode-choropleth-label-value="Diesel"]');
-        self::assertEquals(['10115' => 1.5, '10117' => 2.0, '80331' => 1.9], json_decode((string) $diesel->attr('data-postcode-choropleth-prices-value'), true, flags: JSON_THROW_ON_ERROR));
-        self::assertEqualsWithDelta(['10' => 1.875, '80' => 1.9], json_decode((string) $diesel->attr('data-postcode-choropleth-region-prices-value'), true, flags: JSON_THROW_ON_ERROR), 0.0001);
-        self::assertMatchesRegularExpression('#^/assets/data/postcode-regions-[\w-]+\.topojson$#', (string) $diesel->attr('data-postcode-choropleth-regions-url-value'));
-        self::assertMatchesRegularExpression('#^/assets/data/postcodes-[\w-]+\.topojson$#', (string) $diesel->attr('data-postcode-choropleth-post-codes-url-value'));
+        // Diesel has prices in the regions 10 and 80, E5 only in 10
+        $diesel = $this->client->getCrawler()->filter('#postCodeChartContent_diesel');
+        $regions = array_unique(self::getPolygonIds($diesel));
+        self::assertEqualsCanonicalizing(['10xxx', '80xxx'], $regions);
+        self::assertStringContainsString('1.875', $diesel->html());
 
-        $e5 = $this->client->getCrawler()->filter('[data-postcode-choropleth-label-value="E5"]');
-        self::assertEquals(['10115' => 1.6], json_decode((string) $e5->attr('data-postcode-choropleth-prices-value'), true, flags: JSON_THROW_ON_ERROR));
-        self::assertEquals(['10' => 1.6], json_decode((string) $e5->attr('data-postcode-choropleth-region-prices-value'), true, flags: JSON_THROW_ON_ERROR));
+        $e5 = $this->client->getCrawler()->filter('#postCodeChartContent_e5');
+        $regions = array_unique(self::getPolygonIds($e5));
+        self::assertEqualsCanonicalizing(['10xxx'], $regions);
 
         // Each fuel has its own tab with the aggregate of the fuel
         self::assertCount(3, $this->client->getCrawler()->filter('turbo-frame#prices-day .tab-pane'));
     }
 
-    public function testIndexEmbedsEmptyPostCodePricesWithoutAggregates(): void
+    public function testIndexShowsEmptyMapsWithoutAggregates(): void
     {
         self::insertAggregates(new DateTimeImmutable('today', new DateTimeZone('UTC')));
 
         $this->client->request('GET', '/');
 
         self::assertResponseIsSuccessful();
-        $charts = $this->client->getCrawler()->filter('[data-controller="postcode-choropleth"]');
-        self::assertCount(3, $charts);
-        $charts->each(static function (Crawler $chart): void {
-            // An object, as a Stimulus object value cannot be an array
-            self::assertSame('{}', $chart->attr('data-postcode-choropleth-prices-value'));
-            self::assertSame('{}', $chart->attr('data-postcode-choropleth-region-prices-value'));
+        $maps = $this->client->getCrawler()->filter('[data-controller~="postcode-map"]');
+        self::assertCount(3, $maps);
+        $maps->each(static function (Crawler $map): void {
+            self::assertSame([], self::getPolygonIds($map));
         });
     }
 
@@ -189,6 +190,16 @@ class IndexControllerTest extends WebTestCase
         $this->client->request('GET', '/', ['from' => '2026-02-01', 'to' => '2026-01-01']);
 
         self::assertResponseStatusCodeSame(400);
+    }
+
+    /** @return list<string> */
+    private static function getPolygonIds(Crawler $crawler): array
+    {
+        $map = $crawler->filter('[data-controller~="postcode-map"]');
+        /** @var list<array{infoWindow: array{headerContent: string}}> $polygons */
+        $polygons = json_decode((string) $map->attr('data-symfony--ux-leaflet-map--map-polygons-value'), true, flags: JSON_THROW_ON_ERROR);
+
+        return array_values(array_map(static fn (array $polygon): string => $polygon['infoWindow']['headerContent'], $polygons));
     }
 
     private static function insertAggregates(DateTimeImmutable $latest): void

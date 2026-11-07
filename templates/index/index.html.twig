@@ -33,7 +33,7 @@
                             </div>
 
                             <div class="col-10">
-                                <twig:PostCodeChoropleth fuel="{{ fuel }}" day="{{ dailyAggregate.day }}" prices="{{ postCodePrices[fuel.value] }}" regionPrices="{{ postCodeRegionPrices[fuel.value] }}" />
+                                <twig:PostCode:PriceMap fuel="{{ fuel }}" day="{{ dailyAggregate.day }}" />
                             </div>
                         </div>
                     </div>

@@ -48,12 +48,19 @@ class PostCodeDailyAggregateRepository extends AbstractRepository
     /**
      * Reads the raw documents, as hydrating a document for each of the thousands of post codes would be wasteful
      *
+     * @param list<string>|null $postCodes Restricts the result to these post codes; all post codes if omitted
+     *
      * @return array<string, float> Weighted average price of the day, rounded to the three decimals of a fuel price, by post code
      */
-    public function getWeightedAveragePrices(Fuel $fuel, DateTimeImmutable $day): array
+    public function getWeightedAveragePrices(Fuel $fuel, DateTimeImmutable $day, ?array $postCodes = null): array
     {
+        $filter = ['fuel' => $fuel->value, 'day' => new UTCDateTime($day)];
+        if ($postCodes !== null) {
+            $filter['postCode'] = ['$in' => $postCodes];
+        }
+
         $aggregates = $this->getDocumentCollection()->find(
-            ['fuel' => $fuel->value, 'day' => new UTCDateTime($day)],
+            $filter,
             [
                 'projection' => ['_id' => 0, 'postCode' => 1, 'weightedAveragePrice' => 1],
                 'typeMap' => ['root' => 'array', 'document' => 'array', 'array' => 'array'],
