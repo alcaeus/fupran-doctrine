@@ -15,9 +15,9 @@ use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Crawler;
 
+use function array_column;
 use function array_map;
 use function array_unique;
-use function array_values;
 use function json_decode;
 
 use const JSON_THROW_ON_ERROR;
@@ -64,7 +64,7 @@ class IndexControllerTest extends WebTestCase
         self::assertSame($latest->modify('-59 days')->format('Y-m-d'), $this->client->getCrawler()->filter('input[name=from]')->attr('value'));
         self::assertSame($latest->format('Y-m-d'), $this->client->getCrawler()->filter('input[name=to]')->attr('value'));
         self::assertSame($latest->format('Y-m-d'), $this->client->getCrawler()->filter('input[name=to]')->attr('max'));
-        self::assertSelectorTextContains('turbo-frame#prices-day .nav-link.disabled', 'Prices for ' . $latest->format('m/d/Y'));
+        self::assertSelectorTextContains('turbo-frame#prices-day .nav-link.disabled', 'Prices for ' . $latest->format('d/m/Y'));
     }
 
     public function testIndexAcceptsDateRange(): void
@@ -104,10 +104,10 @@ class IndexControllerTest extends WebTestCase
         $this->client->request('GET', '/', ['day' => $requested->format('Y-m-d')]);
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('turbo-frame#prices-day .nav-link.disabled', 'Prices for ' . $requested->format('m/d/Y'));
+        self::assertSelectorTextContains('turbo-frame#prices-day .nav-link.disabled', 'Prices for ' . $requested->format('d/m/Y'));
         // Only the region of the post code with a price on the requested day (its price is 9.0, not 1.875)
         self::assertEquals(['10xxx'], array_unique(self::getPolygonIds($this->client->getCrawler()->filter('#postCodeChartContent_diesel'))));
-        self::assertStringContainsString('9.000', $this->client->getCrawler()->filter('#postCodeChartContent_diesel')->html());
+        self::assertEquals([9.0], array_unique(array_column(self::getPolygons($this->client->getCrawler()->filter('#postCodeChartContent_diesel')), 'price')));
         // The range is independent of the requested day
         self::assertSame($today->format('Y-m-d'), $this->client->getCrawler()->filter('input[name=to]')->attr('value'));
     }
@@ -192,14 +192,20 @@ class IndexControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(400);
     }
 
+    /** @return list<array{region: string, price: float}> */
+    private static function getPolygons(Crawler $crawler): array
+    {
+        $map = $crawler->filter('[data-controller~="postcode-map"]');
+        /** @var list<array{extra: array{region: string, price: float}}> $polygons */
+        $polygons = json_decode((string) $map->attr('data-symfony--ux-leaflet-map--map-polygons-value'), true, flags: JSON_THROW_ON_ERROR);
+
+        return array_map(static fn (array $polygon): array => $polygon['extra'], $polygons);
+    }
+
     /** @return list<string> */
     private static function getPolygonIds(Crawler $crawler): array
     {
-        $map = $crawler->filter('[data-controller~="postcode-map"]');
-        /** @var list<array{extra: array{region: string}}> $polygons */
-        $polygons = json_decode((string) $map->attr('data-symfony--ux-leaflet-map--map-polygons-value'), true, flags: JSON_THROW_ON_ERROR);
-
-        return array_values(array_map(static fn (array $polygon): string => $polygon['extra']['region'] . 'xxx', $polygons));
+        return array_map(static fn (array $polygon): string => $polygon['region'] . 'xxx', self::getPolygons($crawler));
     }
 
     private static function insertAggregates(DateTimeImmutable $latest): void
