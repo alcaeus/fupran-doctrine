@@ -196,10 +196,10 @@ class IndexControllerTest extends WebTestCase
     private static function getPolygonIds(Crawler $crawler): array
     {
         $map = $crawler->filter('[data-controller~="postcode-map"]');
-        /** @var list<array{infoWindow: array{headerContent: string}}> $polygons */
+        /** @var list<array{extra: array{region: string}}> $polygons */
         $polygons = json_decode((string) $map->attr('data-symfony--ux-leaflet-map--map-polygons-value'), true, flags: JSON_THROW_ON_ERROR);
 
-        return array_values(array_map(static fn (array $polygon): string => $polygon['infoWindow']['headerContent'], $polygons));
+        return array_values(array_map(static fn (array $polygon): string => $polygon['extra']['region'] . 'xxx', $polygons));
     }
 
     private static function insertAggregates(DateTimeImmutable $latest): void

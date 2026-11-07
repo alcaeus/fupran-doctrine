@@ -10,12 +10,10 @@ use App\PostCode\PostCodeShapes;
 use App\PostCode\PriceScale;
 use App\Repository\PostCodeDailyAggregateRepository;
 use DateTimeImmutable;
-use Symfony\UX\Map\InfoWindow;
 use Symfony\UX\Map\Map as UxMap;
 use Symfony\UX\Map\Point;
 use Symfony\UX\Map\Polygon;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
-use Twig\Environment;
 
 use function array_filter;
 use function array_keys;
@@ -45,7 +43,6 @@ class PriceMap
     public function __construct(
         private readonly PostCodeShapes $shapes,
         private readonly PostCodeDailyAggregateRepository $aggregates,
-        private readonly Environment $twig,
         private readonly MapFactory $mapFactory,
     ) {
     }
@@ -61,16 +58,10 @@ class PriceMap
         foreach ($regions['shapes'] as $label => $polygons) {
             $label = (string) $label;
             $price = $regions['prices'][$label];
-            $infoWindow = new InfoWindow(
-                headerContent: $label . 'xxx',
-                content: $this->twig->render('components/PostCode/PriceMapInfoWindow.html.twig', ['fuel' => $this->fuel, 'day' => $this->day, 'price' => $price]),
-            );
-
             foreach ($polygons as $index => $rings) {
                 $map->addPolygon(new Polygon(
                     points: $rings,
-                    infoWindow: $infoWindow,
-                    extra: ['fillColor' => $regions['scale']->getColor($price)],
+                    extra: ['fillColor' => $regions['scale']->getColor($price), 'region' => $label, 'price' => $price],
                     id: $label . '-' . $index,
                 ));
             }

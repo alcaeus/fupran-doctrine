@@ -8,6 +8,7 @@ use RuntimeException;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\UX\Map\Point;
 
+use function array_filter;
 use function array_key_exists;
 use function array_map;
 use function array_pop;
@@ -18,7 +19,9 @@ use function file_get_contents;
 use function json_decode;
 use function max;
 use function min;
+use function str_starts_with;
 
+use const ARRAY_FILTER_USE_KEY;
 use const INF;
 use const JSON_THROW_ON_ERROR;
 
@@ -45,6 +48,14 @@ class PostCodeShapes
     public function getRegions(): array
     {
         return $this->load('postcode-regions.topojson', 'regions', static fn (array $geometry): string => (string) ($geometry['id'] ?? ''));
+    }
+
+    /** @return array<int|string, list<list<list<Point>>>> Shapes by post code of the post codes in a region */
+    public function getPostCodes(string $region): array
+    {
+        $postCodes = $this->load('postcodes.topojson', 'postleitzahlen', static fn (array $geometry): string => (string) ($geometry['properties']['postcode'] ?? ''));
+
+        return array_filter($postCodes, static fn (int|string $postCode): bool => str_starts_with((string) $postCode, $region), ARRAY_FILTER_USE_KEY);
     }
 
     /** @return array<int|string, list<list<list<Point>>>> Shapes by post code of the post codes whose bounding box touches the given one */

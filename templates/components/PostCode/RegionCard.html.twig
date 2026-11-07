@@ -1,0 +1,17 @@
+{% set data = this.data %}
+<div data-region="{{ region }}">
+    <h6>Post codes {{ region }}xxx</h6>
+    {% if data is null %}
+        <p class="text-muted">No prices in this region.</p>
+    {% else %}
+        <dl>
+            <dt>Average Price</dt>
+            <dd><twig:Price price="{{ data.weightedAveragePrice }}" /></dd>
+            <dt>Lowest Price</dt>
+            <dd><twig:Price price="{{ data.lowestPrice }}" /></dd>
+            <dt>Highest Price</dt>
+            <dd><twig:Price price="{{ data.highestPrice }}" /></dd>
+        </dl>
+    {% endif %}
+    <a href="{{ path('app_postcode_card', {fuel: fuel.value, day: day|date('Y-m-d')}) }}">&larr; All of Germany</a>
+</div>
