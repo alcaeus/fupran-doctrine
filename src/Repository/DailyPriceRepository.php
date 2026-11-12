@@ -18,7 +18,10 @@ use Closure;
 use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\Bundle\MongoDBBundle\ManagerRegistry;
+use Doctrine\ODM\MongoDB\Aggregation\Builder;
+use Doctrine\ODM\MongoDB\Aggregation\Stage\MatchStage;
 use Doctrine\ODM\MongoDB\Iterator\Iterator;
+use GeoJson\Geometry\Polygon;
 use MongoDB\BSON\Binary;
 use MongoDB\Builder\Expression;
 use MongoDB\Builder\Pipeline;
@@ -37,6 +40,9 @@ use function MongoDB\object;
 /** @extends AbstractRepository<DailyPrice> */
 class DailyPriceRepository extends AbstractRepository
 {
+    /** Safeguard against loading a whole country if a map is asked for stations while zoomed out */
+    public const int MAX_STATIONS_IN_AREA = 1000;
+
     public function __construct(
         ManagerRegistry $registry,
         private readonly MetadataCodecFactory $codec,
@@ -199,26 +205,53 @@ class DailyPriceRepository extends AbstractRepository
     public function getStationPricesForPostCode(Fuel $fuel, DateTimeImmutable $day, string $postCode): array
     {
         $builder = $this->createAggregationBuilder();
+        $this->matchStationPrices($builder, $fuel, $day)
+            ->field('station.address.postCode')->equals($postCode)
+            ->field('station.location')->exists(true);
+
+        return $this->getStationPrices($builder);
+    }
+
+    /**
+     * Like getStationPricesForPostCode(), for the stations within a bounding box. Only the first MAX_STATIONS_IN_AREA
+     * are returned, as the box is expected to be small enough for that to not matter.
+     *
+     * @return list<StationPrice>
+     */
+    public function getStationPricesInArea(Fuel $fuel, DateTimeImmutable $day, float $south, float $west, float $north, float $east): array
+    {
+        $builder = $this->createAggregationBuilder();
+        $this->matchStationPrices($builder, $fuel, $day)
+            ->field('station.location')->geoWithin(new Polygon([[[$west, $south], [$east, $south], [$east, $north], [$west, $north], [$west, $south]]]));
+
+        return $this->getStationPrices($builder, self::MAX_STATIONS_IN_AREA);
+    }
+
+    private function matchStationPrices(Builder $builder, Fuel $fuel, DateTimeImmutable $day): MatchStage
+    {
+        return $builder
+            ->hydrate(StationPrice::class)
+            ->match()
+                ->field('fuel')->equals($fuel->value)
+                ->field('day')->equals($day->setTimezone(new DateTimeZone('UTC'))->setTime(0, 0));
+    }
+
+    /** @return list<StationPrice> */
+    private function getStationPrices(Builder $builder, ?int $limit = null): array
+    {
+        $stage = $builder->project()
+            ->field('_id')->expression('$station._id')
+            ->field('name')->expression('$station.name')
+            ->field('brand')->expression('$station.brand')
+            ->field('location')->expression('$station.location')
+            ->field('price')->expression('$closingPrice');
+
+        if ($limit !== null) {
+            $stage = $stage->limit($limit);
+        }
 
         /** @var array<int, StationPrice> $prices */
-        $prices = iterator_to_array(
-            $builder
-                ->hydrate(StationPrice::class)
-                ->match()
-                    ->field('fuel')->equals($fuel->value)
-                    ->field('day')->equals($day->setTimezone(new DateTimeZone('UTC'))->setTime(0, 0))
-                    ->field('station.address.postCode')->equals($postCode)
-                    ->field('station.location')->exists(true)
-                ->project()
-                    ->field('_id')->expression('$station._id')
-                    ->field('name')->expression('$station.name')
-                    ->field('brand')->expression('$station.brand')
-                    ->field('location')->expression('$station.location')
-                    ->field('price')->expression('$closingPrice')
-                ->getAggregation()
-                ->getIterator(),
-            false,
-        );
+        $prices = iterator_to_array($stage->getAggregation()->getIterator(), false);
 
         return array_values($prices);
     }

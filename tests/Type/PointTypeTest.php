@@ -45,6 +45,12 @@ class PointTypeTest extends TestCase
         self::assertNull($this->type->convertToDatabaseValue(null));
     }
 
+    public function testConvertToDatabaseValueLeavesQueryOperandsAlone(): void
+    {
+        self::assertSame('Polygon', $this->type->convertToDatabaseValue('Polygon'));
+        self::assertSame(13.4, $this->type->convertToDatabaseValue(13.4));
+    }
+
     public function testConvertToPHPValue(): void
     {
         $value = ['type' => 'Point', 'coordinates' => [1.5, 2.5]];

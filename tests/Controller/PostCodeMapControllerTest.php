@@ -145,12 +145,61 @@ class PostCodeMapControllerTest extends WebTestCase
 
     public function testReturnsOnlyWhatMarkersNeedForStationsOfPostCode(): void
     {
-        $dm = static::getContainer()->get(DocumentManager::class);
-        $collection = $dm->getDocumentCollection(DailyPrice::class);
+        self::insertDailyPrices([
+            ['11111111-1111-1111-1111-111111111111', '10115', 1.5, Fuel::Diesel, [13.4, 52.5]],
+            ['22222222-2222-2222-2222-222222222222', '10117', 2.0, Fuel::Diesel, [13.4, 52.5]],
+            ['11111111-1111-1111-1111-111111111111', '10115', 1.7, Fuel::E5, [13.4, 52.5]],
+        ]);
+
+        $this->client->request('GET', '/post-codes/stations/diesel/10115', ['day' => '2026-01-15']);
+
+        self::assertResponseIsSuccessful();
+        $prices = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertSame([
+            [
+                'id' => '11111111-1111-1111-1111-111111111111',
+                'name' => 'Station 10115',
+                'brand' => 'Brand',
+                'price' => 1.5,
+                'latitude' => 52.5,
+                'longitude' => 13.4,
+            ],
+        ], $prices);
+    }
+
+    public function testReturnsStationsInViewOfFuelAndDay(): void
+    {
+        self::insertDailyPrices([
+            ['11111111-1111-1111-1111-111111111111', '10115', 1.5, Fuel::Diesel, [13.4, 52.5]],
+            // Munich
+            ['22222222-2222-2222-2222-222222222222', '80331', 1.9, Fuel::Diesel, [11.57, 48.14]],
+            // Another fuel
+            ['33333333-3333-3333-3333-333333333333', '10117', 1.7, Fuel::E5, [13.4, 52.5]],
+        ]);
+
+        $this->client->request('GET', '/post-codes/stations/diesel', ['day' => '2026-01-15', 'south' => 52.4, 'west' => 13.3, 'north' => 52.6, 'east' => 13.5]);
+
+        self::assertResponseIsSuccessful();
+        /** @var list<array{id: string, price: float}> $prices */
+        $prices = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertSame(['11111111-1111-1111-1111-111111111111'], array_column($prices, 'id'));
+        self::assertSame([1.5], array_column($prices, 'price'));
+    }
+
+    public function testRejectsInvalidBoundsForStationsInView(): void
+    {
+        $this->client->request('GET', '/post-codes/stations/diesel', ['day' => '2026-01-15', 'south' => 53.0, 'west' => 13.3, 'north' => 52.0, 'east' => 13.5]);
+
+        self::assertResponseStatusCodeSame(400);
+    }
+
+    /** @param list<array{string, string, float, Fuel, array{float, float}}> $prices Station UUID, post code, price, fuel and longitude and latitude */
+    private static function insertDailyPrices(array $prices): void
+    {
+        $collection = static::getContainer()->get(DocumentManager::class)->getDocumentCollection(DailyPrice::class);
         $collection->drop();
         $day = new UTCDateTime(new DateTimeImmutable('2026-01-15', new DateTimeZone('UTC')));
-        $stationId = '11111111-1111-1111-1111-111111111111';
-        foreach ([['10115', 1.5, Fuel::Diesel], ['10117', 2.0, Fuel::Diesel], ['10115', 1.7, Fuel::E5]] as [$postCode, $price, $fuel]) {
+        foreach ($prices as [$stationId, $postCode, $price, $fuel, $coordinates]) {
             $collection->insertOne([
                 'fuel' => $fuel->value,
                 'day' => $day,
@@ -158,7 +207,7 @@ class PostCodeMapControllerTest extends WebTestCase
                     '_id' => new Binary(Uuid::fromString($stationId)->toBinary(), Binary::TYPE_UUID),
                     'name' => 'Station ' . $postCode,
                     'brand' => 'Brand',
-                    'location' => ['type' => 'Point', 'coordinates' => [13.4, 52.5]],
+                    'location' => ['type' => 'Point', 'coordinates' => $coordinates],
                     'address' => ['postCode' => $postCode],
                 ],
                 'openingPrice' => $price,
@@ -169,21 +218,6 @@ class PostCodeMapControllerTest extends WebTestCase
                 'weightedAveragePrice' => $price,
             ]);
         }
-
-        $this->client->request('GET', '/post-codes/stations/diesel/10115', ['day' => '2026-01-15']);
-
-        self::assertResponseIsSuccessful();
-        $prices = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
-        self::assertSame([
-            [
-                'id' => $stationId,
-                'name' => 'Station 10115',
-                'brand' => 'Brand',
-                'price' => 1.5,
-                'latitude' => 52.5,
-                'longitude' => 13.4,
-            ],
-        ], $prices);
     }
 
     public function testRejectsInvalidBounds(): void

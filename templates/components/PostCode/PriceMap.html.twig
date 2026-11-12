@@ -7,6 +7,7 @@
         'data-postcode-map-url-value': path('app_postcode_areas', {fuel: fuel.value}),
         'data-postcode-map-region-url-value': path('app_postcode_region_areas', {fuel: fuel.value, region: '00'}),
         'data-postcode-map-stations-url-value': path('app_postcode_stations', {fuel: fuel.value, postCode: '00000'}),
+        'data-postcode-map-area-stations-url-value': path('app_postcode_area_stations', {fuel: fuel.value}),
         'data-postcode-map-station-url-value': path('app_station_show', {id: '00000000-0000-0000-0000-000000000000'}),
         'data-postcode-map-card-url-value': path('app_postcode_card', {fuel: fuel.value}),
         'data-postcode-map-card-frame-value': 'aggregate-card-' ~ fuel.value,
@@ -15,6 +16,7 @@
         'data-postcode-map-lowest-value': scale.lowest,
         'data-postcode-map-highest-value': scale.highest,
         'data-postcode-map-zoom-value': constant('App\\Twig\\Component\\PostCode\\PriceMap::POST_CODE_ZOOM'),
+        'data-postcode-map-station-zoom-value': constant('App\\Twig\\Component\\PostCode\\PriceMap::STATION_ZOOM'),
     }) }}
 
     <div class="d-flex align-items-center gap-1 small mt-2">
