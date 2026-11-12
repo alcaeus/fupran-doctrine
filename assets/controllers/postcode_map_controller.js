@@ -1,5 +1,5 @@
 import { Controller } from '@hotwired/stimulus'
-import { visit } from '../frame_visit.js'
+import * as Turbo from '@hotwired/turbo'
 import * as L from 'leaflet'
 
 const priceFormat = new Intl.NumberFormat('de-DE', {
@@ -248,7 +248,7 @@ export default class extends Controller {
         new URLSearchParams(window.location.search).forEach((value, key) => url.searchParams.set(key, value))
         url.searchParams.set('area', area)
 
-        visit(url, this.selectFrameValue)
+        Turbo.visit(url.toString(), { frame: this.selectFrameValue, action: 'advance' })
     }
 
     #showRegion(region) {

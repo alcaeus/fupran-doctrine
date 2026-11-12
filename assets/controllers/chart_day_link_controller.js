@@ -1,8 +1,8 @@
 import { Controller } from '@hotwired/stimulus'
-import { visit } from '../frame_visit.js'
+import * as Turbo from '@hotwired/turbo'
 
-// Opens the page of a day that is clicked in a chart with days on its x axis, keeping the rest of the page's selection.
-// The frame is the one to load it into, or _top to visit the whole page.
+// Loads the page of a day that is clicked in a chart with days on its x axis into a frame, keeping the rest of the page's
+// selection. Turbo adds the visit to the history.
 export default class extends Controller {
     static values = {
         url: String,
@@ -28,7 +28,7 @@ export default class extends Controller {
                 current.forEach((value, key) => url.searchParams.set(key, value))
                 url.searchParams.set('day', day)
 
-                visit(url, this.frameValue === '_top' ? null : this.frameValue)
+                Turbo.visit(url.toString(), { frame: this.frameValue, action: 'advance' })
             }
             chart.options.onHover = (hoverEvent, elements) => {
                 hoverEvent.native.target.style.cursor = elements.length > 0 ? 'pointer' : 'default'
