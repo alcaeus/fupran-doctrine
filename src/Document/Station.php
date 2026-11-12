@@ -13,30 +13,12 @@ use Doctrine\ODM\MongoDB\Mapping\Annotations\EmbedOne;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Field;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Id;
 use Doctrine\ODM\MongoDB\Mapping\Annotations\Index;
-use Doctrine\ODM\MongoDB\Mapping\Annotations\SearchIndex;
 use Doctrine\ODM\MongoDB\Mapping\Attribute\ReferenceMany;
 use Doctrine\ODM\MongoDB\Types\Type;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Uid\UuidV4;
 
 #[Document(repositoryClass: StationRepository::class)]
-#[SearchIndex(
-    name: 'station',
-    fields: [
-        'name' => [
-            ['type' => 'autocomplete'],
-        ],
-        'address.street' => [
-            ['type' => 'autocomplete'],
-        ],
-        'address.city' => [
-            ['type' => 'autocomplete'],
-        ],
-        'address.postCode' => [
-            ['type' => 'autocomplete'],
-        ],
-    ],
-)]
 #[Index(keys: ['visible' => 'asc', '_id' => 'asc'])]
 class Station extends AbstractStation
 {
