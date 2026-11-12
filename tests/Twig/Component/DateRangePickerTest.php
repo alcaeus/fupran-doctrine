@@ -43,6 +43,15 @@ class DateRangePickerTest extends KernelTestCase
         self::assertSame('charts', $links->eq(0)->attr('data-turbo-frame'));
     }
 
+    public function testSubmitsQueryParametersWithTheForm(): void
+    {
+        $crawler = $this->render(['queryParams' => ['area' => '10', 'day' => '2024-11-20']]);
+
+        self::assertSame('10', $crawler->filter('input[type=hidden][name=area]')->attr('value'));
+        self::assertSame('2024-11-20', $crawler->filter('input[type=hidden][name=day]')->attr('value'));
+        self::assertSame('/?area=10&day=2024-11-20&from=2024-12-09&to=2024-12-15', $crawler->filter('a.btn')->eq(0)->attr('href'));
+    }
+
     /** @param array<string, mixed> $props */
     private function render(array $props = []): Crawler
     {

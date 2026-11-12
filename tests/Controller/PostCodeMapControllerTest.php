@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller;
 
-use App\Document\DailyAggregate;
 use App\Document\DailyPrice;
 use App\Document\PostCodeDailyAggregate;
 use App\Fuel;
@@ -19,6 +18,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Uid\Uuid;
 
 use function array_column;
+use function array_keys;
 use function json_decode;
 
 use const JSON_THROW_ON_ERROR;
@@ -84,63 +84,37 @@ class PostCodeMapControllerTest extends WebTestCase
         self::assertEqualsCanonicalizing(['10115', '10117'], array_column($areas, 'postCode'));
     }
 
-    public function testCardShowsPricesOfRegion(): void
+    public function testReturnsRegionPricesAndScaleOfDay(): void
     {
-        $this->client->request('GET', '/post-codes/card/diesel', ['day' => '2026-01-15', 'region' => '10']);
+        $this->client->request('GET', '/post-codes/regions/diesel', ['day' => '2026-01-15']);
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('turbo-frame#aggregate-card-diesel [data-area="10"]');
-        self::assertSelectorTextContains('turbo-frame#aggregate-card-diesel', 'Post codes 10xxx');
-        // (1 * 1.5 + 1 * 2.0) / 2
-        self::assertSelectorTextContains('turbo-frame#aggregate-card-diesel dl', '1.750 €');
-        // Leads back to the card of Germany
-        self::assertSelectorExists('turbo-frame#aggregate-card-diesel a[href="/post-codes/card/diesel?day=2026-01-15"]');
+        /** @var array{lowest: float, highest: float, legend: list<array{color: string, price: float}>, regions: array<int, array{price: float, color: string}>} $scale */
+        $scale = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        // (1.5 + 2.0) / 2 in the region 10, and 1.9 in the region 80
+        self::assertEqualsCanonicalizing(['10', '80'], array_keys($scale['regions']));
+        self::assertEqualsWithDelta(1.75, $scale['regions'][10]['price'], 0.0001);
+        self::assertEqualsWithDelta(1.75, $scale['lowest'], 0.0001);
+        self::assertEqualsWithDelta(1.9, $scale['highest'], 0.0001);
+        self::assertCount(8, $scale['legend']);
+        self::assertMatchesRegularExpression('/^#[0-9a-f]{6}$/', $scale['regions'][80]['color']);
     }
 
-    public function testCardShowsPricesOfPostCode(): void
+    public function testReturnsNoRegionPricesForDayWithoutPrices(): void
     {
-        $this->client->request('GET', '/post-codes/card/diesel', ['day' => '2026-01-15', 'postCode' => '10117', 'region' => '80']);
+        $this->client->request('GET', '/post-codes/regions/diesel', ['day' => '2026-01-14']);
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('turbo-frame#aggregate-card-diesel [data-area="10117"]');
-        self::assertSelectorTextContains('turbo-frame#aggregate-card-diesel', 'Post code 10117');
-        self::assertSelectorTextContains('turbo-frame#aggregate-card-diesel dl', '2.000 €');
-        // Leads back to its region and to Germany
-        self::assertSelectorExists('turbo-frame#aggregate-card-diesel a[href="/post-codes/card/diesel?day=2026-01-15&region=10"]');
-        self::assertSelectorExists('turbo-frame#aggregate-card-diesel a[href="/post-codes/card/diesel?day=2026-01-15"]');
+        /** @var array{regions: array<int, mixed>} $scale */
+        $scale = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertSame([], $scale['regions']);
     }
 
-    public function testCardRejectsInvalidPostCode(): void
+    public function testRejectsInvalidDayForRegionPrices(): void
     {
-        $this->client->request('GET', '/post-codes/card/diesel', ['day' => '2026-01-15', 'postCode' => '101']);
+        $this->client->request('GET', '/post-codes/regions/diesel', ['day' => 'yesterday']);
 
-        self::assertResponseStatusCodeSame(404);
-    }
-
-    public function testCardShowsPricesOfGermanyWithoutRegion(): void
-    {
-        static::getContainer()->get(DocumentManager::class)->getDocumentCollection(DailyAggregate::class)->insertOne([
-            'day' => new UTCDateTime(new DateTimeImmutable('2026-01-15', new DateTimeZone('UTC'))),
-            'fuel' => Fuel::Diesel->value,
-            'lowestPrice' => 1.3,
-            'highestPrice' => 2.5,
-            'weightedAveragePrice' => 1.8,
-            'percentiles' => ['p50' => 1.5, 'p90' => 1.55, 'p95' => 1.58, 'p99' => 1.6],
-        ]);
-
-        $this->client->request('GET', '/post-codes/card/diesel', ['day' => '2026-01-15']);
-
-        self::assertResponseIsSuccessful();
-        self::assertSelectorExists('turbo-frame#aggregate-card-diesel');
-        self::assertSelectorNotExists('[data-area]');
-        self::assertSelectorTextContains('turbo-frame#aggregate-card-diesel dl', '1.800 €');
-    }
-
-    public function testCardRejectsInvalidRegion(): void
-    {
-        $this->client->request('GET', '/post-codes/card/diesel', ['day' => '2026-01-15', 'region' => 'abc']);
-
-        self::assertResponseStatusCodeSame(404);
+        self::assertResponseStatusCodeSame(400);
     }
 
     public function testReturnsOnlyWhatMarkersNeedForStationsOfPostCode(): void
@@ -161,6 +135,9 @@ class PostCodeMapControllerTest extends WebTestCase
                 'name' => 'Station 10115',
                 'brand' => 'Brand',
                 'price' => 1.5,
+                'lowestPrice' => 1.4,
+                'highestPrice' => 1.6,
+                'weightedAveragePrice' => 1.55,
                 'latitude' => 52.5,
                 'longitude' => 13.4,
             ],
@@ -184,6 +161,9 @@ class PostCodeMapControllerTest extends WebTestCase
         $prices = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertSame(['11111111-1111-1111-1111-111111111111'], array_column($prices, 'id'));
         self::assertSame([1.5], array_column($prices, 'price'));
+        self::assertEqualsWithDelta([1.4], array_column($prices, 'lowestPrice'), 0.0001);
+        self::assertEqualsWithDelta([1.6], array_column($prices, 'highestPrice'), 0.0001);
+        self::assertEqualsWithDelta([1.55], array_column($prices, 'weightedAveragePrice'), 0.0001);
     }
 
     public function testRejectsInvalidBoundsForStationsInView(): void
@@ -212,10 +192,10 @@ class PostCodeMapControllerTest extends WebTestCase
                 ],
                 'openingPrice' => $price,
                 'closingPrice' => $price,
-                'lowestPrice' => ['_id' => new ObjectId(), 'price' => $price],
-                'highestPrice' => ['_id' => new ObjectId(), 'price' => $price],
+                'lowestPrice' => ['_id' => new ObjectId(), 'price' => $price - 0.1],
+                'highestPrice' => ['_id' => new ObjectId(), 'price' => $price + 0.1],
                 'prices' => [['_id' => new ObjectId(), 'date' => $day, 'price' => $price]],
-                'weightedAveragePrice' => $price,
+                'weightedAveragePrice' => $price + 0.05,
             ]);
         }
     }

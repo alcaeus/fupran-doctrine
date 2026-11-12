@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Repository;
 
+use App\DateRange;
 use App\Document\PostCodeDailyAggregate;
 use App\Fuel;
 use App\Repository\PostCodeDailyAggregateRepository;
@@ -126,6 +127,62 @@ class PostCodeDailyAggregateRepositoryTest extends KernelTestCase
         self::assertNull(
             self::getContainer()->get(PostCodeDailyAggregateRepository::class)
                 ->getAggregate(Fuel::Diesel, self::day('2024-11-19'), '10'),
+        );
+    }
+
+    public function testGetCompoundDailyAggregatesCombinesPostCodesOfRegionPerDayAndFuel(): void
+    {
+        foreach (Fuel::cases() as $fuel) {
+            self::insertAggregate('2024-11-19', $fuel, '10115', 1.5, 1);
+            self::insertAggregate('2024-11-19', $fuel, '10117', 2.0, 3);
+            self::insertAggregate('2024-11-20', $fuel, '10115', 1.6, 1);
+            // Not in the region
+            self::insertAggregate('2024-11-19', $fuel, '80331', 9.0, 1);
+            self::insertAggregate('2024-11-19', $fuel, '81010', 9.0, 1);
+        }
+
+        $aggregates = self::getContainer()->get(PostCodeDailyAggregateRepository::class)
+            ->getCompoundDailyAggregates('10', new DateRange(self::day('2024-11-19'), self::day('2024-11-20'), DateRange::UNLIMITED));
+
+        // Newest first
+        self::assertCount(2, $aggregates);
+        self::assertEquals(self::day('2024-11-20'), $aggregates[0]->day);
+        self::assertEquals(self::day('2024-11-19'), $aggregates[1]->day);
+
+        // Weighted by station count: (1 * 1.5 + 3 * 2.0) / 4
+        self::assertEqualsWithDelta(1.875, $aggregates[1]->diesel->weightedAveragePrice, 0.0001);
+        self::assertEqualsWithDelta(1.875, $aggregates[1]->e5->weightedAveragePrice, 0.0001);
+        self::assertEqualsWithDelta(1.4, $aggregates[1]->e10->lowestPrice, 0.0001);
+        self::assertEqualsWithDelta(2.1, $aggregates[1]->e10->highestPrice, 0.0001);
+        self::assertSame(4, $aggregates[1]->diesel->stationCount);
+        self::assertEqualsWithDelta(1.6, $aggregates[0]->diesel->weightedAveragePrice, 0.0001);
+    }
+
+    public function testGetCompoundDailyAggregatesLimitsToPostCodeAndRange(): void
+    {
+        foreach (Fuel::cases() as $fuel) {
+            self::insertAggregate('2024-11-18', $fuel, '10115', 9.0, 1);
+            self::insertAggregate('2024-11-19', $fuel, '10115', 1.5, 1);
+            self::insertAggregate('2024-11-19', $fuel, '10117', 9.0, 1);
+            self::insertAggregate('2024-11-21', $fuel, '10115', 9.0, 1);
+        }
+
+        $aggregates = self::getContainer()->get(PostCodeDailyAggregateRepository::class)
+            ->getCompoundDailyAggregates('10115', new DateRange(self::day('2024-11-19'), self::day('2024-11-20'), DateRange::UNLIMITED));
+
+        self::assertCount(1, $aggregates);
+        self::assertEqualsWithDelta(1.5, $aggregates[0]->diesel->weightedAveragePrice, 0.0001);
+    }
+
+    public function testGetCompoundDailyAggregatesSkipsDaysWithoutAllFuels(): void
+    {
+        self::insertAggregate('2024-11-19', Fuel::Diesel, '10115', 1.5, 1);
+        self::insertAggregate('2024-11-19', Fuel::E5, '10115', 1.5, 1);
+
+        self::assertSame(
+            [],
+            self::getContainer()->get(PostCodeDailyAggregateRepository::class)
+                ->getCompoundDailyAggregates('10', new DateRange(self::day('2024-11-19'), self::day('2024-11-19'), DateRange::UNLIMITED)),
         );
     }
 

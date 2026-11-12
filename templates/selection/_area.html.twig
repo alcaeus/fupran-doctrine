@@ -1,0 +1,16 @@
+{# Where the selection is (the links load the frame, if given, instead of the one they are in): all of Germany, a region or a post code, each leading to the selection with it as its area #}
+<nav aria-label="Area" class="mb-2">
+    <ol class="breadcrumb mb-0">
+        <li class="breadcrumb-item{{ selection.area is null ? ' active' }}">
+            {% if selection.area is null %}Germany{% else %}<a href="{{ path(route, params|merge(selection.toQuery({area: null}))) }}" data-turbo-action="advance"{% if frame is defined %} data-turbo-frame="{{ frame }}"{% endif %}>Germany</a>{% endif %}
+        </li>
+        {% if selection.area is not null %}
+            <li class="breadcrumb-item{{ not selection.isPostCode ? ' active' }}">
+                {% if selection.isPostCode %}<a href="{{ path(route, params|merge(selection.toQuery({area: selection.region}))) }}" data-turbo-action="advance"{% if frame is defined %} data-turbo-frame="{{ frame }}"{% endif %}>{{ selection.region }}xxx</a>{% else %}{{ selection.region }}xxx{% endif %}
+            </li>
+        {% endif %}
+        {% if selection.isPostCode %}
+            <li class="breadcrumb-item active">{{ selection.area }}</li>
+        {% endif %}
+    </ol>
+</nav>

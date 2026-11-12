@@ -22,6 +22,7 @@ services:
         exclude:
             - '../src/DependencyInjection/'
             - '../src/DateRange.php'
+            - '../src/Selection.php'
             - '../src/Document/'
             - '../src/functions.php'
             - '../src/Kernel.php'

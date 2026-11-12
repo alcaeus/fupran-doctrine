@@ -244,7 +244,10 @@ class DailyPriceRepository extends AbstractRepository
             ->field('name')->expression('$station.name')
             ->field('brand')->expression('$station.brand')
             ->field('location')->expression('$station.location')
-            ->field('price')->expression('$closingPrice');
+            ->field('price')->expression('$closingPrice')
+            ->field('lowestPrice')->expression('$lowestPrice.price')
+            ->field('highestPrice')->expression('$highestPrice.price')
+            ->field('weightedAveragePrice')->expression('$weightedAveragePrice');
 
         if ($limit !== null) {
             $stage = $stage->limit($limit);

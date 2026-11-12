@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Aggregation\PriceReport;
+use App\DateRange;
+use App\Document\CompoundDailyAggregate;
+use App\Document\DailyAggregate;
 use App\Document\PostCodeDailyAggregate;
 use App\Fuel;
 use DateTimeImmutable;
@@ -17,8 +20,11 @@ use MongoDB\Builder\Pipeline;
 use MongoDB\Builder\Query;
 use MongoDB\Builder\Stage;
 
+use function array_map;
+use function MongoDB\object;
 use function preg_quote;
 use function round;
+use function usort;
 
 /** @extends AbstractRepository<PostCodeDailyAggregate> */
 class PostCodeDailyAggregateRepository extends AbstractRepository
@@ -110,6 +116,76 @@ class PostCodeDailyAggregateRepository extends AbstractRepository
         }
 
         return $prices;
+    }
+
+    /**
+     * The history of an area (see {@see getAggregate()} for how post codes are combined), shaped like the aggregates
+     * of Germany so that the same charts and cards can show it. Only the average, lowest and highest price and the
+     * station count are set on the aggregates, as percentiles and changes cannot be combined from post codes. Days
+     * without prices for all fuels are left out.
+     *
+     * @param string $postCodePrefix Two digits for a region, five for a post code; use {@see DailyAggregateRepository} for all of Germany
+     *
+     * @return list<CompoundDailyAggregate> Newest day first
+     */
+    public function getCompoundDailyAggregates(string $postCodePrefix, DateRange $range): array
+    {
+        $groups = $this->getDocumentCollection()->aggregate(
+            new Pipeline(
+                // Including all fuels allows using the index on fuel, day and post code
+                Stage::match(
+                    fuel: Query::in(array_map(static fn (Fuel $fuel): string => $fuel->value, Fuel::cases())),
+                    day: Query::fieldQuery(Query::gte(new UTCDateTime($range->from)), Query::lte(new UTCDateTime($range->to))),
+                    postCode: new Regex('^' . preg_quote($postCodePrefix, '/')),
+                    stationCount: Query::gt(0),
+                ),
+                Stage::group(
+                    _id: object(day: Expression::fieldPath('day'), fuel: Expression::fieldPath('fuel')),
+                    priceSum: Accumulator::sum(Expression::multiply(
+                        Expression::doubleFieldPath('weightedAveragePrice'),
+                        Expression::intFieldPath('stationCount'),
+                    )),
+                    stationCount: Accumulator::sum(Expression::intFieldPath('stationCount')),
+                    lowestPrice: Accumulator::min(Expression::doubleFieldPath('lowestPrice')),
+                    highestPrice: Accumulator::max(Expression::doubleFieldPath('highestPrice')),
+                ),
+            ),
+            ['typeMap' => ['root' => 'array', 'document' => 'array', 'array' => 'array']],
+        );
+
+        /** @var array<int, array<string, DailyAggregate>> $days Aggregates by fuel, by timestamp of the day */
+        $days = [];
+        /** @var array{_id: array{day: UTCDateTime, fuel: string}, priceSum: float, stationCount: int, lowestPrice: float, highestPrice: float} $group */
+        foreach ($groups as $group) {
+            $day = $group['_id']['day']->toDateTimeImmutable();
+            $fuel = Fuel::from($group['_id']['fuel']);
+
+            $aggregate = new DailyAggregate($day, $fuel);
+            $aggregate->weightedAveragePrice = round($group['priceSum'] / $group['stationCount'], 3);
+            $aggregate->lowestPrice = $group['lowestPrice'];
+            $aggregate->highestPrice = $group['highestPrice'];
+            $aggregate->stationCount = $group['stationCount'];
+
+            $days[$day->getTimestamp()][$fuel->value] = $aggregate;
+        }
+
+        $compounds = [];
+        foreach ($days as $timestamp => $aggregates) {
+            if (! isset($aggregates[Fuel::Diesel->value], $aggregates[Fuel::E5->value], $aggregates[Fuel::E10->value])) {
+                continue;
+            }
+
+            $compounds[] = new CompoundDailyAggregate(
+                $aggregates[Fuel::Diesel->value]->day,
+                $aggregates[Fuel::Diesel->value],
+                $aggregates[Fuel::E5->value],
+                $aggregates[Fuel::E10->value],
+            );
+        }
+
+        usort($compounds, static fn (CompoundDailyAggregate $a, CompoundDailyAggregate $b): int => $b->day <=> $a->day);
+
+        return $compounds;
     }
 
     /**

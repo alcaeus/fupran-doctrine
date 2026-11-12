@@ -1,37 +1,53 @@
 import { Controller } from '@hotwired/stimulus'
+import { visit } from '../frame_visit.js'
 import * as L from 'leaflet'
 
 const priceFormat = new Intl.NumberFormat('de-DE', {
     style: 'currency',
     currency: 'EUR',
-    minimumFractionDigits: 2,
+    // Fuel prices have three decimals, like those that the server renders
+    minimumFractionDigits: 3,
     maximumFractionDigits: 3,
 })
+
+// The colour of regions without prices, which is also chosen on the server
+const noPriceColor = '#adb5bd'
 
 // The areas are partly transparent so the streets and place names of the base map stay readable underneath
 function areaStyle(fillColor, selected = false) {
     return { color: selected ? '#000' : '#555', weight: selected ? 3 : 1, fillColor, fillOpacity: 0.4 }
 }
 
+// Maps that only select an area have no prices
+function label(area, price) {
+    return price == null ? area : `${area}: ${priceFormat.format(price)}`
+}
+
 // Enhances a Symfony UX map that draws the regions of Germany as polygons:
 //
 // - Colours the regions with the colour chosen on the server.
-// - Clicking a region or post code zooms to it and shows its prices in the card (a turbo frame) next to the map. The
-//   links in that card lead back to the region or to the prices of Germany, which the map follows.
+// - Clicking a region or post code zooms to it and loads the page with it as the area into a turbo frame next to the
+//   map, which shows its prices and history. The links in that frame lead back to the region or to Germany, which the
+//   map follows. The area is part of the URL, so the map starts with the area that the page was requested with.
 // - From a zoom level on, replaces the regions with the post codes in view. Drawing all 8,000 post code areas at once
 //   is far too slow, so they are loaded from the server for the visible part of the map only, whenever it moves.
-//   Below that zoom level, a selected region shows its own post codes.
-// - From a higher zoom level on, also shows markers for the stations in view, with their price and a link to the
-//   station. Below it, only a selected post code shows its stations.
+//   Below that zoom level, a selected region shows its own post codes. Without prices (and a scale), the areas are
+//   only a way to select one, and no stations are shown.
+// - From a higher zoom level on, also shows markers for the stations in view, with their prices of the day and a link to the
+//   station. Hovering a marker shows the name of the station, clicking it the prices of the day. Below that zoom level,
+//   only a selected post code shows its stations.
 export default class extends Controller {
     static values = {
         url: String,
         regionUrl: String,
+        regionsUrl: String,
+        legend: String,
         stationsUrl: String,
         areaStationsUrl: String,
         stationUrl: String,
-        cardUrl: String,
-        cardFrame: String,
+        selectUrl: String,
+        selectFrame: String,
+        area: String,
         day: String,
         label: String,
         lowest: Number,
@@ -56,6 +72,9 @@ export default class extends Controller {
     postCodeLayers = new Map()
     // What the post code layer shows, to not load the post codes of a region again when the map moves
     shownRegion = null
+    // A post code to select once the post codes of its region are loaded
+    pendingPostCode = null
+    dayRequest = null
 
     style({ detail: { definition } }) {
         definition.bridgeOptions = areaStyle(definition.extra.fillColor)
@@ -64,7 +83,7 @@ export default class extends Controller {
     decorate({ detail: { polygon, definition } }) {
         const { region, price } = definition.extra
 
-        polygon.bindTooltip(`${region}xxx: ${priceFormat.format(price)}`, { sticky: true })
+        polygon.bindTooltip(label(`${region}xxx`, price), { sticky: true })
         polygon.on('click', () => this.#selectRegion(region))
 
         if (!this.regionLayers.has(region)) {
@@ -80,6 +99,7 @@ export default class extends Controller {
 
         this.#fitToRegions()
         map.on('moveend', () => this.#update())
+        this.#restoreArea()
 
         // The map of a fuel is drawn while its tab is hidden, where it has no size. Fit once it is shown.
         this.observer = new ResizeObserver(() => {
@@ -90,9 +110,14 @@ export default class extends Controller {
         })
         this.observer.observe(this.element)
 
-        // The card leads back to the region or to Germany with links, which the map has to follow
-        this.frame = document.getElementById(this.cardFrameValue)
+        // The frame leads back to the region or to Germany with links, which the map has to follow
+        this.frame = document.getElementById(this.selectFrameValue)
         this.onFrameLoad = () => {
+            const day = this.frame.querySelector('[data-day]')?.dataset.day
+            if (day && day !== this.dayValue) {
+                this.#changeDay(day)
+            }
+
             const area = this.frame.querySelector('[data-area]')?.dataset.area ?? null
             if (area === (this.selectedPostCode ?? this.selectedRegion)) {
                 return
@@ -111,6 +136,7 @@ export default class extends Controller {
         this.observer?.disconnect()
         this.request?.abort()
         this.stationsRequest?.abort()
+        this.dayRequest?.abort()
         this.frame?.removeEventListener('turbo:frame-load', this.onFrameLoad)
     }
 
@@ -121,8 +147,81 @@ export default class extends Controller {
         }
     }
 
+    // Shows the prices of another day, keeping the map where it is: the colours of the regions and the legend are loaded,
+    // and the post codes and stations in view are loaded again
+    async #changeDay(day) {
+        this.dayRequest?.abort()
+        this.dayRequest = new AbortController()
+
+        let scale
+        try {
+            const response = await fetch(`${this.regionsUrlValue}?${new URLSearchParams({ day })}`, { signal: this.dayRequest.signal })
+            if (!response.ok) {
+                throw new Error(`Failed to load regions: ${response.status}`)
+            }
+            scale = await response.json()
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error(error)
+            }
+
+            return
+        }
+
+        this.dayValue = day
+        this.lowestValue = scale.lowest
+        this.highestValue = scale.highest
+
+        for (const [region, layers] of this.regionLayers) {
+            const info = scale.regions[region]
+            for (const layer of layers) {
+                layer.setStyle(areaStyle(info?.color ?? noPriceColor, false))
+                layer.setTooltipContent(label(`${region}xxx`, info?.price))
+            }
+        }
+        this.#renderLegend(scale)
+
+        // Post codes and stations are shown for the new day once loaded
+        this.request?.abort()
+        this.shownRegion = null
+        this.postCodes.clearLayers()
+        this.postCodeLayers.clear()
+        this.#clearStations()
+        this.#update()
+    }
+
+    #renderLegend({ legend, lowest, highest }) {
+        const element = document.getElementById(this.legendValue)
+        if (!element) {
+            return
+        }
+
+        const swatches = legend.map(({ color, price }) => {
+            const swatch = document.createElement('span')
+            swatch.className = 'd-inline-block border'
+            swatch.style.cssText = `width: 1.5rem; height: 1rem; background: ${color}`
+            swatch.title = `${priceFormat.format(price)}`
+
+            return swatch
+        })
+        const range = document.createElement('span')
+        range.className = 'ms-1'
+        range.textContent = `${priceFormat.format(lowest)} \u2013 ${priceFormat.format(highest)}`
+
+        element.replaceChildren(...swatches, range)
+    }
+
+    #restoreArea() {
+        if (this.areaValue.length === 2) {
+            this.#showRegion(this.areaValue)
+        } else if (this.areaValue.length === 5) {
+            this.pendingPostCode = this.areaValue
+            this.#showRegion(this.areaValue.slice(0, 2))
+        }
+    }
+
     #selectRegion(region) {
-        this.#loadCard({ region })
+        this.#select(region)
         this.#showRegion(region)
     }
 
@@ -132,7 +231,7 @@ export default class extends Controller {
             return
         }
 
-        this.#loadCard({ postCode })
+        this.#select(postCode)
         this.selectedPostCode = postCode
         // Below the zoom level for loading post codes by viewport, its region is shown
         this.selectedRegion = postCode.slice(0, 2)
@@ -143,10 +242,13 @@ export default class extends Controller {
         this.#update()
     }
 
-    #loadCard(query) {
-        if (this.frame) {
-            this.frame.src = `${this.cardUrlValue}?${new URLSearchParams({ day: this.dayValue, ...query })}`
-        }
+    // Adds the area to the URL, which keeps the day and the range, and loads the page into the frame
+    #select(area) {
+        const url = new URL(this.selectUrlValue, window.location.origin)
+        new URLSearchParams(window.location.search).forEach((value, key) => url.searchParams.set(key, value))
+        url.searchParams.set('area', area)
+
+        visit(url, this.selectFrameValue)
     }
 
     #showRegion(region) {
@@ -167,6 +269,10 @@ export default class extends Controller {
     }
 
     #updateStations() {
+        if (!this.hasStationsUrlValue) {
+            return
+        }
+
         if (this.map.getZoom() >= this.stationZoomValue) {
             this.#loadStations(this.areaStationsUrlValue, this.#boundsQuery(), 'area')
         } else if (this.selectedPostCode !== null) {
@@ -222,17 +328,36 @@ export default class extends Controller {
         this.stations.addTo(this.map)
     }
 
-    #createStationMarker({ id, name, brand, latitude, longitude, price }) {
+    #createStationMarker({ id, name, brand, latitude, longitude, price, lowestPrice, highestPrice, weightedAveragePrice }) {
         // Built from DOM nodes as station names are not trusted to be free of markup
         const popup = document.createElement('div')
         const title = document.createElement('strong')
         title.textContent = brand ? `${name} (${brand})` : name
+
+        // One row per price, which never wraps: the popup is as wide as its widest row, which a short name does not make wide enough
+        const prices = document.createElement('div')
+        prices.className = 'my-1 text-nowrap'
+        for (const [label, value] of [['Average', weightedAveragePrice], ['Lowest', lowestPrice], ['Highest', highestPrice], ['Last', price]]) {
+            const row = document.createElement('div')
+            row.className = 'd-flex justify-content-between gap-3'
+            const term = document.createElement('span')
+            term.textContent = label
+            const description = document.createElement('span')
+            description.textContent = priceFormat.format(value)
+            row.append(term, description)
+            prices.append(row)
+        }
+
         const link = document.createElement('a')
         link.href = this.stationUrlValue.replace(/0{8}-0{4}-0{4}-0{4}-0{12}$/, id)
         link.textContent = 'Station details'
-        popup.append(title, document.createElement('br'), `${priceFormat.format(price)} `, document.createElement('br'), link)
+        popup.append(title, prices, link)
 
-        return L.marker([latitude, longitude], { title: name }).bindPopup(popup)
+        // An element, as a string would be read as markup. Its own tooltip replaces the browser's title.
+        const tooltip = document.createElement('span')
+        tooltip.textContent = name
+
+        return L.marker([latitude, longitude]).bindTooltip(tooltip, { direction: 'top', offset: [0, -30] }).bindPopup(popup, { minWidth: 170 })
     }
 
     #highlightSelectedPostCode() {
@@ -318,11 +443,30 @@ export default class extends Controller {
         this.shownRegion = region
         for (const area of areas) {
             const layer = L.polygon(area.polygons, areaStyle(area.color, area.postCode === this.selectedPostCode))
-                .bindTooltip(`${area.postCode}: ${priceFormat.format(area.price)}`, { sticky: true })
+                .bindTooltip(label(area.postCode, area.price), { sticky: true })
                 .on('click', () => this.#selectPostCode(area.postCode))
                 .addTo(this.postCodes)
             this.postCodeLayers.set(area.postCode, layer)
         }
         this.postCodes.addTo(this.map)
+
+        if (this.pendingPostCode !== null) {
+            const postCode = this.pendingPostCode
+            this.pendingPostCode = null
+            this.#restorePostCode(postCode)
+        }
+    }
+
+    // Selects a post code without loading the frame, as the page was requested with it
+    #restorePostCode(postCode) {
+        const layer = this.postCodeLayers.get(postCode)
+        if (!layer) {
+            return
+        }
+
+        this.selectedPostCode = postCode
+        this.#highlightSelectedPostCode()
+        this.map.fitBounds(layer.getBounds())
+        this.#update()
     }
 }

@@ -16,7 +16,7 @@ use function is_float;
 use function is_int;
 
 /**
- * A station with its closing price of a day, for markers on the post code map. This is all the map needs to know of a
+ * A station with its prices of a day, for markers on the post code map. This is all the map needs to know of a
  * daily price, so it is the only thing sent to the client.
  */
 #[QueryResultDocument]
@@ -35,8 +35,18 @@ class StationPrice
     #[Ignore]
     public readonly Point $location;
 
+    /** The last price of the day */
     #[Field]
     public readonly float $price;
+
+    #[Field]
+    public readonly float $lowestPrice;
+
+    #[Field]
+    public readonly float $highestPrice;
+
+    #[Field]
+    public readonly float $weightedAveragePrice;
 
     /** phpcs:disable **/
     public float $latitude {
@@ -53,13 +63,16 @@ class StationPrice
      * constructor. It is declared for manual construction and to satisfy
      * static analysis of the readonly properties above.
      */
-    public function __construct(Uuid $id, string $name, string $brand, Point $location, float $price)
+    public function __construct(Uuid $id, string $name, string $brand, Point $location, float $price, float $lowestPrice, float $highestPrice, float $weightedAveragePrice)
     {
         $this->id = $id;
         $this->name = $name;
         $this->brand = $brand;
         $this->location = $location;
         $this->price = $price;
+        $this->lowestPrice = $lowestPrice;
+        $this->highestPrice = $highestPrice;
+        $this->weightedAveragePrice = $weightedAveragePrice;
     }
 
     private static function toFloat(mixed $coordinate): float

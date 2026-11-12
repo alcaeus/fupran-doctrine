@@ -8,24 +8,21 @@ use App\DateRange;
 use App\Fuel;
 use App\PostCode\PostCodeShapes;
 use App\PostCode\PriceScale;
-use App\Repository\DailyAggregateRepository;
+use App\PostCode\RegionPrices;
 use App\Repository\DailyPriceRepository;
 use App\Repository\PostCodeDailyAggregateRepository;
+use App\Twig\Component\PostCode\AreaMap;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\UX\Map\Point;
 
 use function array_keys;
 use function array_map;
-
-use const FILTER_VALIDATE_REGEXP;
 
 class PostCodeMapController extends AbstractController
 {
@@ -64,6 +61,30 @@ class PostCodeMapController extends AbstractController
         return $this->json($this->createAreas($fuel, $day, $this->shapes->getPostCodesIn($south, $west, $north, $east), new PriceScale($lowest, $highest)));
     }
 
+    /** The prices of all regions and the scale that colours them, for when the map shows another day */
+    #[Route('/post-codes/regions/{fuel}', name: 'app_postcode_regions', methods: ['GET'])]
+    public function regions(
+        RegionPrices $regionPrices,
+        Fuel $fuel,
+        #[MapQueryParameter]
+        string $day,
+    ): JsonResponse {
+        ['prices' => $prices, 'scale' => $scale] = $regionPrices->get($fuel, self::parseDay($day));
+
+        $regions = [];
+        foreach ($prices as $region => $price) {
+            $regions[(string) $region] = ['price' => $price, 'color' => $scale->getColor($price)];
+        }
+
+        return $this->json([
+            'lowest' => $scale->lowest,
+            'highest' => $scale->highest,
+            'legend' => $scale->getLegend(),
+            // An object, as a list would be empty without regions
+            'regions' => (object) $regions,
+        ]);
+    }
+
     /** The post codes of a region, for when the map is zoomed to a region but not far enough to load post codes by viewport */
     #[Route('/post-codes/areas/{fuel}/{region}', name: 'app_postcode_region_areas', requirements: ['region' => '\d{2}'], methods: ['GET'])]
     public function regionAreas(
@@ -77,6 +98,30 @@ class PostCodeMapController extends AbstractController
         float $highest,
     ): JsonResponse {
         return $this->json($this->createAreas($fuel, self::parseDay($day), $this->shapes->getPostCodes($region), new PriceScale($lowest, $highest)));
+    }
+
+    /** The post codes in the part of the map that is in view, without prices, for maps that only allow selecting an area */
+    #[Route('/post-codes/shapes', name: 'app_postcode_shapes', methods: ['GET'])]
+    public function shapes(
+        #[MapQueryParameter]
+        float $south,
+        #[MapQueryParameter]
+        float $west,
+        #[MapQueryParameter]
+        float $north,
+        #[MapQueryParameter]
+        float $east,
+    ): JsonResponse {
+        self::assertValidBounds($south, $west, $north, $east);
+
+        return $this->json(self::createShapes($this->shapes->getPostCodesIn($south, $west, $north, $east)));
+    }
+
+    /** The post codes of a region without prices, like {@see shapes()} */
+    #[Route('/post-codes/shapes/{region}', name: 'app_postcode_region_shapes', requirements: ['region' => '\d{2}'], methods: ['GET'])]
+    public function regionShapes(string $region): JsonResponse
+    {
+        return $this->json(self::createShapes($this->shapes->getPostCodes($region)));
     }
 
     /** The stations of a post code, for when it is selected on a map that is not zoomed in far enough to load stations by viewport */
@@ -113,31 +158,6 @@ class PostCodeMapController extends AbstractController
         return $this->json($dailyPrices->getStationPricesInArea($fuel, $day, $south, $west, $north, $east));
     }
 
-    /** Renders the contents of the turbo frame with the prices next to the map: those of a post code or a region, or of Germany without one */
-    #[Route('/post-codes/card/{fuel}', name: 'app_postcode_card', methods: ['GET'])]
-    public function card(
-        DailyAggregateRepository $dailyAggregates,
-        Fuel $fuel,
-        #[MapQueryParameter]
-        string $day,
-        #[MapQueryParameter(filter: FILTER_VALIDATE_REGEXP, options: ['regexp' => '/^\d{2}$/'])]
-        ?string $region = null,
-        #[MapQueryParameter(filter: FILTER_VALIDATE_REGEXP, options: ['regexp' => '/^\d{5}$/'])]
-        ?string $postCode = null,
-    ): Response {
-        $day = self::parseDay($day);
-
-        // A post code is more specific than its region
-        $area = $postCode ?? $region;
-
-        $aggregate = null;
-        if ($area === null) {
-            $aggregate = $dailyAggregates->findCompoundAggregateForDay($day) ?? throw new NotFoundHttpException('There are no prices on this day.');
-        }
-
-        return $this->render('post_code/card.html.twig', ['fuel' => $fuel, 'day' => $day, 'area' => $area, 'aggregate' => $aggregate]);
-    }
-
     private static function assertValidBounds(float $south, float $west, float $north, float $east): void
     {
         if ($south < -90 || $north > 90 || $west < -180 || $east > 180 || $south > $north || $west > $east) {
@@ -169,16 +189,41 @@ class PostCodeMapController extends AbstractController
                 'postCode' => (string) $postCode,
                 'price' => $price,
                 'color' => $scale->getColor($price),
-                'polygons' => array_map(
-                    static fn (array $rings): array => array_map(
-                        static fn (array $ring): array => array_map(static fn (Point $point): array => [$point->toArray()['lat'], $point->toArray()['lng']], $ring),
-                        $rings,
-                    ),
-                    $shapes[$postCode],
-                ),
+                'polygons' => self::createPolygons($shapes[$postCode]),
             ];
         }
 
         return $areas;
+    }
+
+    /**
+     * @param array<int|string, list<list<list<Point>>>> $shapes Shapes by post code
+     *
+     * @return list<array{postCode: string, color: string, polygons: list<list<list<array{float, float}>>>}>
+     */
+    private static function createShapes(array $shapes): array
+    {
+        $areas = [];
+        foreach ($shapes as $postCode => $polygons) {
+            $areas[] = ['postCode' => (string) $postCode, 'color' => AreaMap::COLOR, 'polygons' => self::createPolygons($polygons)];
+        }
+
+        return $areas;
+    }
+
+    /**
+     * @param list<list<list<Point>>> $polygons
+     *
+     * @return list<list<list<array{float, float}>>>
+     */
+    private static function createPolygons(array $polygons): array
+    {
+        return array_map(
+            static fn (array $rings): array => array_map(
+                static fn (array $ring): array => array_map(static fn (Point $point): array => [$point->toArray()['lat'], $point->toArray()['lng']], $ring),
+                $rings,
+            ),
+            $polygons,
+        );
     }
 }

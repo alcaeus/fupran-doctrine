@@ -13,14 +13,6 @@ use Doctrine\ODM\MongoDB\DocumentManager;
 use MongoDB\BSON\UTCDateTime;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
-use Symfony\Component\DomCrawler\Crawler;
-
-use function array_column;
-use function array_map;
-use function array_unique;
-use function json_decode;
-
-use const JSON_THROW_ON_ERROR;
 
 class IndexControllerTest extends WebTestCase
 {
@@ -48,7 +40,7 @@ class IndexControllerTest extends WebTestCase
         $this->client->request('GET', '/');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorExists('turbo-frame#dashboard-charts form');
+        self::assertSelectorExists('turbo-frame#home form');
         self::assertSame($today->modify('-59 days')->format('Y-m-d'), $this->client->getCrawler()->filter('input[name=from]')->attr('value'));
         self::assertSame($today->format('Y-m-d'), $this->client->getCrawler()->filter('input[name=to]')->attr('value'));
     }
@@ -64,7 +56,7 @@ class IndexControllerTest extends WebTestCase
         self::assertSame($latest->modify('-59 days')->format('Y-m-d'), $this->client->getCrawler()->filter('input[name=from]')->attr('value'));
         self::assertSame($latest->format('Y-m-d'), $this->client->getCrawler()->filter('input[name=to]')->attr('value'));
         self::assertSame($latest->format('Y-m-d'), $this->client->getCrawler()->filter('input[name=to]')->attr('max'));
-        self::assertSelectorTextContains('turbo-frame#prices-day .nav-link.disabled', 'Prices for ' . $latest->format('d/m/Y'));
+        self::assertSelectorTextContains('turbo-frame#home .card-header', 'on ' . $latest->format('d/m/Y'));
     }
 
     public function testIndexAcceptsDateRange(): void
@@ -79,7 +71,7 @@ class IndexControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSame($from, $this->client->getCrawler()->filter('input[name=from]')->attr('value'));
         self::assertSame($to, $this->client->getCrawler()->filter('input[name=to]')->attr('value'));
-        self::assertSelectorNotExists('turbo-frame#dashboard-charts .alert');
+        self::assertSelectorNotExists('turbo-frame#home .alert');
     }
 
     public function testIndexShowsMessageForRangeWithoutData(): void
@@ -89,25 +81,21 @@ class IndexControllerTest extends WebTestCase
         $this->client->request('GET', '/', ['from' => '2020-01-01', 'to' => '2020-01-31']);
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('turbo-frame#dashboard-charts .alert', 'No price data');
+        self::assertSelectorTextContains('turbo-frame#home .alert', 'No price data');
         // The prices of the day are independent of the selected range
-        self::assertSelectorExists('turbo-frame#prices-day .card');
+        self::assertSelectorExists('turbo-frame#home .card dl');
     }
 
     public function testIndexShowsRequestedDay(): void
     {
         $today = new DateTimeImmutable('today', new DateTimeZone('UTC'));
         self::insertAggregates($today);
-        self::insertPostCodeAggregates($today);
         $requested = $today->modify('-5 days');
 
         $this->client->request('GET', '/', ['day' => $requested->format('Y-m-d')]);
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('turbo-frame#prices-day .nav-link.disabled', 'Prices for ' . $requested->format('d/m/Y'));
-        // Only the region of the post code with a price on the requested day (its price is 9.0, not 1.875)
-        self::assertEquals(['10xxx'], array_unique(self::getPolygonIds($this->client->getCrawler()->filter('#postCodeChartContent_diesel'))));
-        self::assertEquals([9.0], array_unique(array_column(self::getPolygons($this->client->getCrawler()->filter('#postCodeChartContent_diesel')), 'price')));
+        self::assertSelectorTextContains('turbo-frame#home .card-header', 'on ' . $requested->format('d/m/Y'));
         // The range is independent of the requested day
         self::assertSame($today->format('Y-m-d'), $this->client->getCrawler()->filter('input[name=to]')->attr('value'));
     }
@@ -130,59 +118,86 @@ class IndexControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(400);
     }
 
-    public function testIndexLinksHistoryChartsToTheDayFrame(): void
+    public function testIndexLinksHistoryChartToTheFrame(): void
     {
         self::insertAggregates(new DateTimeImmutable('today', new DateTimeZone('UTC')));
 
         $this->client->request('GET', '/');
 
         self::assertResponseIsSuccessful();
-        // The overview chart and one chart per fuel
-        $charts = $this->client->getCrawler()->filter('turbo-frame#dashboard-charts [data-controller="chart-day-link"]');
-        self::assertCount(4, $charts);
-        $charts->each(static function (Crawler $chart): void {
-            self::assertSame('/', $chart->attr('data-chart-day-link-url-value'));
-            self::assertSame('prices-day', $chart->attr('data-chart-day-link-frame-value'));
-        });
+        $charts = $this->client->getCrawler()->filter('turbo-frame#home [data-controller="chart-day-link"]');
+        self::assertCount(1, $charts);
+        self::assertSame('/', $charts->attr('data-chart-day-link-url-value'));
+        // Only what depends on the day is loaded, so that the chart is not drawn again
+        self::assertSame('home-day', $charts->attr('data-chart-day-link-frame-value'));
+        self::assertCount(0, $this->client->getCrawler()->filter('turbo-frame#home-day [data-controller="chart-day-link"]'));
+        self::assertSelectorExists('turbo-frame#home-day dl');
     }
 
-    public function testIndexShowsRegionMapOfEachFuelForLatestDay(): void
+    public function testIndexShowsGermanyWithoutArea(): void
+    {
+        self::insertAggregates(new DateTimeImmutable('today', new DateTimeZone('UTC')));
+
+        $this->client->request('GET', '/');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorNotExists('turbo-frame#home [data-area]');
+        self::assertCount(3, $this->client->getCrawler()->filter('turbo-frame#home dl'));
+        self::assertSelectorTextContains('turbo-frame#home dl', '1,500 €');
+        // A map that only selects, outside of the frame so that it keeps its state
+        self::assertCount(1, $this->client->getCrawler()->filter('[data-controller~="postcode-map"]'));
+        self::assertSelectorNotExists('turbo-frame#home [data-controller~="postcode-map"]');
+        self::assertSame('home', $this->client->getCrawler()->filter('[data-controller~="postcode-map"]')->attr('data-postcode-map-select-frame-value'));
+    }
+
+    public function testIndexShowsHistoryOfArea(): void
     {
         $today = new DateTimeImmutable('today', new DateTimeZone('UTC'));
         self::insertAggregates($today);
         self::insertPostCodeAggregates($today);
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/', ['area' => '10']);
 
         self::assertResponseIsSuccessful();
-        self::assertCount(3, $this->client->getCrawler()->filter('[data-controller~="postcode-map"]'));
-
-        // Diesel has prices in the regions 10 and 80, E5 only in 10
-        $diesel = $this->client->getCrawler()->filter('#postCodeChartContent_diesel');
-        $regions = array_unique(self::getPolygonIds($diesel));
-        self::assertEqualsCanonicalizing(['10xxx', '80xxx'], $regions);
-        self::assertStringContainsString('1.875', $diesel->html());
-
-        $e5 = $this->client->getCrawler()->filter('#postCodeChartContent_e5');
-        $regions = array_unique(self::getPolygonIds($e5));
-        self::assertEqualsCanonicalizing(['10xxx'], $regions);
-
-        // Each fuel has its own tab with the aggregate of the fuel
-        self::assertCount(3, $this->client->getCrawler()->filter('turbo-frame#prices-day .tab-pane'));
+        self::assertSelectorExists('turbo-frame#home [data-area="10"]');
+        self::assertSame('10', $this->client->getCrawler()->filter('[data-controller~="postcode-map"]')->attr('data-postcode-map-area-value'));
+        // (1 * 1.5 + 3 * 2.0) / 4 for diesel, the average of Germany is 1.5
+        self::assertSelectorTextContains('turbo-frame#home dl', '1,875 €');
+        // The chart shows the history of the area, with its prices of five days ago, which are not those of Germany
+        self::assertStringContainsString('"y":9', (string) $this->client->getCrawler()->filter('turbo-frame#home [data-controller~="chart-day-link"] canvas')->attr('data-symfony--ux-chartjs--chart-view-value'));
+        self::assertSelectorExists('turbo-frame#home a[href^="/?from="]');
     }
 
-    public function testIndexShowsEmptyMapsWithoutAggregates(): void
+    public function testIndexLinksFuelsToMapKeepingSelection(): void
+    {
+        $today = new DateTimeImmutable('today', new DateTimeZone('UTC'));
+        self::insertAggregates($today);
+        self::insertPostCodeAggregates($today);
+
+        $this->client->request('GET', '/', ['area' => '10', 'from' => '2026-01-01', 'to' => $today->format('Y-m-d')]);
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('turbo-frame#home a[href="/map/diesel?area=10&from=2026-01-01&to=' . $today->format('Y-m-d') . '"][data-turbo-frame="_top"]');
+    }
+
+    public function testIndexRangeFormKeepsArea(): void
+    {
+        $today = new DateTimeImmutable('today', new DateTimeZone('UTC'));
+        self::insertAggregates($today);
+
+        $this->client->request('GET', '/', ['area' => '10115']);
+
+        self::assertResponseIsSuccessful();
+        self::assertSame('10115', $this->client->getCrawler()->filter('turbo-frame#home form input[name=area]')->attr('value'));
+    }
+
+    public function testIndexRejectsInvalidArea(): void
     {
         self::insertAggregates(new DateTimeImmutable('today', new DateTimeZone('UTC')));
 
-        $this->client->request('GET', '/');
+        $this->client->request('GET', '/', ['area' => '101']);
 
-        self::assertResponseIsSuccessful();
-        $maps = $this->client->getCrawler()->filter('[data-controller~="postcode-map"]');
-        self::assertCount(3, $maps);
-        $maps->each(static function (Crawler $map): void {
-            self::assertSame([], self::getPolygonIds($map));
-        });
+        self::assertResponseStatusCodeSame(404);
     }
 
     public function testIndexRejectsInvalidRange(): void
@@ -190,22 +205,6 @@ class IndexControllerTest extends WebTestCase
         $this->client->request('GET', '/', ['from' => '2026-02-01', 'to' => '2026-01-01']);
 
         self::assertResponseStatusCodeSame(400);
-    }
-
-    /** @return list<array{region: string, price: float}> */
-    private static function getPolygons(Crawler $crawler): array
-    {
-        $map = $crawler->filter('[data-controller~="postcode-map"]');
-        /** @var list<array{extra: array{region: string, price: float}}> $polygons */
-        $polygons = json_decode((string) $map->attr('data-symfony--ux-leaflet-map--map-polygons-value'), true, flags: JSON_THROW_ON_ERROR);
-
-        return array_map(static fn (array $polygon): array => $polygon['extra'], $polygons);
-    }
-
-    /** @return list<string> */
-    private static function getPolygonIds(Crawler $crawler): array
-    {
-        return array_map(static fn (array $polygon): string => $polygon['region'] . 'xxx', self::getPolygons($crawler));
     }
 
     private static function insertAggregates(DateTimeImmutable $latest): void
@@ -226,19 +225,23 @@ class IndexControllerTest extends WebTestCase
         }
     }
 
-    /** Diesel prices of the latest day and five days before, and a single E5 price of the latest day */
+    /** Prices of all fuels in the regions 10 and 80 on the latest day, and in the region 10 five days before, when they were 9.0 */
     private static function insertPostCodeAggregates(DateTimeImmutable $latest): void
     {
-        foreach ([[0, Fuel::Diesel, '10115', 1.5, 1], [0, Fuel::Diesel, '10117', 2.0, 3], [0, Fuel::Diesel, '80331', 1.9, 2], [5, Fuel::Diesel, '10115', 9.0, 1], [0, Fuel::E5, '10115', 1.6, 1]] as [$daysAgo, $fuel, $postCode, $price, $stationCount]) {
-            self::getDocumentManager()
-                ->getDocumentCollection(PostCodeDailyAggregate::class)
-                ->insertOne([
-                    'day' => new UTCDateTime($latest->modify('-' . $daysAgo . ' days')),
-                    'fuel' => $fuel->value,
-                    'postCode' => $postCode,
-                    'weightedAveragePrice' => $price,
-                    'stationCount' => $stationCount,
-                ]);
+        foreach (Fuel::cases() as $fuel) {
+            foreach ([[0, '10115', 1.5, 1], [0, '10117', 2.0, 3], [0, '80331', 1.9, 2], [5, '10115', 9.0, 1]] as [$daysAgo, $postCode, $price, $stationCount]) {
+                self::getDocumentManager()
+                    ->getDocumentCollection(PostCodeDailyAggregate::class)
+                    ->insertOne([
+                        'day' => new UTCDateTime($latest->modify('-' . $daysAgo . ' days')),
+                        'fuel' => $fuel->value,
+                        'postCode' => $postCode,
+                        'lowestPrice' => $price - 0.1,
+                        'highestPrice' => $price + 0.1,
+                        'weightedAveragePrice' => $price,
+                        'stationCount' => $stationCount,
+                    ]);
+            }
         }
     }
 

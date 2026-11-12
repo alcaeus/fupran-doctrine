@@ -1,4 +1,8 @@
 <form method="get" action="{{ path(this.routeName, this.routeParams) }}" data-turbo-frame="{{ this.frame }}" data-turbo-action="advance" class="row g-2 align-items-end mb-3">
+    {# A form replaces the query of its action, so the rest of the selection is submitted with it #}
+    {% for name, value in this.queryParams %}
+        <input type="hidden" name="{{ name }}" value="{{ value }}">
+    {% endfor %}
     <div class="form-field col-auto">
         <div class="input-group input-group-sm">
             <label for="{{ this.frame }}_from" class="visually-hidden">From</label>
@@ -13,7 +17,7 @@
     <div class="col-auto">
         <div class="btn-group btn-group-sm" role="group" aria-label="Presets">
             {% for label, preset in this.presets %}
-                <a class="btn btn-outline-secondary" href="{{ path(this.routeName, this.routeParams|merge(preset)) }}" data-turbo-frame="{{ this.frame }}" data-turbo-action="advance">{{ label }}</a>
+                <a class="btn btn-outline-secondary" href="{{ path(this.routeName, this.routeParams|merge(this.queryParams)|merge(preset)) }}" data-turbo-frame="{{ this.frame }}" data-turbo-action="advance">{{ label }}</a>
             {% endfor %}
         </div>
     </div>
