@@ -14,6 +14,11 @@ function areaStyle(fillColor, selected = false) {
     return { color: selected ? '#000' : '#555', weight: selected ? 3 : 1, fillColor, fillOpacity: 0.4 }
 }
 
+// Maps that only select an area have no prices
+function label(area, price) {
+    return price === undefined ? area : `${area}: ${priceFormat.format(price)}`
+}
+
 // Enhances a Symfony UX map that draws the regions of Germany as polygons:
 //
 // - Colours the regions with the colour chosen on the server.
@@ -22,7 +27,8 @@ function areaStyle(fillColor, selected = false) {
 //   map follows. The area is part of the URL, so the map starts with the area that the page was requested with.
 // - From a zoom level on, replaces the regions with the post codes in view. Drawing all 8,000 post code areas at once
 //   is far too slow, so they are loaded from the server for the visible part of the map only, whenever it moves.
-//   Below that zoom level, a selected region shows its own post codes.
+//   Below that zoom level, a selected region shows its own post codes. Without prices (and a scale), the areas are
+//   only a way to select one, and no stations are shown.
 // - From a higher zoom level on, also shows markers for the stations in view, with their price and a link to the
 //   station. Below it, only a selected post code shows its stations.
 export default class extends Controller {
@@ -69,7 +75,7 @@ export default class extends Controller {
     decorate({ detail: { polygon, definition } }) {
         const { region, price } = definition.extra
 
-        polygon.bindTooltip(`${region}xxx: ${priceFormat.format(price)}`, { sticky: true })
+        polygon.bindTooltip(label(`${region}xxx`, price), { sticky: true })
         polygon.on('click', () => this.#selectRegion(region))
 
         if (!this.regionLayers.has(region)) {
@@ -185,6 +191,10 @@ export default class extends Controller {
     }
 
     #updateStations() {
+        if (!this.hasStationsUrlValue) {
+            return
+        }
+
         if (this.map.getZoom() >= this.stationZoomValue) {
             this.#loadStations(this.areaStationsUrlValue, this.#boundsQuery(), 'area')
         } else if (this.selectedPostCode !== null) {
@@ -336,7 +346,7 @@ export default class extends Controller {
         this.shownRegion = region
         for (const area of areas) {
             const layer = L.polygon(area.polygons, areaStyle(area.color, area.postCode === this.selectedPostCode))
-                .bindTooltip(`${area.postCode}: ${priceFormat.format(area.price)}`, { sticky: true })
+                .bindTooltip(label(area.postCode, area.price), { sticky: true })
                 .on('click', () => this.#selectPostCode(area.postCode))
                 .addTo(this.postCodes)
             this.postCodeLayers.set(area.postCode, layer)

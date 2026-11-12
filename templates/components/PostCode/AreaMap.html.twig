@@ -1,0 +1,17 @@
+<div>
+    {{ ux_map(this.map, {
+        style: 'height: 500px',
+        'data-controller': 'postcode-map',
+        'data-action': 'ux:map:polygon:before-create->postcode-map#style ux:map:polygon:after-create->postcode-map#decorate ux:map:connect->postcode-map#connectMap',
+        'data-postcode-map-url-value': path('app_postcode_shapes'),
+        'data-postcode-map-region-url-value': path('app_postcode_region_shapes', {region: '00'}),
+        'data-postcode-map-select-url-value': path('app_homepage'),
+        'data-postcode-map-select-frame-value': 'home',
+        'data-postcode-map-area-value': selectedArea ?? '',
+        'data-postcode-map-zoom-value': constant('App\\Twig\\Component\\PostCode\\PriceMap::POST_CODE_ZOOM'),
+    }) }}
+
+    <div class="text-muted small mt-2">
+        Click a region to show its prices, zoom in to see post codes. Post code areas &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL), via <a href="https://github.com/yetzt/postleitzahlen">yetzt/postleitzahlen</a>
+    </div>
+</div>

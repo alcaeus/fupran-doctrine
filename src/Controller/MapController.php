@@ -19,8 +19,6 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 
-use function array_values;
-
 use const FILTER_VALIDATE_REGEXP;
 
 /** The prices of a single fuel on a map, with the history of the selected area next to it */
@@ -65,7 +63,7 @@ class MapController extends AbstractController
             'day' => $selectedDay,
             'latestDay' => $latestDay,
             'dailyAggregate' => $areaAggregates->findForDay($selection->area, $selectedDay),
-            'recentDailyAggregates' => array_values($areaAggregates->getHistory($selection->area, $range)),
+            'recentDailyAggregates' => $areaAggregates->getHistory($selection->area, $range),
         ]);
     }
 }

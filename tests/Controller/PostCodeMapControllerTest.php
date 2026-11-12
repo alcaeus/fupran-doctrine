@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Tests\Controller;
 
-use App\Document\DailyAggregate;
 use App\Document\DailyPrice;
 use App\Document\PostCodeDailyAggregate;
 use App\Fuel;

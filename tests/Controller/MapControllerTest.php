@@ -133,7 +133,10 @@ class MapControllerTest extends WebTestCase
         self::assertResponseStatusCodeSame(404);
     }
 
-    /** @param class-string $class */
+    /**
+     * @param class-string         $class
+     * @param array<string, mixed> $data
+     */
     private static function insert(string $class, int $daysAgo, Fuel $fuel, array $data): void
     {
         $today = new DateTimeImmutable('today', new DateTimeZone('UTC'));

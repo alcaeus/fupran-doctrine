@@ -8,24 +8,20 @@ use App\DateRange;
 use App\Fuel;
 use App\PostCode\PostCodeShapes;
 use App\PostCode\PriceScale;
-use App\Repository\DailyAggregateRepository;
 use App\Repository\DailyPriceRepository;
 use App\Repository\PostCodeDailyAggregateRepository;
+use App\Twig\Component\PostCode\AreaMap;
 use DateTimeImmutable;
 use InvalidArgumentException;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
-use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Attribute\MapQueryParameter;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
-use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\UX\Map\Point;
 
 use function array_keys;
 use function array_map;
-
-use const FILTER_VALIDATE_REGEXP;
 
 class PostCodeMapController extends AbstractController
 {
@@ -77,6 +73,30 @@ class PostCodeMapController extends AbstractController
         float $highest,
     ): JsonResponse {
         return $this->json($this->createAreas($fuel, self::parseDay($day), $this->shapes->getPostCodes($region), new PriceScale($lowest, $highest)));
+    }
+
+    /** The post codes in the part of the map that is in view, without prices, for maps that only allow selecting an area */
+    #[Route('/post-codes/shapes', name: 'app_postcode_shapes', methods: ['GET'])]
+    public function shapes(
+        #[MapQueryParameter]
+        float $south,
+        #[MapQueryParameter]
+        float $west,
+        #[MapQueryParameter]
+        float $north,
+        #[MapQueryParameter]
+        float $east,
+    ): JsonResponse {
+        self::assertValidBounds($south, $west, $north, $east);
+
+        return $this->json(self::createShapes($this->shapes->getPostCodesIn($south, $west, $north, $east)));
+    }
+
+    /** The post codes of a region without prices, like {@see shapes()} */
+    #[Route('/post-codes/shapes/{region}', name: 'app_postcode_region_shapes', requirements: ['region' => '\d{2}'], methods: ['GET'])]
+    public function regionShapes(string $region): JsonResponse
+    {
+        return $this->json(self::createShapes($this->shapes->getPostCodes($region)));
     }
 
     /** The stations of a post code, for when it is selected on a map that is not zoomed in far enough to load stations by viewport */
@@ -144,16 +164,41 @@ class PostCodeMapController extends AbstractController
                 'postCode' => (string) $postCode,
                 'price' => $price,
                 'color' => $scale->getColor($price),
-                'polygons' => array_map(
-                    static fn (array $rings): array => array_map(
-                        static fn (array $ring): array => array_map(static fn (Point $point): array => [$point->toArray()['lat'], $point->toArray()['lng']], $ring),
-                        $rings,
-                    ),
-                    $shapes[$postCode],
-                ),
+                'polygons' => self::createPolygons($shapes[$postCode]),
             ];
         }
 
         return $areas;
+    }
+
+    /**
+     * @param array<int|string, list<list<list<Point>>>> $shapes Shapes by post code
+     *
+     * @return list<array{postCode: string, color: string, polygons: list<list<list<array{float, float}>>>}>
+     */
+    private static function createShapes(array $shapes): array
+    {
+        $areas = [];
+        foreach ($shapes as $postCode => $polygons) {
+            $areas[] = ['postCode' => (string) $postCode, 'color' => AreaMap::COLOR, 'polygons' => self::createPolygons($polygons)];
+        }
+
+        return $areas;
+    }
+
+    /**
+     * @param list<list<list<Point>>> $polygons
+     *
+     * @return list<list<list<array{float, float}>>>
+     */
+    private static function createPolygons(array $polygons): array
+    {
+        return array_map(
+            static fn (array $rings): array => array_map(
+                static fn (array $ring): array => array_map(static fn (Point $point): array => [$point->toArray()['lat'], $point->toArray()['lng']], $ring),
+                $rings,
+            ),
+            $polygons,
+        );
     }
 }

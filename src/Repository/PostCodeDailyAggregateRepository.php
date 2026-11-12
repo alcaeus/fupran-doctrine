@@ -21,7 +21,6 @@ use MongoDB\Builder\Query;
 use MongoDB\Builder\Stage;
 
 use function array_map;
-use function array_values;
 use function MongoDB\object;
 use function preg_quote;
 use function round;
@@ -186,7 +185,7 @@ class PostCodeDailyAggregateRepository extends AbstractRepository
 
         usort($compounds, static fn (CompoundDailyAggregate $a, CompoundDailyAggregate $b): int => $b->day <=> $a->day);
 
-        return array_values($compounds);
+        return $compounds;
     }
 
     /**

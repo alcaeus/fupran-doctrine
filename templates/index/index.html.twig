@@ -4,57 +4,54 @@
 
 {% block body %}
     <div class="row">
-        <div class="col">
-            <turbo-frame id="prices-day">
-            <div class="card mb-4">
-                <div class="card-header">
-                    <ul class="nav nav-tabs card-header-tabs">
-                        <li class="nav-item">
-                            <a class="nav-link disabled" aria-disabled="true">Prices for {{ dailyAggregate.day|date('d/m/Y') }}</a>
-                        </li>
-                        {% for fuel in fuels %}
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link {{ loop.index0 == 0 ? 'active' : '' }}" id="postCodeChartNav_{{ fuel.value }}" data-bs-toggle="tab" data-bs-target="#postCodeChartContent_{{ fuel.value }}" type="button" role="tab" aria-controls="postCodeChartContent_{{ fuel.value }}" aria-selected="true">{{ fuel.displayValue }}</button>
-                            </li>
-                        {% endfor %}
-                    </ul>
-                </div>
+        <div class="col-lg-5 mb-4">
+            <div class="card">
+                <div class="card-header">Select a region or post code</div>
                 <div class="card-body">
-                    <div class="tab-content" id="postCodeChartContent">
-                        {% for fuel in fuels %}
-                            <div
-                                class="tab-pane fade {{ loop.index0 == 0 ? 'show active' : '' }}"
-                                id="postCodeChartContent_{{ fuel.value }}"
-                                role="tabpanel"
-                                aria-labelledby="postCodeChartNav_{{ fuel.value }}"
-                                tabindex="0"
-                            >
-                                <div class="row">
-                                    <div class="col-2">
-                                        <turbo-frame id="aggregate-card-{{ fuel.value }}">
-                                            <twig:DailyAggregateCard aggregate="{{ dailyAggregate }}" fuel="{{ fuel }}" />
-                                        </turbo-frame>
-                                    </div>
-
-                                    <div class="col-10">
-                                        <twig:PostCode:PriceMap fuel="{{ fuel }}" day="{{ dailyAggregate.day }}" />
-                                    </div>
-                                </div>
-                            </div>
-                        {% endfor %}
-                    </div>
+                    <twig:PostCode:AreaMap selectedArea="{{ selection.area }}" />
                 </div>
             </div>
-            </turbo-frame>
         </div>
 
-        <div class="col">
-            <turbo-frame id="dashboard-charts">
-                <twig:DateRangePicker range="{{ range }}" frame="dashboard-charts" routeName="app_homepage" today="{{ latestDay }}" />
-                <twig:PriceOverviewCard recentDailyAggregates="{{ recentDailyAggregates }}" />
-                {% if recentDailyAggregates is empty %}
-                    <div class="alert alert-info mt-3" role="alert">No price data available for the selected range.</div>
-                {% endif %}
+        <div class="col-lg-7">
+            <turbo-frame id="home">
+                {% if selection.area is not null %}<div data-area="{{ selection.area }}" hidden></div>{% endif %}
+                {{ include('selection/_area.html.twig', {route: 'app_homepage', params: {}}) }}
+
+                <div class="row mb-4">
+                    {% for fuel in fuels %}
+                        <div class="col-md-4">
+                            <div class="card h-100">
+                                <div class="card-header">{{ fuel.displayValue }} on {{ day|date('d/m/Y') }}</div>
+                                <div class="card-body">
+                                    {% if dailyAggregate is null %}
+                                        <p class="text-muted mb-0">No prices in this area.</p>
+                                    {% else %}
+                                        <twig:DailyAggregateCard aggregate="{{ dailyAggregate }}" fuel="{{ fuel }}" />
+                                    {% endif %}
+                                </div>
+                                <div class="card-footer">
+                                    <a href="{{ path('app_map', {fuel: fuel.value}|merge(selection.toQuery)) }}" data-turbo-frame="_top">Show on map</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+
+                <twig:DateRangePicker range="{{ selection.range }}" frame="home" routeName="app_homepage" :queryParams="selection.toQuery({from: null, to: null})" today="{{ latestDay }}" />
+                <div class="card">
+                    <div class="card-body">
+                        <twig:Chart:DailyAggregate:WeightedAverageHistory
+                            aggregates="{{ recentDailyAggregates }}"
+                            data-controller="chart-day-link"
+                            data-chart-day-link-url-value="{{ path('app_homepage') }}"
+                            data-chart-day-link-frame-value="home"
+                        />
+                        {% if recentDailyAggregates is empty %}
+                            <div class="alert alert-info mt-3 mb-0" role="alert">No price data available for the selected range.</div>
+                        {% endif %}
+                    </div>
+                </div>
             </turbo-frame>
         </div>
     </div>
