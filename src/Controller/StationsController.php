@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\DateRange;
-use App\Doctrine\AggregationPaginator;
 use App\Doctrine\QueryPaginator;
 use App\Document\Station;
 use App\Http\MapDateRange;
@@ -91,25 +90,6 @@ class StationsController extends AbstractController
 
         return $this->redirectToRoute('app_station_show', ['id' => $station->id]);
 //        return $this->json(['favorite' => $station->favorite]);
-    }
-
-    #[Route('/stations/search', name: 'app_stations_search', requirements: ['page' => '\d+'], methods: ['GET'])]
-    public function search(
-        StationRepository $stations,
-        #[MapQueryParameter]
-        string $query,
-        #[MapQueryParameter]
-        int $page = 1,
-    ): Response {
-        $paginator = new AggregationPaginator($stations->createSearchPipeline($query), self::requirePositivePage($page));
-
-        return $this->render(
-            'stations/search.html.twig',
-            [
-                'stations' => $paginator,
-                'query' => $query,
-            ],
-        );
     }
 
     #[Route('/stations/postCode/{postCode}', name: 'app_stations_postCode', requirements: ['postCode' => '\d{5}'], methods: ['GET'])]
