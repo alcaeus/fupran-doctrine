@@ -47,7 +47,7 @@ class MapControllerTest extends WebTestCase
         self::assertCount(1, $this->client->getCrawler()->filter('[data-controller~="postcode-map"]'));
         self::assertSame('', (string) $this->client->getCrawler()->filter('[data-controller~="postcode-map"]')->attr('data-postcode-map-area-value'));
         self::assertSelectorNotExists('turbo-frame#map-details [data-area]');
-        self::assertSelectorTextContains('turbo-frame#map-details dl', '1.500 €');
+        self::assertSelectorTextContains('turbo-frame#map-details dl', '1,500 €');
         self::assertSelectorTextContains('.nav-link.active', 'Diesel');
     }
 
@@ -67,7 +67,7 @@ class MapControllerTest extends WebTestCase
         self::assertSelectorExists('turbo-frame#map-details [data-area="10115"]');
         self::assertSame('10115', $this->client->getCrawler()->filter('[data-controller~="postcode-map"]')->attr('data-postcode-map-area-value'));
         // The prices of the post code, not those of Germany
-        self::assertSelectorTextContains('turbo-frame#map-details dl', '1.800 €');
+        self::assertSelectorTextContains('turbo-frame#map-details dl', '1,800 €');
         // Leads back to its region and to Germany, keeping the range
         self::assertSelectorExists('turbo-frame#map-details a[href^="/map/diesel?area=10&from="]');
         self::assertSelectorExists('turbo-frame#map-details a[href^="/map/diesel?from="]');
@@ -78,7 +78,7 @@ class MapControllerTest extends WebTestCase
         $this->client->request('GET', '/map/diesel', ['day' => $this->today->modify('-5 days')->format('Y-m-d')]);
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('turbo-frame#map-details dl', '1.550 €');
+        self::assertSelectorTextContains('turbo-frame#map-details dl', '1,550 €');
     }
 
     public function testChartOnlyLoadsWhatDependsOnTheDay(): void

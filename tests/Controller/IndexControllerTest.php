@@ -143,7 +143,7 @@ class IndexControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorNotExists('turbo-frame#home [data-area]');
         self::assertCount(3, $this->client->getCrawler()->filter('turbo-frame#home dl'));
-        self::assertSelectorTextContains('turbo-frame#home dl', '1.500 €');
+        self::assertSelectorTextContains('turbo-frame#home dl', '1,500 €');
         // A map that only selects, outside of the frame so that it keeps its state
         self::assertCount(1, $this->client->getCrawler()->filter('[data-controller~="postcode-map"]'));
         self::assertSelectorNotExists('turbo-frame#home [data-controller~="postcode-map"]');
@@ -162,7 +162,7 @@ class IndexControllerTest extends WebTestCase
         self::assertSelectorExists('turbo-frame#home [data-area="10"]');
         self::assertSame('10', $this->client->getCrawler()->filter('[data-controller~="postcode-map"]')->attr('data-postcode-map-area-value'));
         // (1 * 1.5 + 3 * 2.0) / 4 for diesel, the average of Germany is 1.5
-        self::assertSelectorTextContains('turbo-frame#home dl', '1.875 €');
+        self::assertSelectorTextContains('turbo-frame#home dl', '1,875 €');
         // The chart shows the history of the area, with its prices of five days ago, which are not those of Germany
         self::assertStringContainsString('"y":9', (string) $this->client->getCrawler()->filter('turbo-frame#home [data-controller~="chart-day-link"] canvas')->attr('data-symfony--ux-chartjs--chart-view-value'));
         self::assertSelectorExists('turbo-frame#home a[href^="/?from="]');

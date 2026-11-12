@@ -5,7 +5,8 @@ import * as L from 'leaflet'
 const priceFormat = new Intl.NumberFormat('de-DE', {
     style: 'currency',
     currency: 'EUR',
-    minimumFractionDigits: 2,
+    // Fuel prices have three decimals, like those that the server renders
+    minimumFractionDigits: 3,
     maximumFractionDigits: 3,
 })
 
