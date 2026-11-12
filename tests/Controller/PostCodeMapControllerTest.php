@@ -101,6 +101,9 @@ class PostCodeMapControllerTest extends WebTestCase
                 'name' => 'Station 10115',
                 'brand' => 'Brand',
                 'price' => 1.5,
+                'lowestPrice' => 1.4,
+                'highestPrice' => 1.6,
+                'weightedAveragePrice' => 1.55,
                 'latitude' => 52.5,
                 'longitude' => 13.4,
             ],
@@ -124,6 +127,9 @@ class PostCodeMapControllerTest extends WebTestCase
         $prices = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertSame(['11111111-1111-1111-1111-111111111111'], array_column($prices, 'id'));
         self::assertSame([1.5], array_column($prices, 'price'));
+        self::assertEqualsWithDelta([1.4], array_column($prices, 'lowestPrice'), 0.0001);
+        self::assertEqualsWithDelta([1.6], array_column($prices, 'highestPrice'), 0.0001);
+        self::assertEqualsWithDelta([1.55], array_column($prices, 'weightedAveragePrice'), 0.0001);
     }
 
     public function testRejectsInvalidBoundsForStationsInView(): void
@@ -152,10 +158,10 @@ class PostCodeMapControllerTest extends WebTestCase
                 ],
                 'openingPrice' => $price,
                 'closingPrice' => $price,
-                'lowestPrice' => ['_id' => new ObjectId(), 'price' => $price],
-                'highestPrice' => ['_id' => new ObjectId(), 'price' => $price],
+                'lowestPrice' => ['_id' => new ObjectId(), 'price' => $price - 0.1],
+                'highestPrice' => ['_id' => new ObjectId(), 'price' => $price + 0.1],
                 'prices' => [['_id' => new ObjectId(), 'date' => $day, 'price' => $price]],
-                'weightedAveragePrice' => $price,
+                'weightedAveragePrice' => $price + 0.05,
             ]);
         }
     }

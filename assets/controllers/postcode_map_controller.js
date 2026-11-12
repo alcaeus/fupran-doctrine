@@ -29,7 +29,7 @@ function label(area, price) {
 //   is far too slow, so they are loaded from the server for the visible part of the map only, whenever it moves.
 //   Below that zoom level, a selected region shows its own post codes. Without prices (and a scale), the areas are
 //   only a way to select one, and no stations are shown.
-// - From a higher zoom level on, also shows markers for the stations in view, with their price and a link to the
+// - From a higher zoom level on, also shows markers for the stations in view, with their prices of the day and a link to the
 //   station. Below it, only a selected post code shows its stations.
 export default class extends Controller {
     static values = {
@@ -250,15 +250,28 @@ export default class extends Controller {
         this.stations.addTo(this.map)
     }
 
-    #createStationMarker({ id, name, brand, latitude, longitude, price }) {
+    #createStationMarker({ id, name, brand, latitude, longitude, price, lowestPrice, highestPrice, weightedAveragePrice }) {
         // Built from DOM nodes as station names are not trusted to be free of markup
         const popup = document.createElement('div')
         const title = document.createElement('strong')
         title.textContent = brand ? `${name} (${brand})` : name
+
+        const prices = document.createElement('dl')
+        prices.className = 'mb-1'
+        for (const [label, value] of [['Average', weightedAveragePrice], ['Lowest', lowestPrice], ['Highest', highestPrice], ['Last', price]]) {
+            const term = document.createElement('dt')
+            term.className = 'float-start me-2'
+            term.textContent = label
+            const description = document.createElement('dd')
+            description.className = 'mb-0'
+            description.textContent = priceFormat.format(value)
+            prices.append(term, description)
+        }
+
         const link = document.createElement('a')
         link.href = this.stationUrlValue.replace(/0{8}-0{4}-0{4}-0{4}-0{12}$/, id)
         link.textContent = 'Station details'
-        popup.append(title, document.createElement('br'), `${priceFormat.format(price)} `, document.createElement('br'), link)
+        popup.append(title, prices, link)
 
         return L.marker([latitude, longitude], { title: name }).bindPopup(popup)
     }
