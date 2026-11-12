@@ -21,10 +21,15 @@ function areaStyle(fillColor, selected = false) {
 // - From a zoom level on, replaces the regions with the post codes in view. Drawing all 8,000 post code areas at once
 //   is far too slow, so they are loaded from the server for the visible part of the map only, whenever it moves.
 //   Below that zoom level, a selected region shows its own post codes.
+// - From a higher zoom level on, also shows markers for the stations in view, with their price and a link to the
+//   station. Below it, only a selected post code shows its stations.
 export default class extends Controller {
     static values = {
         url: String,
         regionUrl: String,
+        stationsUrl: String,
+        areaStationsUrl: String,
+        stationUrl: String,
         cardUrl: String,
         cardFrame: String,
         day: String,
@@ -32,12 +37,18 @@ export default class extends Controller {
         lowest: Number,
         highest: Number,
         zoom: { type: Number, default: 8 },
+        stationZoom: { type: Number, default: 11 },
     }
 
     map = null
     regions = []
     regionLayers = new Map()
     postCodes = L.layerGroup()
+    stations = L.layerGroup()
+    stationsRequest = null
+    stationMarkers = new Map()
+    // What the station layer shows, to not load the stations of a post code again when the map moves
+    shownStations = null
     request = null
     fitted = false
     selectedRegion = null
@@ -99,6 +110,7 @@ export default class extends Controller {
     disconnect() {
         this.observer?.disconnect()
         this.request?.abort()
+        this.stationsRequest?.abort()
         this.frame?.removeEventListener('turbo:frame-load', this.onFrameLoad)
     }
 
@@ -154,6 +166,75 @@ export default class extends Controller {
         this.#update()
     }
 
+    #updateStations() {
+        if (this.map.getZoom() >= this.stationZoomValue) {
+            this.#loadStations(this.areaStationsUrlValue, this.#boundsQuery(), 'area')
+        } else if (this.selectedPostCode !== null) {
+            if (this.shownStations !== this.selectedPostCode) {
+                this.#loadStations(this.stationsUrlValue.replace(/00000$/, this.selectedPostCode), { day: this.dayValue }, this.selectedPostCode)
+            }
+        } else {
+            this.#clearStations()
+        }
+    }
+
+    #clearStations() {
+        this.stationsRequest?.abort()
+        this.shownStations = null
+        this.stations.clearLayers()
+        this.stationMarkers.clear()
+    }
+
+    async #loadStations(url, query, shown) {
+        this.stationsRequest?.abort()
+        this.stationsRequest = new AbortController()
+
+        let prices
+        try {
+            const response = await fetch(`${url}?${new URLSearchParams(query)}`, { signal: this.stationsRequest.signal })
+            if (!response.ok) {
+                throw new Error(`Failed to load stations: ${response.status}`)
+            }
+            prices = await response.json()
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error(error)
+            }
+
+            return
+        }
+
+        // Markers of stations that are still in view stay, so they do not flicker when the map moves
+        const ids = new Set(prices.map(({ id }) => id))
+        for (const [id, marker] of this.stationMarkers) {
+            if (!ids.has(id)) {
+                marker.remove()
+                this.stationMarkers.delete(id)
+            }
+        }
+
+        this.shownStations = shown
+        for (const station of prices) {
+            if (!this.stationMarkers.has(station.id)) {
+                this.stationMarkers.set(station.id, this.#createStationMarker(station).addTo(this.stations))
+            }
+        }
+        this.stations.addTo(this.map)
+    }
+
+    #createStationMarker({ id, name, brand, latitude, longitude, price }) {
+        // Built from DOM nodes as station names are not trusted to be free of markup
+        const popup = document.createElement('div')
+        const title = document.createElement('strong')
+        title.textContent = brand ? `${name} (${brand})` : name
+        const link = document.createElement('a')
+        link.href = this.stationUrlValue.replace(/0{8}-0{4}-0{4}-0{4}-0{12}$/, id)
+        link.textContent = 'Station details'
+        popup.append(title, document.createElement('br'), `${priceFormat.format(price)} `, document.createElement('br'), link)
+
+        return L.marker([latitude, longitude], { title: name }).bindPopup(popup)
+    }
+
     #highlightSelectedPostCode() {
         for (const [postCode, layer] of this.postCodeLayers) {
             layer.setStyle(areaStyle(layer.options.fillColor, postCode === this.selectedPostCode))
@@ -164,6 +245,8 @@ export default class extends Controller {
     }
 
     #update() {
+        this.#updateStations()
+
         if (this.map.getZoom() >= this.zoomValue) {
             this.#loadPostCodes(this.urlValue, this.#viewportQuery(), null)
         } else if (this.selectedRegion !== null) {
@@ -194,10 +277,14 @@ export default class extends Controller {
     }
 
     #viewportQuery() {
+        return { ...this.#scaleQuery(), ...this.#boundsQuery() }
+    }
+
+    #boundsQuery() {
         const bounds = this.map.getBounds()
 
         return {
-            ...this.#scaleQuery(),
+            day: this.dayValue,
             south: bounds.getSouth(),
             west: bounds.getWest(),
             north: bounds.getNorth(),

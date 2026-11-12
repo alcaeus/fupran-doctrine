@@ -7,7 +7,6 @@ namespace App\Type;
 use Doctrine\ODM\MongoDB\Types\Type;
 use Exception;
 use GeoJson\Geometry\Point;
-use stdClass;
 
 use function array_key_exists;
 use function array_keys;
@@ -15,14 +14,16 @@ use function is_array;
 
 class PointType extends Type
 {
-    public function convertToDatabaseValue(mixed $value): ?stdClass
+    public function convertToDatabaseValue(mixed $value): mixed
     {
         if ($value === null) {
             return null;
         }
 
+        // ODM converts every part of a query operand with the type of the field, e.g. the type and each coordinate of
+        // the geometry in {$geoWithin: {$geometry: ...}}. Those are not points, and already in their database form.
         if (! $value instanceof Point) {
-            throw new Exception('Invalid data received for Point');
+            return $value;
         }
 
         return (object) [

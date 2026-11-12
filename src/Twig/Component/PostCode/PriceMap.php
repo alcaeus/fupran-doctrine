@@ -33,6 +33,13 @@ class PriceMap
     /** Zoom level (Germany fits at about 6) from which post codes are shown instead of regions */
     public const int POST_CODE_ZOOM = 8;
 
+    /**
+     * Zoom level from which the stations in view are shown. At 8, a map shows about a tenth of Germany, which has
+     * some 1,500 stations. Every level halves the width and height, so at 11 the view is some 50 km wide and holds a
+     * few hundred stations at most, which a map can draw without trouble.
+     */
+    public const int STATION_ZOOM = 11;
+
     public Fuel $fuel;
 
     public DateTimeImmutable $day;

@@ -9,6 +9,7 @@ use App\Fuel;
 use App\PostCode\PostCodeShapes;
 use App\PostCode\PriceScale;
 use App\Repository\DailyAggregateRepository;
+use App\Repository\DailyPriceRepository;
 use App\Repository\PostCodeDailyAggregateRepository;
 use DateTimeImmutable;
 use InvalidArgumentException;
@@ -58,9 +59,7 @@ class PostCodeMapController extends AbstractController
     ): JsonResponse {
         $day = self::parseDay($day);
 
-        if ($south < -90 || $north > 90 || $west < -180 || $east > 180 || $south > $north || $west > $east) {
-            throw new BadRequestHttpException('The bounds are not valid.');
-        }
+        self::assertValidBounds($south, $west, $north, $east);
 
         return $this->json($this->createAreas($fuel, $day, $this->shapes->getPostCodesIn($south, $west, $north, $east), new PriceScale($lowest, $highest)));
     }
@@ -78,6 +77,40 @@ class PostCodeMapController extends AbstractController
         float $highest,
     ): JsonResponse {
         return $this->json($this->createAreas($fuel, self::parseDay($day), $this->shapes->getPostCodes($region), new PriceScale($lowest, $highest)));
+    }
+
+    /** The stations of a post code, for when it is selected on a map that is not zoomed in far enough to load stations by viewport */
+    #[Route('/post-codes/stations/{fuel}/{postCode}', name: 'app_postcode_stations', requirements: ['postCode' => '\d{5}'], methods: ['GET'])]
+    public function stations(
+        DailyPriceRepository $dailyPrices,
+        Fuel $fuel,
+        string $postCode,
+        #[MapQueryParameter]
+        string $day,
+    ): JsonResponse {
+        return $this->json($dailyPrices->getStationPricesForPostCode($fuel, self::parseDay($day), $postCode));
+    }
+
+    /** The stations in the part of the map that is in view, for when it is zoomed in far enough to not show too many */
+    #[Route('/post-codes/stations/{fuel}', name: 'app_postcode_area_stations', methods: ['GET'])]
+    public function areaStations(
+        DailyPriceRepository $dailyPrices,
+        Fuel $fuel,
+        #[MapQueryParameter]
+        string $day,
+        #[MapQueryParameter]
+        float $south,
+        #[MapQueryParameter]
+        float $west,
+        #[MapQueryParameter]
+        float $north,
+        #[MapQueryParameter]
+        float $east,
+    ): JsonResponse {
+        $day = self::parseDay($day);
+        self::assertValidBounds($south, $west, $north, $east);
+
+        return $this->json($dailyPrices->getStationPricesInArea($fuel, $day, $south, $west, $north, $east));
     }
 
     /** Renders the contents of the turbo frame with the prices next to the map: those of a post code or a region, or of Germany without one */
@@ -103,6 +136,13 @@ class PostCodeMapController extends AbstractController
         }
 
         return $this->render('post_code/card.html.twig', ['fuel' => $fuel, 'day' => $day, 'area' => $area, 'aggregate' => $aggregate]);
+    }
+
+    private static function assertValidBounds(float $south, float $west, float $north, float $east): void
+    {
+        if ($south < -90 || $north > 90 || $west < -180 || $east > 180 || $south > $north || $west > $east) {
+            throw new BadRequestHttpException('The bounds are not valid.');
+        }
     }
 
     private static function parseDay(string $day): DateTimeImmutable
