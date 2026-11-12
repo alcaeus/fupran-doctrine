@@ -128,7 +128,10 @@ class IndexControllerTest extends WebTestCase
         $charts = $this->client->getCrawler()->filter('turbo-frame#home [data-controller="chart-day-link"]');
         self::assertCount(1, $charts);
         self::assertSame('/', $charts->attr('data-chart-day-link-url-value'));
-        self::assertSame('home', $charts->attr('data-chart-day-link-frame-value'));
+        // Only what depends on the day is loaded, so that the chart is not drawn again
+        self::assertSame('home-day', $charts->attr('data-chart-day-link-frame-value'));
+        self::assertCount(0, $this->client->getCrawler()->filter('turbo-frame#home-day [data-controller="chart-day-link"]'));
+        self::assertSelectorExists('turbo-frame#home-day dl');
     }
 
     public function testIndexShowsGermanyWithoutArea(): void
