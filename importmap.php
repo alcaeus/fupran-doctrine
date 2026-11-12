@@ -45,30 +45,6 @@ return [
     '@symfony/ux-leaflet-map' => [
         'path' => './vendor/symfony/ux-leaflet-map/assets/dist/map_controller.js',
     ],
-    '@mongodb-js/charts-embed-dom' => [
-        'version' => '3.3.1',
-    ],
-    '@looker/chatty' => [
-        'version' => '2.3.9',
-    ],
-    'bson' => [
-        'version' => '5.5.1',
-    ],
-    'lodash' => [
-        'path' => './vendor/lodash-es/lodash-es.index.js',
-    ],
-    'debug' => [
-        'version' => '2.6.9',
-    ],
-    'es6-promise/auto' => [
-        'version' => '4.2.8',
-    ],
-    'ms' => [
-        'version' => '2.0.0',
-    ],
-    'lodash-es' => [
-        'version' => '4.17.21',
-    ],
     'chart.js' => [
         'version' => '4.5.0',
     ],
