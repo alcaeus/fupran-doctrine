@@ -334,16 +334,18 @@ export default class extends Controller {
         const title = document.createElement('strong')
         title.textContent = brand ? `${name} (${brand})` : name
 
-        const prices = document.createElement('dl')
-        prices.className = 'mb-1'
+        // One row per price, which never wraps: the popup is as wide as its widest row, which a short name does not make wide enough
+        const prices = document.createElement('div')
+        prices.className = 'my-1 text-nowrap'
         for (const [label, value] of [['Average', weightedAveragePrice], ['Lowest', lowestPrice], ['Highest', highestPrice], ['Last', price]]) {
-            const term = document.createElement('dt')
-            term.className = 'float-start me-2'
+            const row = document.createElement('div')
+            row.className = 'd-flex justify-content-between gap-3'
+            const term = document.createElement('span')
             term.textContent = label
-            const description = document.createElement('dd')
-            description.className = 'mb-0'
+            const description = document.createElement('span')
             description.textContent = priceFormat.format(value)
-            prices.append(term, description)
+            row.append(term, description)
+            prices.append(row)
         }
 
         const link = document.createElement('a')
@@ -355,7 +357,7 @@ export default class extends Controller {
         const tooltip = document.createElement('span')
         tooltip.textContent = name
 
-        return L.marker([latitude, longitude]).bindTooltip(tooltip, { direction: 'top', offset: [0, -30] }).bindPopup(popup)
+        return L.marker([latitude, longitude]).bindTooltip(tooltip, { direction: 'top', offset: [0, -30] }).bindPopup(popup, { minWidth: 170 })
     }
 
     #highlightSelectedPostCode() {
