@@ -38,6 +38,7 @@ class StationPrice
     #[Field]
     public readonly float $price;
 
+    /** phpcs:disable **/
     public float $latitude {
         get => self::toFloat($this->location->getCoordinates()[1]);
     }
@@ -45,6 +46,7 @@ class StationPrice
     public float $longitude {
         get => self::toFloat($this->location->getCoordinates()[0]);
     }
+    /* phpcs:enable **/
 
     /**
      * Doctrine ODM hydrates this document via reflection, bypassing the
