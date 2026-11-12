@@ -5,9 +5,10 @@
 {% block body %}
     <div class="row">
         <div class="col-lg-5 mb-4">
-            <div class="card">
+            {# The map grows to the height of the column next to it #}
+            <div class="card h-100">
                 <div class="card-header">Select a region or post code</div>
-                <div class="card-body">
+                <div class="card-body d-flex flex-column">
                     <twig:PostCode:AreaMap selectedArea="{{ selection.area }}" />
                 </div>
             </div>

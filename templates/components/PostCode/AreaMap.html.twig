@@ -1,6 +1,6 @@
-<div>
+<div class="d-flex flex-column h-100">
     {{ ux_map(this.map, {
-        style: 'height: 500px',
+        style: 'flex: 1 1 auto; min-height: 500px',
         'data-controller': 'postcode-map',
         'data-action': 'ux:map:polygon:before-create->postcode-map#style ux:map:polygon:after-create->postcode-map#decorate ux:map:connect->postcode-map#connectMap',
         'data-postcode-map-url-value': path('app_postcode_shapes'),
