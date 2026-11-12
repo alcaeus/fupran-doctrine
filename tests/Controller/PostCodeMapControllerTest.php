@@ -84,65 +84,6 @@ class PostCodeMapControllerTest extends WebTestCase
         self::assertEqualsCanonicalizing(['10115', '10117'], array_column($areas, 'postCode'));
     }
 
-    public function testCardShowsPricesOfRegion(): void
-    {
-        $this->client->request('GET', '/post-codes/card/diesel', ['day' => '2026-01-15', 'region' => '10']);
-
-        self::assertResponseIsSuccessful();
-        self::assertSelectorExists('turbo-frame#aggregate-card-diesel [data-area="10"]');
-        self::assertSelectorTextContains('turbo-frame#aggregate-card-diesel', 'Post codes 10xxx');
-        // (1 * 1.5 + 1 * 2.0) / 2
-        self::assertSelectorTextContains('turbo-frame#aggregate-card-diesel dl', '1.750 €');
-        // Leads back to the card of Germany
-        self::assertSelectorExists('turbo-frame#aggregate-card-diesel a[href="/post-codes/card/diesel?day=2026-01-15"]');
-    }
-
-    public function testCardShowsPricesOfPostCode(): void
-    {
-        $this->client->request('GET', '/post-codes/card/diesel', ['day' => '2026-01-15', 'postCode' => '10117', 'region' => '80']);
-
-        self::assertResponseIsSuccessful();
-        self::assertSelectorExists('turbo-frame#aggregate-card-diesel [data-area="10117"]');
-        self::assertSelectorTextContains('turbo-frame#aggregate-card-diesel', 'Post code 10117');
-        self::assertSelectorTextContains('turbo-frame#aggregate-card-diesel dl', '2.000 €');
-        // Leads back to its region and to Germany
-        self::assertSelectorExists('turbo-frame#aggregate-card-diesel a[href="/post-codes/card/diesel?day=2026-01-15&region=10"]');
-        self::assertSelectorExists('turbo-frame#aggregate-card-diesel a[href="/post-codes/card/diesel?day=2026-01-15"]');
-    }
-
-    public function testCardRejectsInvalidPostCode(): void
-    {
-        $this->client->request('GET', '/post-codes/card/diesel', ['day' => '2026-01-15', 'postCode' => '101']);
-
-        self::assertResponseStatusCodeSame(404);
-    }
-
-    public function testCardShowsPricesOfGermanyWithoutRegion(): void
-    {
-        static::getContainer()->get(DocumentManager::class)->getDocumentCollection(DailyAggregate::class)->insertOne([
-            'day' => new UTCDateTime(new DateTimeImmutable('2026-01-15', new DateTimeZone('UTC'))),
-            'fuel' => Fuel::Diesel->value,
-            'lowestPrice' => 1.3,
-            'highestPrice' => 2.5,
-            'weightedAveragePrice' => 1.8,
-            'percentiles' => ['p50' => 1.5, 'p90' => 1.55, 'p95' => 1.58, 'p99' => 1.6],
-        ]);
-
-        $this->client->request('GET', '/post-codes/card/diesel', ['day' => '2026-01-15']);
-
-        self::assertResponseIsSuccessful();
-        self::assertSelectorExists('turbo-frame#aggregate-card-diesel');
-        self::assertSelectorNotExists('[data-area]');
-        self::assertSelectorTextContains('turbo-frame#aggregate-card-diesel dl', '1.800 €');
-    }
-
-    public function testCardRejectsInvalidRegion(): void
-    {
-        $this->client->request('GET', '/post-codes/card/diesel', ['day' => '2026-01-15', 'region' => 'abc']);
-
-        self::assertResponseStatusCodeSame(404);
-    }
-
     public function testReturnsOnlyWhatMarkersNeedForStationsOfPostCode(): void
     {
         self::insertDailyPrices([

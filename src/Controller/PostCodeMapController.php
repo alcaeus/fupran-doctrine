@@ -113,31 +113,6 @@ class PostCodeMapController extends AbstractController
         return $this->json($dailyPrices->getStationPricesInArea($fuel, $day, $south, $west, $north, $east));
     }
 
-    /** Renders the contents of the turbo frame with the prices next to the map: those of a post code or a region, or of Germany without one */
-    #[Route('/post-codes/card/{fuel}', name: 'app_postcode_card', methods: ['GET'])]
-    public function card(
-        DailyAggregateRepository $dailyAggregates,
-        Fuel $fuel,
-        #[MapQueryParameter]
-        string $day,
-        #[MapQueryParameter(filter: FILTER_VALIDATE_REGEXP, options: ['regexp' => '/^\d{2}$/'])]
-        ?string $region = null,
-        #[MapQueryParameter(filter: FILTER_VALIDATE_REGEXP, options: ['regexp' => '/^\d{5}$/'])]
-        ?string $postCode = null,
-    ): Response {
-        $day = self::parseDay($day);
-
-        // A post code is more specific than its region
-        $area = $postCode ?? $region;
-
-        $aggregate = null;
-        if ($area === null) {
-            $aggregate = $dailyAggregates->findCompoundAggregateForDay($day) ?? throw new NotFoundHttpException('There are no prices on this day.');
-        }
-
-        return $this->render('post_code/card.html.twig', ['fuel' => $fuel, 'day' => $day, 'area' => $area, 'aggregate' => $aggregate]);
-    }
-
     private static function assertValidBounds(float $south, float $west, float $north, float $east): void
     {
         if ($south < -90 || $north > 90 || $west < -180 || $east > 180 || $south > $north || $west > $east) {

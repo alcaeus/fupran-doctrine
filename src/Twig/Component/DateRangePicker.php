@@ -25,6 +25,13 @@ class DateRangePicker
     /** @var array<string, mixed> */
     public array $routeParams = [];
 
+    /**
+     * Query parameters other than the range that are kept when a range is chosen
+     *
+     * @var array<string, string>
+     */
+    public array $queryParams = [];
+
     /** Earliest selectable day, if known */
     public ?DateTimeImmutable $min = null;
 

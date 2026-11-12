@@ -44,6 +44,9 @@ class PriceMap
 
     public DateTimeImmutable $day;
 
+    /** Region or post code that the map starts with, if any */
+    public ?string $selectedArea = null;
+
     /** @var array{shapes: array<int|string, list<list<list<Point>>>>, prices: array<int|string, float>, scale: PriceScale}|null */
     private array|null $regions = null;
 

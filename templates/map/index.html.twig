@@ -1,0 +1,58 @@
+{% extends 'base.html.twig' %}
+
+{% block title %}{{ fuel.displayValue }} prices - FuPrAn{% endblock %}
+
+{% block body %}
+    <ul class="nav nav-tabs mb-3">
+        {% for tab in fuels %}
+            <li class="nav-item">
+                <a class="nav-link{{ tab == fuel ? ' active' }}" href="{{ path('app_map', {fuel: tab.value}|merge(selection.toQuery)) }}"{% if tab == fuel %} aria-current="page"{% endif %}>{{ tab.displayValue }}</a>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <div class="row">
+        <div class="col-lg-7 mb-4">
+            <div class="card">
+                <div class="card-header">Prices for {{ day|date('d/m/Y') }}</div>
+                <div class="card-body">
+                    <twig:PostCode:PriceMap fuel="{{ fuel }}" day="{{ day }}" selectedArea="{{ selection.area }}" />
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <turbo-frame id="map-details">
+                {% if selection.area is not null %}<div data-area="{{ selection.area }}" hidden></div>{% endif %}
+                {{ include('selection/_area.html.twig', {route: 'app_map', params: {fuel: fuel.value}}) }}
+
+                <div class="card mb-4">
+                    <div class="card-header">Prices for {{ day|date('d/m/Y') }}</div>
+                    <div class="card-body">
+                        {% if dailyAggregate is null %}
+                            <p class="text-muted mb-0">No prices in this area.</p>
+                        {% else %}
+                            <twig:DailyAggregateCard aggregate="{{ dailyAggregate }}" fuel="{{ fuel }}" />
+                        {% endif %}
+                    </div>
+                </div>
+
+                <twig:DateRangePicker range="{{ selection.range }}" frame="map-details" routeName="app_map" :routeParams="{fuel: fuel.value}" :queryParams="selection.toQuery({from: null, to: null})" today="{{ latestDay }}" />
+                <div class="card">
+                    <div class="card-body">
+                        <twig:Chart:DailyAggregate:PriceHistory
+                            aggregates="{{ recentDailyAggregates }}"
+                            fuel="{{ fuel.value }}"
+                            data-controller="chart-day-link"
+                            data-chart-day-link-url-value="{{ path('app_map', {fuel: fuel.value}) }}"
+                            data-chart-day-link-frame-value="_top"
+                        />
+                        {% if recentDailyAggregates is empty %}
+                            <div class="alert alert-info mt-3 mb-0" role="alert">No price data available for the selected range.</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </turbo-frame>
+        </div>
+    </div>
+{% endblock %}

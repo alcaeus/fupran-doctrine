@@ -1,4 +1,5 @@
 import { Controller } from '@hotwired/stimulus'
+import * as Turbo from '@hotwired/turbo'
 import * as L from 'leaflet'
 
 const priceFormat = new Intl.NumberFormat('de-DE', {
@@ -16,8 +17,9 @@ function areaStyle(fillColor, selected = false) {
 // Enhances a Symfony UX map that draws the regions of Germany as polygons:
 //
 // - Colours the regions with the colour chosen on the server.
-// - Clicking a region or post code zooms to it and shows its prices in the card (a turbo frame) next to the map. The
-//   links in that card lead back to the region or to the prices of Germany, which the map follows.
+// - Clicking a region or post code zooms to it and loads the page with it as the area into a turbo frame next to the
+//   map, which shows its prices and history. The links in that frame lead back to the region or to Germany, which the
+//   map follows. The area is part of the URL, so the map starts with the area that the page was requested with.
 // - From a zoom level on, replaces the regions with the post codes in view. Drawing all 8,000 post code areas at once
 //   is far too slow, so they are loaded from the server for the visible part of the map only, whenever it moves.
 //   Below that zoom level, a selected region shows its own post codes.
@@ -30,8 +32,9 @@ export default class extends Controller {
         stationsUrl: String,
         areaStationsUrl: String,
         stationUrl: String,
-        cardUrl: String,
-        cardFrame: String,
+        selectUrl: String,
+        selectFrame: String,
+        area: String,
         day: String,
         label: String,
         lowest: Number,
@@ -56,6 +59,8 @@ export default class extends Controller {
     postCodeLayers = new Map()
     // What the post code layer shows, to not load the post codes of a region again when the map moves
     shownRegion = null
+    // A post code to select once the post codes of its region are loaded
+    pendingPostCode = null
 
     style({ detail: { definition } }) {
         definition.bridgeOptions = areaStyle(definition.extra.fillColor)
@@ -80,6 +85,7 @@ export default class extends Controller {
 
         this.#fitToRegions()
         map.on('moveend', () => this.#update())
+        this.#restoreArea()
 
         // The map of a fuel is drawn while its tab is hidden, where it has no size. Fit once it is shown.
         this.observer = new ResizeObserver(() => {
@@ -90,8 +96,8 @@ export default class extends Controller {
         })
         this.observer.observe(this.element)
 
-        // The card leads back to the region or to Germany with links, which the map has to follow
-        this.frame = document.getElementById(this.cardFrameValue)
+        // The frame leads back to the region or to Germany with links, which the map has to follow
+        this.frame = document.getElementById(this.selectFrameValue)
         this.onFrameLoad = () => {
             const area = this.frame.querySelector('[data-area]')?.dataset.area ?? null
             if (area === (this.selectedPostCode ?? this.selectedRegion)) {
@@ -121,8 +127,17 @@ export default class extends Controller {
         }
     }
 
+    #restoreArea() {
+        if (this.areaValue.length === 2) {
+            this.#showRegion(this.areaValue)
+        } else if (this.areaValue.length === 5) {
+            this.pendingPostCode = this.areaValue
+            this.#showRegion(this.areaValue.slice(0, 2))
+        }
+    }
+
     #selectRegion(region) {
-        this.#loadCard({ region })
+        this.#select(region)
         this.#showRegion(region)
     }
 
@@ -132,7 +147,7 @@ export default class extends Controller {
             return
         }
 
-        this.#loadCard({ postCode })
+        this.#select(postCode)
         this.selectedPostCode = postCode
         // Below the zoom level for loading post codes by viewport, its region is shown
         this.selectedRegion = postCode.slice(0, 2)
@@ -143,10 +158,13 @@ export default class extends Controller {
         this.#update()
     }
 
-    #loadCard(query) {
-        if (this.frame) {
-            this.frame.src = `${this.cardUrlValue}?${new URLSearchParams({ day: this.dayValue, ...query })}`
-        }
+    // Adds the area to the URL, which keeps the day and the range, and loads the page into the frame
+    #select(area) {
+        const url = new URL(this.selectUrlValue, window.location.origin)
+        new URLSearchParams(window.location.search).forEach((value, key) => url.searchParams.set(key, value))
+        url.searchParams.set('area', area)
+
+        Turbo.visit(url.toString(), { frame: this.selectFrameValue, action: 'advance' })
     }
 
     #showRegion(region) {
@@ -324,5 +342,24 @@ export default class extends Controller {
             this.postCodeLayers.set(area.postCode, layer)
         }
         this.postCodes.addTo(this.map)
+
+        if (this.pendingPostCode !== null) {
+            const postCode = this.pendingPostCode
+            this.pendingPostCode = null
+            this.#restorePostCode(postCode)
+        }
+    }
+
+    // Selects a post code without loading the frame, as the page was requested with it
+    #restorePostCode(postCode) {
+        const layer = this.postCodeLayers.get(postCode)
+        if (!layer) {
+            return
+        }
+
+        this.selectedPostCode = postCode
+        this.#highlightSelectedPostCode()
+        this.map.fitBounds(layer.getBounds())
+        this.#update()
     }
 }
