@@ -54,34 +54,10 @@ return [
     'date-fns' => [
         'version' => '2.29.3',
     ],
-    'chartjs-chart-geo' => [
-        'version' => '4.3.6',
-    ],
-    'd3-geo' => [
-        'version' => '3.1.1',
-    ],
     'chart.js/helpers' => [
         'version' => '4.5.0',
     ],
-    'd3-scale-chromatic' => [
-        'version' => '3.1.0',
-    ],
-    'topojson-client' => [
-        'version' => '3.1.0',
-    ],
     '@kurkle/color' => [
         'version' => '0.3.4',
-    ],
-    'd3-array' => [
-        'version' => '3.2.4',
-    ],
-    'd3-interpolate' => [
-        'version' => '3.0.1',
-    ],
-    'd3-color' => [
-        'version' => '3.1.0',
-    ],
-    'internmap' => [
-        'version' => '2.0.3',
     ],
 ];
