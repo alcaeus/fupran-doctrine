@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace App\Tests\Controller;
 
 use App\Document\DailyAggregate;
+use App\Document\DailyPrice;
 use App\Document\PostCodeDailyAggregate;
 use App\Fuel;
 use DateTimeImmutable;
 use DateTimeZone;
 use Doctrine\ODM\MongoDB\DocumentManager;
+use MongoDB\BSON\Binary;
+use MongoDB\BSON\ObjectId;
 use MongoDB\BSON\UTCDateTime;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Uid\Uuid;
 
 use function array_column;
 use function json_decode;
@@ -137,6 +141,49 @@ class PostCodeMapControllerTest extends WebTestCase
         $this->client->request('GET', '/post-codes/card/diesel', ['day' => '2026-01-15', 'region' => 'abc']);
 
         self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testReturnsOnlyWhatMarkersNeedForStationsOfPostCode(): void
+    {
+        $dm = static::getContainer()->get(DocumentManager::class);
+        $collection = $dm->getDocumentCollection(DailyPrice::class);
+        $collection->drop();
+        $day = new UTCDateTime(new DateTimeImmutable('2026-01-15', new DateTimeZone('UTC')));
+        $stationId = '11111111-1111-1111-1111-111111111111';
+        foreach ([['10115', 1.5, Fuel::Diesel], ['10117', 2.0, Fuel::Diesel], ['10115', 1.7, Fuel::E5]] as [$postCode, $price, $fuel]) {
+            $collection->insertOne([
+                'fuel' => $fuel->value,
+                'day' => $day,
+                'station' => [
+                    '_id' => new Binary(Uuid::fromString($stationId)->toBinary(), Binary::TYPE_UUID),
+                    'name' => 'Station ' . $postCode,
+                    'brand' => 'Brand',
+                    'location' => ['type' => 'Point', 'coordinates' => [13.4, 52.5]],
+                    'address' => ['postCode' => $postCode],
+                ],
+                'openingPrice' => $price,
+                'closingPrice' => $price,
+                'lowestPrice' => ['_id' => new ObjectId(), 'price' => $price],
+                'highestPrice' => ['_id' => new ObjectId(), 'price' => $price],
+                'prices' => [['_id' => new ObjectId(), 'date' => $day, 'price' => $price]],
+                'weightedAveragePrice' => $price,
+            ]);
+        }
+
+        $this->client->request('GET', '/post-codes/stations/diesel/10115', ['day' => '2026-01-15']);
+
+        self::assertResponseIsSuccessful();
+        $prices = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertSame([
+            [
+                'id' => $stationId,
+                'name' => 'Station 10115',
+                'brand' => 'Brand',
+                'price' => 1.5,
+                'latitude' => 52.5,
+                'longitude' => 13.4,
+            ],
+        ], $prices);
     }
 
     public function testRejectsInvalidBounds(): void

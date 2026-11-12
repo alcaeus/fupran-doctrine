@@ -21,10 +21,13 @@ function areaStyle(fillColor, selected = false) {
 // - From a zoom level on, replaces the regions with the post codes in view. Drawing all 8,000 post code areas at once
 //   is far too slow, so they are loaded from the server for the visible part of the map only, whenever it moves.
 //   Below that zoom level, a selected region shows its own post codes.
+// - Selecting a post code also shows markers for its stations, with their price and a link to the station.
 export default class extends Controller {
     static values = {
         url: String,
         regionUrl: String,
+        stationsUrl: String,
+        stationUrl: String,
         cardUrl: String,
         cardFrame: String,
         day: String,
@@ -38,6 +41,8 @@ export default class extends Controller {
     regions = []
     regionLayers = new Map()
     postCodes = L.layerGroup()
+    stations = L.layerGroup()
+    stationsRequest = null
     request = null
     fitted = false
     selectedRegion = null
@@ -99,6 +104,7 @@ export default class extends Controller {
     disconnect() {
         this.observer?.disconnect()
         this.request?.abort()
+        this.stationsRequest?.abort()
         this.frame?.removeEventListener('turbo:frame-load', this.onFrameLoad)
     }
 
@@ -125,6 +131,7 @@ export default class extends Controller {
         // Below the zoom level for loading post codes by viewport, its region is shown
         this.selectedRegion = postCode.slice(0, 2)
         this.#highlightSelectedPostCode()
+        this.#loadStations(postCode)
 
         this.map.fitBounds(layer.getBounds())
         // The map does not move if it already shows the post code
@@ -140,6 +147,7 @@ export default class extends Controller {
     #showRegion(region) {
         this.selectedRegion = region
         this.selectedPostCode = null
+        this.#clearStations()
         this.#highlightSelectedPostCode()
 
         this.map.fitBounds(L.featureGroup(this.regionLayers.get(region)).getBounds())
@@ -150,8 +158,48 @@ export default class extends Controller {
     #showOverview() {
         this.selectedRegion = null
         this.selectedPostCode = null
+        this.#clearStations()
         this.#fitToRegions()
         this.#update()
+    }
+
+    #clearStations() {
+        this.stationsRequest?.abort()
+        this.stations.clearLayers()
+    }
+
+    async #loadStations(postCode) {
+        this.#clearStations()
+        this.stationsRequest = new AbortController()
+
+        let prices
+        try {
+            const response = await fetch(`${this.stationsUrlValue.replace(/00000$/, postCode)}?${new URLSearchParams({ day: this.dayValue })}`, { signal: this.stationsRequest.signal })
+            if (!response.ok) {
+                throw new Error(`Failed to load stations: ${response.status}`)
+            }
+            prices = await response.json()
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error(error)
+            }
+
+            return
+        }
+
+        for (const { id, name, brand, latitude, longitude, price } of prices) {
+            // Built from DOM nodes as station names are not trusted to be free of markup
+            const popup = document.createElement('div')
+            const title = document.createElement('strong')
+            title.textContent = brand ? `${name} (${brand})` : name
+            const link = document.createElement('a')
+            link.href = this.stationUrlValue.replace(/0{8}-0{4}-0{4}-0{4}-0{12}$/, id)
+            link.textContent = 'Station details'
+            popup.append(title, document.createElement('br'), `${priceFormat.format(price)} `, document.createElement('br'), link)
+
+            L.marker([latitude, longitude], { title: name }).bindPopup(popup).addTo(this.stations)
+        }
+        this.stations.addTo(this.map)
     }
 
     #highlightSelectedPostCode() {

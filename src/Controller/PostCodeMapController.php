@@ -9,6 +9,7 @@ use App\Fuel;
 use App\PostCode\PostCodeShapes;
 use App\PostCode\PriceScale;
 use App\Repository\DailyAggregateRepository;
+use App\Repository\DailyPriceRepository;
 use App\Repository\PostCodeDailyAggregateRepository;
 use DateTimeImmutable;
 use InvalidArgumentException;
@@ -78,6 +79,18 @@ class PostCodeMapController extends AbstractController
         float $highest,
     ): JsonResponse {
         return $this->json($this->createAreas($fuel, self::parseDay($day), $this->shapes->getPostCodes($region), new PriceScale($lowest, $highest)));
+    }
+
+    /** The stations of a post code with their closing price on the given day, for markers on the map */
+    #[Route('/post-codes/stations/{fuel}/{postCode}', name: 'app_postcode_stations', requirements: ['postCode' => '\d{5}'], methods: ['GET'])]
+    public function stations(
+        DailyPriceRepository $dailyPrices,
+        Fuel $fuel,
+        string $postCode,
+        #[MapQueryParameter]
+        string $day,
+    ): JsonResponse {
+        return $this->json($dailyPrices->getStationPricesForPostCode($fuel, self::parseDay($day), $postCode));
     }
 
     /** Renders the contents of the turbo frame with the prices next to the map: those of a post code or a region, or of Germany without one */

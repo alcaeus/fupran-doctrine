@@ -12,6 +12,7 @@ use App\Document\DailyPrice;
 use App\Document\EmbeddedDailyPrice;
 use App\Document\Price;
 use App\Document\Station;
+use App\Document\StationPrice;
 use App\Fuel;
 use Closure;
 use DateTimeImmutable;
@@ -187,6 +188,39 @@ class DailyPriceRepository extends AbstractRepository
             ->sort('fuel', 1)
             ->getQuery()
             ->getIterator();
+    }
+
+    /**
+     * The closing prices of a fuel on the given day for all stations in a post code, reduced to what a map needs to
+     * show them. Stations without a location cannot be placed on a map and are left out.
+     *
+     * @return list<StationPrice>
+     */
+    public function getStationPricesForPostCode(Fuel $fuel, DateTimeImmutable $day, string $postCode): array
+    {
+        $builder = $this->createAggregationBuilder();
+
+        /** @var array<int, StationPrice> $prices */
+        $prices = iterator_to_array(
+            $builder
+                ->hydrate(StationPrice::class)
+                ->match()
+                    ->field('fuel')->equals($fuel->value)
+                    ->field('day')->equals($day->setTimezone(new DateTimeZone('UTC'))->setTime(0, 0))
+                    ->field('station.address.postCode')->equals($postCode)
+                    ->field('station.location')->exists(true)
+                ->project()
+                    ->field('_id')->expression('$station._id')
+                    ->field('name')->expression('$station.name')
+                    ->field('brand')->expression('$station.brand')
+                    ->field('location')->expression('$station.location')
+                    ->field('price')->expression('$closingPrice')
+                ->getAggregation()
+                ->getIterator(),
+            false,
+        );
+
+        return array_values($prices);
     }
 
     /** @return Iterator<DailyPrice> */
