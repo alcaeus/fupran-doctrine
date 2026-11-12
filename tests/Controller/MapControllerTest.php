@@ -81,7 +81,7 @@ class MapControllerTest extends WebTestCase
         self::assertSelectorTextContains('turbo-frame#map-details dl', '1.550 €');
     }
 
-    public function testChartVisitsWholePageForDay(): void
+    public function testChartOnlyLoadsWhatDependsOnTheDay(): void
     {
         $this->client->request('GET', '/map/e5');
 
@@ -89,7 +89,20 @@ class MapControllerTest extends WebTestCase
         $chart = $this->client->getCrawler()->filter('turbo-frame#map-details [data-controller="chart-day-link"]');
         self::assertCount(1, $chart);
         self::assertSame('/map/e5', $chart->attr('data-chart-day-link-url-value'));
-        self::assertSame('_top', $chart->attr('data-chart-day-link-frame-value'));
+        self::assertSame('map-day', $chart->attr('data-chart-day-link-frame-value'));
+        // The chart is not in the frame that is loaded, so it is not drawn again
+        self::assertSelectorNotExists('turbo-frame#map-day [data-controller="chart-day-link"]');
+        // The frame tells the map which day it shows
+        self::assertSame($this->today->format('Y-m-d'), $this->client->getCrawler()->filter('turbo-frame#map-day [data-day]')->attr('data-day'));
+        self::assertSelectorExists('turbo-frame#map-day dl');
+    }
+
+    public function testFuelLinksKeepTheCurrentQuery(): void
+    {
+        $this->client->request('GET', '/map/diesel');
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('a.nav-link[data-controller="query-link"][data-action="click->query-link#keep"]');
     }
 
     public function testRangeFormKeepsAreaAndDay(): void

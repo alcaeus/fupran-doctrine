@@ -8,20 +8,12 @@ use App\Fuel;
 use App\Map\MapFactory;
 use App\PostCode\PostCodeShapes;
 use App\PostCode\PriceScale;
-use App\Repository\PostCodeDailyAggregateRepository;
+use App\PostCode\RegionPrices;
 use DateTimeImmutable;
 use Symfony\UX\Map\Map as UxMap;
 use Symfony\UX\Map\Point;
 use Symfony\UX\Map\Polygon;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
-
-use function array_filter;
-use function array_keys;
-use function array_map;
-use function max;
-use function min;
-
-use const ARRAY_FILTER_USE_KEY;
 
 /**
  * Colours the regions of Germany by price. The map's Stimulus controller replaces them with the post codes in view once
@@ -40,6 +32,9 @@ class PriceMap
      */
     public const int STATION_ZOOM = 11;
 
+    /** Colour of regions without prices */
+    public const string NO_PRICE_COLOR = '#adb5bd';
+
     public Fuel $fuel;
 
     public DateTimeImmutable $day;
@@ -47,12 +42,12 @@ class PriceMap
     /** Region or post code that the map starts with, if any */
     public ?string $selectedArea = null;
 
-    /** @var array{shapes: array<int|string, list<list<list<Point>>>>, prices: array<int|string, float>, scale: PriceScale}|null */
+    /** @var array{prices: array<string, float>, scale: PriceScale}|null */
     private array|null $regions = null;
 
     public function __construct(
         private readonly PostCodeShapes $shapes,
-        private readonly PostCodeDailyAggregateRepository $aggregates,
+        private readonly RegionPrices $regionPrices,
         private readonly MapFactory $mapFactory,
     ) {
     }
@@ -65,13 +60,14 @@ class PriceMap
             ->zoom(6);
 
         $regions = $this->getRegions();
-        foreach ($regions['shapes'] as $label => $polygons) {
+        // All regions are drawn, as the map shows another day without loading them again. Those without prices have no colour.
+        foreach ($this->shapes->getRegions() as $label => $polygons) {
             $label = (string) $label;
-            $price = $regions['prices'][$label];
+            $price = $regions['prices'][$label] ?? null;
             foreach ($polygons as $index => $rings) {
                 $map->addPolygon(new Polygon(
                     points: $rings,
-                    extra: ['fillColor' => $regions['scale']->getColor($price), 'region' => $label, 'price' => $price],
+                    extra: ['fillColor' => $price === null ? self::NO_PRICE_COLOR : $regions['scale']->getColor($price), 'region' => $label, 'price' => $price],
                     id: $label . '-' . $index,
                 ));
             }
@@ -85,23 +81,9 @@ class PriceMap
         return $this->getRegions()['scale'];
     }
 
-    /** @return array{shapes: array<int|string, list<list<list<Point>>>>, prices: array<int|string, float>, scale: PriceScale} */
+    /** @return array{prices: array<string, float>, scale: PriceScale} */
     private function getRegions(): array
     {
-        if ($this->regions !== null) {
-            return $this->regions;
-        }
-
-        $prices = $this->aggregates->getRegionalWeightedAveragePrices($this->fuel, $this->day, 2);
-
-        // Regions without a price are not drawn
-        $shapes = array_filter($this->shapes->getRegions(), static fn (string|int $label): bool => isset($prices[$label]), ARRAY_FILTER_USE_KEY);
-        $shownPrices = array_map(static fn (string|int $label): float => $prices[(string) $label], array_keys($shapes));
-
-        return $this->regions = [
-            'shapes' => $shapes,
-            'prices' => $prices,
-            'scale' => new PriceScale($shownPrices === [] ? 0.0 : min($shownPrices), $shownPrices === [] ? 0.0 : max($shownPrices)),
-        ];
+        return $this->regions ??= $this->regionPrices->get($this->fuel, $this->day);
     }
 }

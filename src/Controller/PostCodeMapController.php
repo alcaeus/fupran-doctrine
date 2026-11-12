@@ -8,6 +8,7 @@ use App\DateRange;
 use App\Fuel;
 use App\PostCode\PostCodeShapes;
 use App\PostCode\PriceScale;
+use App\PostCode\RegionPrices;
 use App\Repository\DailyPriceRepository;
 use App\Repository\PostCodeDailyAggregateRepository;
 use App\Twig\Component\PostCode\AreaMap;
@@ -58,6 +59,30 @@ class PostCodeMapController extends AbstractController
         self::assertValidBounds($south, $west, $north, $east);
 
         return $this->json($this->createAreas($fuel, $day, $this->shapes->getPostCodesIn($south, $west, $north, $east), new PriceScale($lowest, $highest)));
+    }
+
+    /** The prices of all regions and the scale that colours them, for when the map shows another day */
+    #[Route('/post-codes/regions/{fuel}', name: 'app_postcode_regions', methods: ['GET'])]
+    public function regions(
+        RegionPrices $regionPrices,
+        Fuel $fuel,
+        #[MapQueryParameter]
+        string $day,
+    ): JsonResponse {
+        ['prices' => $prices, 'scale' => $scale] = $regionPrices->get($fuel, self::parseDay($day));
+
+        $regions = [];
+        foreach ($prices as $region => $price) {
+            $regions[(string) $region] = ['price' => $price, 'color' => $scale->getColor($price)];
+        }
+
+        return $this->json([
+            'lowest' => $scale->lowest,
+            'highest' => $scale->highest,
+            'legend' => $scale->getLegend(),
+            // An object, as a list would be empty without regions
+            'regions' => (object) $regions,
+        ]);
     }
 
     /** The post codes of a region, for when the map is zoomed to a region but not far enough to load post codes by viewport */

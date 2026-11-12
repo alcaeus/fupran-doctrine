@@ -18,6 +18,7 @@ use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Uid\Uuid;
 
 use function array_column;
+use function array_keys;
 use function json_decode;
 
 use const JSON_THROW_ON_ERROR;
@@ -81,6 +82,39 @@ class PostCodeMapControllerTest extends WebTestCase
         /** @var list<array{postCode: string}> $areas */
         $areas = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
         self::assertEqualsCanonicalizing(['10115', '10117'], array_column($areas, 'postCode'));
+    }
+
+    public function testReturnsRegionPricesAndScaleOfDay(): void
+    {
+        $this->client->request('GET', '/post-codes/regions/diesel', ['day' => '2026-01-15']);
+
+        self::assertResponseIsSuccessful();
+        /** @var array{lowest: float, highest: float, legend: list<array{color: string, price: float}>, regions: array<int, array{price: float, color: string}>} $scale */
+        $scale = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        // (1.5 + 2.0) / 2 in the region 10, and 1.9 in the region 80
+        self::assertEqualsCanonicalizing(['10', '80'], array_keys($scale['regions']));
+        self::assertEqualsWithDelta(1.75, $scale['regions'][10]['price'], 0.0001);
+        self::assertEqualsWithDelta(1.75, $scale['lowest'], 0.0001);
+        self::assertEqualsWithDelta(1.9, $scale['highest'], 0.0001);
+        self::assertCount(8, $scale['legend']);
+        self::assertMatchesRegularExpression('/^#[0-9a-f]{6}$/', $scale['regions'][80]['color']);
+    }
+
+    public function testReturnsNoRegionPricesForDayWithoutPrices(): void
+    {
+        $this->client->request('GET', '/post-codes/regions/diesel', ['day' => '2026-01-14']);
+
+        self::assertResponseIsSuccessful();
+        /** @var array{regions: array<int, mixed>} $scale */
+        $scale = json_decode((string) $this->client->getResponse()->getContent(), true, flags: JSON_THROW_ON_ERROR);
+        self::assertSame([], $scale['regions']);
+    }
+
+    public function testRejectsInvalidDayForRegionPrices(): void
+    {
+        $this->client->request('GET', '/post-codes/regions/diesel', ['day' => 'yesterday']);
+
+        self::assertResponseStatusCodeSame(400);
     }
 
     public function testReturnsOnlyWhatMarkersNeedForStationsOfPostCode(): void

@@ -9,6 +9,9 @@ const priceFormat = new Intl.NumberFormat('de-DE', {
     maximumFractionDigits: 3,
 })
 
+// The colour of regions without prices, which is also chosen on the server
+const noPriceColor = '#adb5bd'
+
 // The areas are partly transparent so the streets and place names of the base map stay readable underneath
 function areaStyle(fillColor, selected = false) {
     return { color: selected ? '#000' : '#555', weight: selected ? 3 : 1, fillColor, fillOpacity: 0.4 }
@@ -16,7 +19,7 @@ function areaStyle(fillColor, selected = false) {
 
 // Maps that only select an area have no prices
 function label(area, price) {
-    return price === undefined ? area : `${area}: ${priceFormat.format(price)}`
+    return price == null ? area : `${area}: ${priceFormat.format(price)}`
 }
 
 // Enhances a Symfony UX map that draws the regions of Germany as polygons:
@@ -35,6 +38,8 @@ export default class extends Controller {
     static values = {
         url: String,
         regionUrl: String,
+        regionsUrl: String,
+        legend: String,
         stationsUrl: String,
         areaStationsUrl: String,
         stationUrl: String,
@@ -67,6 +72,7 @@ export default class extends Controller {
     shownRegion = null
     // A post code to select once the post codes of its region are loaded
     pendingPostCode = null
+    dayRequest = null
 
     style({ detail: { definition } }) {
         definition.bridgeOptions = areaStyle(definition.extra.fillColor)
@@ -105,6 +111,11 @@ export default class extends Controller {
         // The frame leads back to the region or to Germany with links, which the map has to follow
         this.frame = document.getElementById(this.selectFrameValue)
         this.onFrameLoad = () => {
+            const day = this.frame.querySelector('[data-day]')?.dataset.day
+            if (day && day !== this.dayValue) {
+                this.#changeDay(day)
+            }
+
             const area = this.frame.querySelector('[data-area]')?.dataset.area ?? null
             if (area === (this.selectedPostCode ?? this.selectedRegion)) {
                 return
@@ -123,6 +134,7 @@ export default class extends Controller {
         this.observer?.disconnect()
         this.request?.abort()
         this.stationsRequest?.abort()
+        this.dayRequest?.abort()
         this.frame?.removeEventListener('turbo:frame-load', this.onFrameLoad)
     }
 
@@ -131,6 +143,70 @@ export default class extends Controller {
             this.fitted = true
             this.map.fitBounds(L.featureGroup(this.regions).getBounds())
         }
+    }
+
+    // Shows the prices of another day, keeping the map where it is: the colours of the regions and the legend are loaded,
+    // and the post codes and stations in view are loaded again
+    async #changeDay(day) {
+        this.dayRequest?.abort()
+        this.dayRequest = new AbortController()
+
+        let scale
+        try {
+            const response = await fetch(`${this.regionsUrlValue}?${new URLSearchParams({ day })}`, { signal: this.dayRequest.signal })
+            if (!response.ok) {
+                throw new Error(`Failed to load regions: ${response.status}`)
+            }
+            scale = await response.json()
+        } catch (error) {
+            if (error.name !== 'AbortError') {
+                console.error(error)
+            }
+
+            return
+        }
+
+        this.dayValue = day
+        this.lowestValue = scale.lowest
+        this.highestValue = scale.highest
+
+        for (const [region, layers] of this.regionLayers) {
+            const info = scale.regions[region]
+            for (const layer of layers) {
+                layer.setStyle(areaStyle(info?.color ?? noPriceColor, false))
+                layer.setTooltipContent(label(`${region}xxx`, info?.price))
+            }
+        }
+        this.#renderLegend(scale)
+
+        // Post codes and stations are shown for the new day once loaded
+        this.request?.abort()
+        this.shownRegion = null
+        this.postCodes.clearLayers()
+        this.postCodeLayers.clear()
+        this.#clearStations()
+        this.#update()
+    }
+
+    #renderLegend({ legend, lowest, highest }) {
+        const element = document.getElementById(this.legendValue)
+        if (!element) {
+            return
+        }
+
+        const swatches = legend.map(({ color, price }) => {
+            const swatch = document.createElement('span')
+            swatch.className = 'd-inline-block border'
+            swatch.style.cssText = `width: 1.5rem; height: 1rem; background: ${color}`
+            swatch.title = `${priceFormat.format(price)}`
+
+            return swatch
+        })
+        const range = document.createElement('span')
+        range.className = 'ms-1'
+        range.textContent = `${priceFormat.format(lowest)} \u2013 ${priceFormat.format(highest)}`
+
+        element.replaceChildren(...swatches, range)
     }
 
     #restoreArea() {
