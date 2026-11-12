@@ -33,7 +33,8 @@ function label(area, price) {
 //   Below that zoom level, a selected region shows its own post codes. Without prices (and a scale), the areas are
 //   only a way to select one, and no stations are shown.
 // - From a higher zoom level on, also shows markers for the stations in view, with their prices of the day and a link to the
-//   station. Below it, only a selected post code shows its stations.
+//   station. Hovering a marker shows the name of the station, clicking it the prices of the day. Below that zoom level,
+//   only a selected post code shows its stations.
 export default class extends Controller {
     static values = {
         url: String,
@@ -349,7 +350,11 @@ export default class extends Controller {
         link.textContent = 'Station details'
         popup.append(title, prices, link)
 
-        return L.marker([latitude, longitude], { title: name }).bindPopup(popup)
+        // An element, as a string would be read as markup. Its own tooltip replaces the browser's title.
+        const tooltip = document.createElement('span')
+        tooltip.textContent = name
+
+        return L.marker([latitude, longitude]).bindTooltip(tooltip, { direction: 'top', offset: [0, -30] }).bindPopup(popup)
     }
 
     #highlightSelectedPostCode() {
